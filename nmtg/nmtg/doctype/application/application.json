@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "{application}",
  "creation": "2026-05-07 16:59:56.374429",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -18,10 +19,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-07 17:19:33.358798",
+ "modified": "2026-05-11 11:07:02.641709",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Application",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
@@ -39,6 +41,7 @@
  ],
  "row_format": "Dynamic",
  "rows_threshold_for_grid_search": 20,
+ "search_fields": "application",
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],

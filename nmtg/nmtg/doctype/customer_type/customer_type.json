@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "prompt",
+ "autoname": "{customer_type}",
  "creation": "2026-05-07 16:58:56.701817",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -13,7 +13,8 @@
   {
    "fieldname": "customer_type",
    "fieldtype": "Data",
-   "label": "Customer Type"
+   "label": "Customer Type",
+   "unique": 1
   },
   {
    "fieldname": "industry",
@@ -25,10 +26,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-07 17:17:11.153802",
+ "modified": "2026-05-12 17:22:18.596763",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Customer Type",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {
