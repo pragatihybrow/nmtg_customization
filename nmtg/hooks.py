@@ -258,4 +258,6 @@ app_license = "mit"
 
 doctype_js = {
     "Item": "public/js/item.js",
+    "Customer":"public/js/customer.js",
+    "Item Group":"public/js/item_group.js"
 }

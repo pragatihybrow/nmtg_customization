@@ -1,188 +1,73 @@
-
-
-frappe.ui.form.on('Item', {
-    custom_customer_type: function(frm) {
-        frm.set_value('custom_industry', []);
-        frm.set_value('custom_application', []);
-        set_industry_filter(frm);
+frappe.ui.form.on("Item", {
+    onload: function(frm) { 
+        toggle_models_field(frm); 
+        set_models_filter(frm);
+    },
+    refresh: function(frm) { 
+        toggle_models_field(frm); 
+        set_models_filter(frm);
     },
 
-    custom_industry: function(frm) {
-        frm.set_value('custom_application', []);
-        set_application_filter(frm);
+    item_group: function(frm) {
+        // Clear all dependent fields when Item Group changes
+        frm.set_value("custom_product_group", "");
+        frm.set_value("custom_sub_product_group", "");
+        frm.set_value("custom_models", []);
+        toggle_models_field(frm);
+        set_models_filter(frm);
     },
 
-    onload: function(frm) {
-        set_industry_filter(frm);
-        set_application_filter(frm);
+    custom_product_group: function(frm) {
+        // Clear dependent fields when Product Group changes
+        frm.set_value("custom_sub_product_group", "");
+        frm.set_value("custom_models", []);
+        toggle_models_field(frm);
+        set_models_filter(frm);
     },
 
-    refresh: function(frm) {
-        set_industry_filter(frm);
-        set_application_filter(frm);
+    custom_sub_product_group: function(frm) {
+        // Clear models when Sub Product Group changes
+        frm.set_value("custom_models", []);
+        toggle_models_field(frm); 
+        set_models_filter(frm);
     }
 });
 
-function set_industry_filter(frm) {
-    const customer_types = (frm.doc.custom_customer_type || [])
-        .map(row => row.customer_type)
-        .filter(Boolean);
-
-    if (!customer_types.length) {
-        frm.set_query('custom_industry', () => ({ filters: [] }));
-        return;
-    }
-
-    Promise.all(
-        customer_types.map(ct =>
-            frappe.db.get_doc('Customer Type', ct).catch(() => null)
-        )
-    ).then(docs => {
-        const industry_names = [
-            ...new Set(
-                docs
-                    .filter(Boolean)
-                    .flatMap(doc => (doc.industry || []).map(row => row.industry).filter(Boolean))
-            )
-        ];
-
-        frm.set_query('custom_industry', function() {
-            if (!industry_names.length) {
-                return {
-                    filters: [['name', '=', '__none__']]
-                };
+function toggle_models_field(frm) {
+    if (frm.doc.custom_sub_product_group) {
+        frappe.db.get_value(
+            "Item Group",
+            frm.doc.custom_sub_product_group,
+            "custom_include_models",
+            function(value) {
+                frm.set_df_property(
+                    "custom_models",
+                    "hidden",
+                    value.custom_include_models ? 0 : 1
+                );
             }
-            return {
-                filters: [['name', 'in', industry_names]]
-            };
-        });
-    });
+        );
+    } else {
+        frm.set_df_property("custom_models", "hidden", 1);
+    }
 }
 
-function set_application_filter(frm) {
-    const industries = (frm.doc.custom_industry || [])
-        .map(row => row.industry)
-        .filter(Boolean);
-
-    if (!industries.length) {
-        frm.set_query('custom_application', () => ({ filters: [] }));
-        return;
-    }
-
-    Promise.all(
-        industries.map(ind =>
-            frappe.db.get_doc('Industry', ind).catch(() => null)
-        )
-    ).then(docs => {
-        const application_names = [
-            ...new Set(
-                docs
-                    .filter(Boolean)
-                    .flatMap(doc => (doc.application || []).map(row => row.application).filter(Boolean))
-            )
-        ];
-
-        frm.set_query('custom_application', function() {
-            if (!application_names.length) {
-                return {
-                    filters: [['name', '=', '__none__']]
-                };
-            }
+function set_models_filter(frm) {
+    if (frm.doc.custom_sub_product_group) {
+        frm.set_query("custom_models", function() {
             return {
-                filters: [['name', 'in', application_names]]
+                filters: {
+                    parent_item_group: frm.doc.custom_sub_product_group
+                }
             };
         });
-    });
+    } else {
+        frm.set_query("custom_models", function() {
+            return {
+                filters: {
+                    parent_item_group: ""
+                }
+            };
+        });
+    }
 }
-
-// frappe.ui.form.on('Item', {
-//     custom_customer_type: function(frm) {
-//         // Clear industry when customer type changes
-//         frm.set_value('custom_industry', '');
-        
-//         set_industry_filter(frm);
-//     },
-    
-//     onload: function(frm) {
-//         set_industry_filter(frm);
-//         set_application_filter(frm);
-
-//     },
-    
-//     refresh: function(frm) {
-//         set_industry_filter(frm);
-//         set_application_filter(frm);
-
-//     },
-//     custom_industry: function(frm) {
-//         // Clear industry when customer type changes
-//         frm.set_value('custom_application', '');
-        
-//         set_application_filter(frm);
-//     },
-// });
-
-// function set_industry_filter(frm) {
-//     const customer_type = frm.doc.custom_customer_type;
-    
-//     if (!customer_type) {
-//         // No filter — show all industries
-//         frm.set_query('custom_industry', function() {
-//             return { filters: [] };
-//         });
-//         return;
-//     }
-    
-//     // Fetch the industries linked in this Customer Type's child table
-//     frappe.db.get_doc('Customer Type', customer_type).then(doc => {
-//         const industry_names = (doc.industry || []).map(row => row.industry).filter(Boolean);
-        
-//         if (industry_names.length === 0) {
-//             frm.set_query('custom_industry', function() {
-//                 return { filters: [['Industry', 'name', '=', '']] }; // No valid options
-//             });
-//             return;
-//         }
-        
-//         frm.set_query('custom_industry', function() {
-//             return {
-//                 filters: [
-//                     ['Industry', 'name', 'in', industry_names]
-//                 ]
-//             };
-//         });
-//     });
-// }
-
-
-// function set_application_filter(frm) {
-//     const industry = frm.doc.custom_industry;
-    
-//     if (!industry) {
-//         // No filter — show all industries
-//         frm.set_query('custom_application', function() {
-//             return { filters: [] };
-//         });
-//         return;
-//     }
-    
-//     // Fetch the industries linked in this Customer Type's child table
-//     frappe.db.get_doc('Industry', industry).then(doc => {
-//         const application_names = (doc.application || []).map(row => row.application).filter(Boolean);
-        
-//         if (application_names.length === 0) {
-//             frm.set_query('custom_application', function() {
-//                 return { filters: [['Application', 'name', '=', '']] }; // No valid options
-//             });
-//             return;
-//         }
-        
-//         frm.set_query('custom_application', function() {
-//             return {
-//                 filters: [
-//                     ['Application', 'name', 'in', application_names]
-//                 ]
-//             };
-//         });
-//     });
-// }
