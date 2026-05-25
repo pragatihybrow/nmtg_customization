@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
+ "autoname": "format:{product_group}",
  "creation": "2026-05-22 16:30:26.909257",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -41,10 +42,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-22 16:35:27.267958",
+ "modified": "2026-05-25 12:13:15.979962",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Product Group",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

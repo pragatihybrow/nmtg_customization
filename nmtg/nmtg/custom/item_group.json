@@ -245,7 +245,7 @@
    "name": "Item Group-custom_level",
    "no_copy": 0,
    "non_negative": 0,
-   "options": "\nLevel 1\nLevel 2\nLevel 3\nLevel 4",
+   "options": "\nLevel 1\nLevel 2\nLevel 3\n",
    "owner": "Administrator",
    "permlevel": 0,
    "placeholder": null,

@@ -6,6 +6,7 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "product_group",
   "model"
  ],
  "fields": [
@@ -13,12 +14,19 @@
    "fieldname": "model",
    "fieldtype": "Data",
    "label": "Model"
+  },
+  {
+   "fieldname": "product_group",
+   "fieldtype": "Link",
+   "label": "Product Group",
+   "link_filters": "[[\"Item Group\",\"custom_level\",\"=\",\"Level 2\"]]",
+   "options": "Item Group"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-25 11:28:27.624170",
+ "modified": "2026-05-25 13:11:30.315993",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Model",
