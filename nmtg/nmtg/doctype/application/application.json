@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "{application}",
+ "autoname": "format:{application}",
  "creation": "2026-05-07 16:59:56.374429",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -19,11 +19,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-11 11:07:02.641709",
+ "modified": "2026-05-25 11:33:02.085657",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Application",
- "naming_rule": "Expression",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

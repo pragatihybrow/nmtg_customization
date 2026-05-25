@@ -1,15 +1,14 @@
 frappe.ui.form.on("Item", {
     onload: function(frm) { 
-        toggle_models_field(frm); 
+        toggle_models_field(frm);
         set_models_filter(frm);
     },
     refresh: function(frm) { 
-        toggle_models_field(frm); 
+        toggle_models_field(frm);
         set_models_filter(frm);
     },
 
     item_group: function(frm) {
-        // Clear all dependent fields when Item Group changes
         frm.set_value("custom_product_group", "");
         frm.set_value("custom_sub_product_group", "");
         frm.set_value("custom_models", []);
@@ -18,7 +17,6 @@ frappe.ui.form.on("Item", {
     },
 
     custom_product_group: function(frm) {
-        // Clear dependent fields when Product Group changes
         frm.set_value("custom_sub_product_group", "");
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
@@ -26,9 +24,8 @@ frappe.ui.form.on("Item", {
     },
 
     custom_sub_product_group: function(frm) {
-        // Clear models when Sub Product Group changes
         frm.set_value("custom_models", []);
-        toggle_models_field(frm); 
+        toggle_models_field(frm);
         set_models_filter(frm);
     }
 });
@@ -53,21 +50,29 @@ function toggle_models_field(frm) {
 }
 
 function set_models_filter(frm) {
-    if (frm.doc.custom_sub_product_group) {
+    if (!frm.doc.custom_sub_product_group) {
+        // Block all when no sub product group selected
         frm.set_query("custom_models", function() {
             return {
-                filters: {
-                    parent_item_group: frm.doc.custom_sub_product_group
-                }
+                filters: [["Model", "name", "=", "__no_match__"]]
             };
         });
-    } else {
-        frm.set_query("custom_models", function() {
-            return {
-                filters: {
-                    parent_item_group: ""
-                }
-            };
-        });
+        return;
     }
+
+    frappe.db.get_doc("Item Group", frm.doc.custom_sub_product_group)
+        .then(function(doc) {
+            const model_names = (doc.custom_model || [])
+                .map(row => row.model)
+                .filter(Boolean);
+
+            // For Table MultiSelect, set_query uses the fieldname directly
+            frm.set_query("custom_models", function() {
+                return {
+                    filters: [
+                        ["Model", "name", "in", model_names.length ? model_names : ["__no_match__"]]
+                    ]
+                };
+            });
+        });
 }

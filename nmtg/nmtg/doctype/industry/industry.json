@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "{industry}",
+ "autoname": "format:{industry}",
  "creation": "2026-05-07 16:59:19.752881",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -26,11 +26,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-12 17:21:55.113482",
+ "modified": "2026-05-25 11:32:38.288331",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Industry",
- "naming_rule": "Expression",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

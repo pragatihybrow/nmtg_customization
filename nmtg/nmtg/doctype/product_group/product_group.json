@@ -1,36 +1,50 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "format:{customer_type}",
- "creation": "2026-05-07 16:58:56.701817",
+ "creation": "2026-05-22 16:30:26.909257",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "customer_type",
-  "industry"
+  "product_group",
+  "function",
+  "image",
+  "specification",
+  "remark"
  ],
  "fields": [
   {
-   "fieldname": "customer_type",
+   "fieldname": "product_group",
    "fieldtype": "Data",
-   "label": "Customer Type",
-   "unique": 1
+   "label": "Product Group"
   },
   {
-   "fieldname": "industry",
-   "fieldtype": "Table",
-   "label": "Industry",
-   "options": "Industry CT"
+   "fieldname": "function",
+   "fieldtype": "Small Text",
+   "label": "Function"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "specification",
+   "fieldtype": "Datetime",
+   "label": "Specification"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "Remark"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-25 11:33:41.847940",
+ "modified": "2026-05-22 16:35:27.267958",
  "modified_by": "Administrator",
  "module": "NMTG",
- "name": "Customer Type",
- "naming_rule": "Expression (old style)",
+ "name": "Product Group",
  "owner": "Administrator",
  "permissions": [
   {
@@ -50,6 +64,5 @@
  "rows_threshold_for_grid_search": 20,
  "sort_field": "creation",
  "sort_order": "DESC",
- "states": [],
- "title_field": "customer_type"
+ "states": []
 }
