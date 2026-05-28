@@ -6,6 +6,7 @@ frappe.ui.form.on("Item", {
     refresh: function(frm) { 
         toggle_models_field(frm);
         set_models_filter(frm);
+        generate_item_name(frm)
     },
 
     item_group: function(frm) {
@@ -14,6 +15,7 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
+        generate_item_name(frm)
     },
 
     custom_product_group: function(frm) {
@@ -21,13 +23,31 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
+        generate_item_name(frm);
     },
 
     custom_sub_product_group: function(frm) {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
-    }
+        generate_item_code(frm);
+    },
+
+    custom_item_category(frm) {
+        generate_item_name(frm);
+    },
+
+    custom_model_name(frm) {
+        generate_item_name(frm);
+    },
+
+    custom_assembly_size(frm) {
+        generate_item_name(frm);
+    },
+    custom_product_code(frm) {
+        generate_item_code(frm);
+    },
+
 });
 
 function toggle_models_field(frm) {
@@ -75,4 +95,110 @@ function set_models_filter(frm) {
                 };
             });
         });
+}
+function generate_item_name(frm) {
+
+    let item_group = frm.doc.item_group || "";
+    let model = frm.doc.custom_sub_product_group || "";
+    let uom = frm.doc.stock_uom || "";
+
+    let thread_diameter = frm.doc.custom_thread_diameter || "";
+    let pitch = frm.doc.custom_pitch_ || "";
+
+    // Actual Size Example:
+    // 17X47X20
+    let actual_size = frm.doc.custom_actual_size || "";
+
+    let item_name = "";
+
+    // Threaded Items
+    if (uom === "Inches" || uom === "MM") {
+
+        item_name =
+            `${model} - ${thread_diameter} x ${pitch}`;
+    }
+
+    else {
+
+        let formatted_size = actual_size;
+    if (actual_size) {
+
+        // Support both X and x
+        let normalized_size = actual_size.replace(/x/g, "X");
+
+        let parts = normalized_size.split("X");
+
+        if (parts.length >= 3) {
+
+            let id = parts[0].trim();
+            let od = parts[1].trim();
+            let tl = parts[2].trim();
+
+            formatted_size =
+                `ID ${id} mm x OD ${od} mm x TL ${tl} mm`;
+        }
+    }
+
+        // Finished Goods
+        if (item_group === "Finished Goods") {
+
+            item_name =
+                `FG ${model} - ${formatted_size}`;
+        }
+
+        // Other Components
+        else {
+
+            item_name =
+                `${model} - ${formatted_size}`;
+        }
+    }
+
+    frm.set_value("item_name", item_name.trim());
+}
+
+function generate_item_code(frm) {
+
+    const prefix = "N";
+    const group_initials = frm.doc.custom_product_group_initials || "";
+    const product_code = frm.doc.custom_product_code || "";
+
+    if (!group_initials || !product_code) {
+        return;
+    }
+
+    const base_code = `${prefix}${group_initials}${product_code}`;
+
+    frappe.db.get_list("Item", {
+        filters: {
+            item_code: ["like", `${base_code}%`]
+        },
+        fields: ["item_code"],
+        limit: 1000
+    }).then((items) => {
+
+        let max_sequence = 0;
+
+        items.forEach(item => {
+
+            let code = item.item_code || "";
+
+            // Extract numeric part after base code
+            let sequence_part = code.replace(base_code, "");
+
+            let number = parseInt(sequence_part, 10);
+
+            if (!isNaN(number) && number > max_sequence) {
+                max_sequence = number;
+            }
+        });
+
+        let next_sequence = max_sequence + 1;
+
+        let padded_sequence = String(next_sequence).padStart(5, "0");
+
+        let item_code = `${base_code}${padded_sequence}`;
+
+        frm.set_value("item_code", item_code);
+    });
 }

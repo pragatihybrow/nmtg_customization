@@ -261,3 +261,8 @@ doctype_js = {
     "Customer":"public/js/customer.js",
     "Item Group":"public/js/item_group.js"
 }
+
+
+# override_doctype_class = {
+#     "Item": "nmtg.config.api.item.CustomItem"
+# }
