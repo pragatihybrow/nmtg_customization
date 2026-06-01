@@ -47,6 +47,17 @@ frappe.ui.form.on("Item", {
     custom_product_code(frm) {
         generate_item_code(frm);
     },
+    custom_id: function(frm) {
+        set_actual_size(frm);
+    },
+
+    custom_od: function(frm) {
+        set_actual_size(frm);
+    },
+
+    custom_tl: function(frm) {
+        set_actual_size(frm);
+    }
 
 });
 
@@ -112,11 +123,20 @@ function generate_item_name(frm) {
     let item_name = "";
 
     // Threaded Items
-    if (uom === "Inches" || uom === "MM") {
+  if (uom === "Inches" || uom === "MM") {
 
-        item_name =
-            `${model} - ${thread_diameter} x ${pitch}`;
-    }
+    // Remove existing M/P if present
+    let diameter = thread_diameter.toString()
+        .replace(/M/gi, "")
+        .trim();
+
+    let pitchValue = pitch.toString()
+        .replace(/P/gi, "")
+        .trim();
+
+    // Apply standard format
+    item_name = `${model} - M${diameter} x ${pitchValue}P`;
+}
 
     else {
 
@@ -201,4 +221,19 @@ function generate_item_code(frm) {
 
         frm.set_value("item_code", item_code);
     });
+}
+
+function set_actual_size(frm) {
+    let id = frm.doc.custom_id || "";
+    let od = frm.doc.custom_od || "";
+    let tl = frm.doc.custom_tl || "";
+
+    if (id && od && tl) {
+        frm.set_value(
+            "custom_actual_size",
+            `${id} x ${od} x ${tl}`
+        );
+    } else {
+        frm.set_value("custom_actual_size", "");
+    }
 }
