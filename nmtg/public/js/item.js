@@ -57,6 +57,37 @@ frappe.ui.form.on("Item", {
 
     custom_tl: function(frm) {
         set_actual_size(frm);
+    },
+    custom_material_type(frm) {
+
+        frm.set_value("custom_material_sub_type", "");
+
+        frappe.call({
+            method: "frappe.client.get",
+            args: {
+                doctype: "Material Type",
+                name: frm.doc.custom_material_type
+            },
+            callback: function(r) {
+
+                if (r.message) {
+
+                    let sub_types = r.message.material_sub_type.map(
+                        row => row.material_sub_type
+                    );
+
+                    frm.set_query("custom_material_sub_type", function() {
+                        return {
+                            filters: [
+                                ["Material Sub Type", "name", "in", sub_types]
+                            ]
+                        };
+                    });
+
+                }
+            }
+        });
+
     }
 
 });
