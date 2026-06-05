@@ -58,3 +58,27 @@ def submit_supplier_quotation(data):
     frappe.db.commit()
 
     return {"name": doc.name, "status": "created"}
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_rfq_for_supplier(rfq, supplier):
+    doc = frappe.get_doc("Request for Quotation", rfq)
+    return {
+        "rfq": {
+            "name": doc.name,
+            "company": doc.company,
+            "transaction_date": str(doc.transaction_date),
+            "schedule_date": str(doc.schedule_date),
+            "supplier_name": supplier
+        },
+        "items": [{
+            "idx": it.idx, "item_code": it.item_code,
+            "item_name": it.item_name, "item_group": it.item_group,
+            "qty": it.qty, "uom": it.uom, "warehouse": it.warehouse,
+            "material_request": it.material_request,
+            "material_request_item": it.material_request_item,
+            "custom_tds_attachment": it.custom_tds_attachment,
+            "image": it.image
+        } for it in doc.items]
+    }

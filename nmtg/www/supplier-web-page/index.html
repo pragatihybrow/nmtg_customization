@@ -44,12 +44,17 @@
   .info-chip span { color: var(--text-muted); }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); animation: fadeUp 0.5s ease both; }
-
   .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
   .card-icon { width: 34px; height: 34px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .card-icon svg { width: 16px; height: 16px; stroke: var(--accent); }
   .card-title { font-size: 14px; font-weight: 600; color: var(--text); }
   .card-subtitle { font-size: 12px; color: var(--text-hint); margin-top: 1px; }
+
+  /* Loading skeleton */
+  .loading-screen { text-align: center; padding: 4rem 2rem; }
+  .spinner-lg { width: 48px; height: 48px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; margin: 0 auto 1.5rem; }
+  .loading-screen p { font-size: 14px; color: var(--text-muted); }
+  .loading-sub { font-size: 12px; color: var(--text-hint); margin-top: 6px; }
 
   .items-table { width: 100%; border-collapse: collapse; }
   .items-table thead tr { border-bottom: 1px solid var(--border); }
@@ -109,10 +114,15 @@
   .notice { background: var(--warning-bg); border: 1px solid #F0D28A; border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: var(--warning); display: flex; gap: 8px; align-items: flex-start; margin-bottom: 1.25rem; }
   .notice svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; stroke: var(--warning); }
 
+  .api-notice { background: var(--accent-light); border: 1px solid #b8d4c8; border-radius: var(--radius); padding: 10px 14px; font-size: 12.5px; color: var(--accent-text); display: none; gap: 8px; align-items: center; margin-bottom: 1.25rem; }
+  .api-notice svg { width: 14px; height: 14px; flex-shrink: 0; stroke: var(--accent); }
+  .api-notice.show { display: flex; }
+
   .error-screen { text-align: center; padding: 4rem 2rem; }
   .error-screen-icon { font-size: 48px; margin-bottom: 1rem; }
   .error-screen h2 { font-family: 'DM Serif Display', serif; font-size: 24px; color: var(--danger); margin-bottom: 10px; }
-  .error-screen p { font-size: 14px; color: var(--text-muted); line-height: 1.6; max-width: 380px; margin: 0 auto; }
+  .error-screen p { font-size: 14px; color: var(--text-muted); line-height: 1.6; max-width: 380px; margin: 0 auto 1rem; }
+  .error-screen .err-detail { font-size: 12px; background: var(--danger-bg); border: 1px solid #F5B7B1; border-radius: 8px; padding: 10px 14px; display: inline-block; color: var(--danger); margin-top: 8px; max-width: 420px; word-break: break-all; }
 
   .submit-section { display: flex; flex-direction: column; gap: 12px; animation: fadeUp 0.5s 0.3s ease both; }
   .btn-submit { width: 100%; padding: 14px; background: var(--accent); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; border: none; border-radius: var(--radius); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background 0.2s, transform 0.1s; }
@@ -189,11 +199,24 @@
     </div>
   </div>
 
+  <!-- Loading state shown while fetching from API -->
+  <div class="loading-screen" id="loading-screen" style="display:none;">
+    <div class="spinner-lg"></div>
+    <p>Loading RFQ details…</p>
+    <p class="loading-sub" id="loading-sub">Fetching item data from server</p>
+  </div>
+
   <div id="form-wrap">
 
     <div class="notice">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       <span>Fields marked with <strong>*</strong> are required. Enter a unit price and lead time for <strong>each item</strong>. Your quotation will be submitted directly as a Supplier Quotation in ERPNext.</span>
+    </div>
+
+    <!-- Shown only when items were loaded via API fallback -->
+    <div class="api-notice" id="api-notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>Item details loaded securely from server for <strong id="api-notice-rfq"></strong>.</span>
     </div>
 
     <!-- Items + Pricing card -->
@@ -219,8 +242,7 @@
             <th class="right" style="width:120px">Line total</th>
           </tr>
         </thead>
-        <tbody id="items-tbody">
-        </tbody>
+        <tbody id="items-tbody"></tbody>
       </table>
 
       <div class="grand-total-box">
@@ -299,182 +321,305 @@
 <div id="toast" role="alert" aria-live="assertive"></div>
 
 <script>
-/* ────────────────────────────────────────────────────────────
-   RFQ object — intentionally empty; ALL values come from URL params.
-   URL param format for items (0-indexed):
-     items[0][item_code], items[0][item_name], items[0][qty],
-     items[0][uom], items[0][warehouse], items[0][img],
-     items[0][mr], items[0][mr_item], items[0][item_group],
-     items[0][tds]
-──────────────────────────────────────────────────────────── */
+/* ================================================================
+   SUPPLIER WEB PAGE — RFQ Quotation Form
+   Data loading priority:
+     1. items[] in URL params  → render immediately (original flow)
+     2. rfq param only         → fetch from Frappe REST API (fix for
+                                  truncated/forwarded email links)
+     3. Nothing usable         → show error screen
+   ================================================================ */
+
 const RFQ = {
-  name:             "",
-  company:          "",
-  transaction_date: "",
-  schedule_date:    "",
-  supplier:         "",
-  supplier_email:   "",
-  items:            []
+  name: "", company: "", transaction_date: "",
+  schedule_date: "", supplier: "", supplier_email: "", items: []
 };
 
-/* ── Parse URL params ── */
+/* ── Fill info-strip chips from RFQ state ── */
+function fillInfoStrip() {
+  if (RFQ.name)             document.getElementById('topbar-rfq-id').textContent  = RFQ.name;
+  if (RFQ.company)          document.getElementById('info-company').textContent    = RFQ.company.split('(')[0].trim();
+  if (RFQ.transaction_date) document.getElementById('info-date').textContent       = RFQ.transaction_date;
+  if (RFQ.schedule_date)    document.getElementById('info-due').textContent        = RFQ.schedule_date;
+  if (RFQ.supplier)         document.getElementById('info-supplier').textContent   = RFQ.supplier;
+}
+
+/* ── Parse URL params; returns true if items were found ── */
 function loadFromParams() {
   const p = new URLSearchParams(window.location.search);
+  if (p.get('rfq'))      RFQ.name             = p.get('rfq');
+  if (p.get('company'))  RFQ.company          = p.get('company');
+  if (p.get('date'))     RFQ.transaction_date = p.get('date');
+  if (p.get('due'))      RFQ.schedule_date    = p.get('due');
+  if (p.get('supplier')) RFQ.supplier         = p.get('supplier');
+  if (p.get('email'))    RFQ.supplier_email   = p.get('email');
+  fillInfoStrip();
 
-  if (p.get('rfq')) {
-    RFQ.name = p.get('rfq');
-    document.getElementById('topbar-rfq-id').textContent = p.get('rfq');
-  }
-  if (p.get('company')) {
-    RFQ.company = p.get('company');
-    document.getElementById('info-company').textContent = p.get('company').split('(')[0].trim();
-  }
-  if (p.get('date')) {
-    RFQ.transaction_date = p.get('date');
-    document.getElementById('info-date').textContent = p.get('date');
-  }
-  if (p.get('due')) {
-    RFQ.schedule_date = p.get('due');
-    document.getElementById('info-due').textContent = p.get('due');
-  }
-  if (p.get('supplier')) {
-    RFQ.supplier = p.get('supplier');
-    document.getElementById('info-supplier').textContent = p.get('supplier');
-  }
-  if (p.get('email')) {
-    RFQ.supplier_email = p.get('email');
-  }
-
-  /* ── Multi-item params: items[0][item_code] etc. ── */
-  const itemsFromParams = [];
+  /* Multi-item params: items[0][item_code] etc. */
+  const fromParams = [];
   let i = 0;
   while (p.get(`items[${i}][item_code]`)) {
-    itemsFromParams.push({
-      idx:                  i + 1,
-      item_code:            p.get(`items[${i}][item_code]`)  || '',
-      item_name:            p.get(`items[${i}][item_name]`)  || '',
-      item_group:           p.get(`items[${i}][item_group]`) || '',
-      qty:                  parseFloat(p.get(`items[${i}][qty]`)) || 1,
-      uom:                  p.get(`items[${i}][uom]`)        || 'Nos',
-      img:                  p.get(`items[${i}][img]`)        || '',
-      tds:                  p.get(`items[${i}][tds]`)        || '',
-      warehouse:            p.get(`items[${i}][warehouse]`)  || '',
-      material_request:     p.get(`items[${i}][mr]`)         || '',
-      material_request_item:p.get(`items[${i}][mr_item]`)    || ''
+    fromParams.push({
+      idx:                   i + 1,
+      item_code:             p.get(`items[${i}][item_code]`)  || '',
+      item_name:             p.get(`items[${i}][item_name]`)  || '',
+      item_group:            p.get(`items[${i}][item_group]`) || '',
+      qty:                   parseFloat(p.get(`items[${i}][qty]`)) || 1,
+      uom:                   p.get(`items[${i}][uom]`)        || 'Nos',
+      img:                   p.get(`items[${i}][img]`)        || '',
+      tds:                   p.get(`items[${i}][tds]`)        || '',
+      warehouse:             p.get(`items[${i}][warehouse]`)  || '',
+      material_request:      p.get(`items[${i}][mr]`)         || '',
+      material_request_item: p.get(`items[${i}][mr_item]`)    || ''
     });
     i++;
   }
+  if (fromParams.length > 0) { RFQ.items = fromParams; return true; }
 
-  if (itemsFromParams.length > 0) {
-    RFQ.items = itemsFromParams;
-  }
-  /* ── Legacy single-item params (backward compat) ── */
-  else if (p.get('item_code')) {
+  /* Legacy single-item params (backward compat) */
+  if (p.get('item_code')) {
     RFQ.items = [{
-      idx:                  1,
-      item_code:            p.get('item_code')   || '',
-      item_name:            p.get('item_name')   || '',
-      item_group:           p.get('item_group')  || '',
-      qty:                  parseFloat(p.get('qty')) || 1,
-      uom:                  p.get('uom')         || 'Nos',
-      img:                  p.get('img')         || '',
-      tds:                  p.get('tds')         || '',
-      warehouse:            p.get('warehouse')   || '',
-      material_request:     p.get('mr')          || '',
-      material_request_item:p.get('mr_item')     || ''
+      idx: 1,
+      item_code:             p.get('item_code')   || '',
+      item_name:             p.get('item_name')   || '',
+      item_group:            p.get('item_group')  || '',
+      qty:                   parseFloat(p.get('qty')) || 1,
+      uom:                   p.get('uom')         || 'Nos',
+      img:                   p.get('img')         || '',
+      tds:                   p.get('tds')         || '',
+      warehouse:             p.get('warehouse')   || '',
+      material_request:      p.get('mr')          || '',
+      material_request_item: p.get('mr_item')     || ''
     }];
+    return true;
   }
 
-  /* ── Guard: no items found ── */
-  if (RFQ.items.length === 0) {
-    document.getElementById('form-wrap').innerHTML = `
-      <div class="error-screen">
-        <div class="error-screen-icon">⚠️</div>
-        <h2>Invalid or missing link</h2>
-        <p>No items were found in this link. Please use the <strong>Open Quotation Form</strong> button from your RFQ email to access this page.</p>
-      </div>`;
+  return false; /* no items in URL */
+}
+
+/* ── Map a Frappe items child-table row to our shape ── */
+function mapFrappeItem(it, index) {
+  const base = window.location.origin;
+  return {
+    idx:                   it.idx || (index + 1),
+    item_code:             it.item_code  || '',
+    item_name:             it.item_name  || it.item_code || '',
+    item_group:            it.item_group || '',
+    qty:                   parseFloat(it.qty) || 1,
+    uom:                   it.uom        || 'Nos',
+    img:                   it.image                    ? base + it.image                    : '',
+    tds:                   it.custom_tds_attachment    ? base + it.custom_tds_attachment    : '',
+    warehouse:             it.warehouse  || '',
+    material_request:      it.material_request      || '',
+    material_request_item: it.material_request_item || ''
+  };
+}
+
+/* ── Show persistent error screen ── */
+function showError(title, detail) {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('form-wrap').innerHTML = `
+    <div class="error-screen">
+      <div class="error-screen-icon">&#9888;&#65039;</div>
+      <h2>${title}</h2>
+      <p>Please use the <strong>Open Quotation Form</strong> button from your RFQ email, or contact NMTG procurement for a fresh link.</p>
+      ${detail ? `<div class="err-detail">${detail}</div>` : ''}
+    </div>`;
+}
+
+/* ── Fetch RFQ from Frappe REST API ─────────────────────────────
+   Called when items[] are missing from the URL.
+   Tries the standard /api/resource endpoint first;
+   falls back to a custom whitelisted server method.
+   ──────────────────────────────────────────────────────────── */
+async function fetchRFQFromAPI(rfqName) {
+  document.getElementById('form-wrap').style.display = 'none';
+  document.getElementById('loading-screen').style.display = 'block';
+  document.getElementById('loading-sub').textContent = 'Fetching ' + rfqName + ' from server…';
+
+  /* ── Attempt 1: standard Frappe REST resource endpoint ── */
+  try {
+    const fields = [
+      'name','company','transaction_date','schedule_date','supplier','supplier_name',
+      'items.item_code','items.item_name','items.item_group','items.qty','items.uom',
+      'items.warehouse','items.material_request','items.material_request_item',
+      'items.custom_tds_attachment','items.image'
+    ].map(f => 'fields[]=' + encodeURIComponent(f)).join('&');
+
+    const res = await fetch(
+      '/api/resource/Request for Quotation/' + encodeURIComponent(rfqName) + '?' + fields,
+      { headers: { 'Accept': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' } }
+    );
+
+    if (res.ok) {
+      const data = await res.json();
+      const doc  = data.data;
+      if (doc && Array.isArray(doc.items) && doc.items.length > 0) {
+        RFQ.name             = doc.name             || rfqName;
+        RFQ.company          = doc.company          || RFQ.company;
+        RFQ.transaction_date = doc.transaction_date || RFQ.transaction_date;
+        RFQ.schedule_date    = doc.schedule_date    || RFQ.schedule_date;
+        RFQ.supplier         = doc.supplier_name    || doc.supplier || RFQ.supplier;
+        RFQ.items            = doc.items.map(mapFrappeItem);
+        fillInfoStrip();
+        showApiNotice();
+        return true;
+      }
+    }
+  } catch (_) { /* fall through to method attempt */ }
+
+  /* ── Attempt 2: custom whitelisted server method ─────────────
+     You need this Python method on the Frappe server:
+
+     @frappe.whitelist(allow_guest=True)
+     def get_rfq_for_supplier(rfq, supplier):
+         doc = frappe.get_doc("Request for Quotation", rfq)
+         # optional: verify supplier matches
+         return {
+             "rfq": {
+                 "name": doc.name,
+                 "company": doc.company,
+                 "transaction_date": str(doc.transaction_date),
+                 "schedule_date": str(doc.schedule_date),
+                 "supplier_name": supplier
+             },
+             "items": [
+                 {
+                     "idx": it.idx, "item_code": it.item_code,
+                     "item_name": it.item_name, "item_group": it.item_group,
+                     "qty": it.qty, "uom": it.uom, "warehouse": it.warehouse,
+                     "material_request": it.material_request,
+                     "material_request_item": it.material_request_item,
+                     "custom_tds_attachment": it.custom_tds_attachment,
+                     "image": it.image
+                 } for it in doc.items
+             ]
+         }
+     ──────────────────────────────────────────────────────── */
+  document.getElementById('loading-sub').textContent = 'Trying authenticated endpoint…';
+  try {
+    const supplier = encodeURIComponent(RFQ.supplier || new URLSearchParams(window.location.search).get('supplier') || '');
+    const res2 = await fetch(
+      '/api/method/nmtg.override.api.get_rfq_for_supplier?rfq=' + encodeURIComponent(rfqName) + '&supplier=' + supplier,
+      { headers: { 'Accept': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' } }
+    );
+
+    if (res2.ok) {
+      const data2 = await res2.json();
+      const msg   = data2.message;
+      if (msg && Array.isArray(msg.items) && msg.items.length > 0) {
+        if (msg.rfq) {
+          RFQ.name             = msg.rfq.name             || rfqName;
+          RFQ.company          = msg.rfq.company          || RFQ.company;
+          RFQ.transaction_date = msg.rfq.transaction_date || RFQ.transaction_date;
+          RFQ.schedule_date    = msg.rfq.schedule_date    || RFQ.schedule_date;
+          RFQ.supplier         = msg.rfq.supplier_name    || RFQ.supplier;
+        }
+        RFQ.items = msg.items.map(mapFrappeItem);
+        fillInfoStrip();
+        showApiNotice();
+        return true;
+      }
+    }
+
+    showError(
+      'Could not load RFQ items',
+      'The server returned no items for ' + rfqName + '. Please contact NMTG procurement.'
+    );
+    return false;
+
+  } catch (err) {
+    showError(
+      'Unable to load RFQ',
+      'Network error while fetching item details: ' + err.message
+    );
     return false;
   }
+}
 
-  /* ── Validity date default ── */
+function showApiNotice() {
+  const el = document.getElementById('api-notice');
+  document.getElementById('api-notice-rfq').textContent = RFQ.name;
+  el.classList.add('show');
+}
+
+/* ── Set validity date defaults ── */
+function initValidityDate() {
   const validEl = document.getElementById('valid-till');
-  const minDate = new Date();
-  minDate.setDate(minDate.getDate() + 3);
-  validEl.min = minDate.toISOString().split('T')[0];
+  const min = new Date();
+  min.setDate(min.getDate() + 3);
+  validEl.min = min.toISOString().split('T')[0];
   if (RFQ.schedule_date) validEl.value = RFQ.schedule_date;
-
-  return true;
 }
 
 /* ── Render item rows ── */
 function renderItems() {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('form-wrap').style.display = 'block';
+
   const tbody = document.getElementById('items-tbody');
   tbody.innerHTML = '';
   document.getElementById('item-count-label').textContent =
-    `${RFQ.items.length} item${RFQ.items.length > 1 ? 's' : ''} requested — enter your unit price for each`;
+    RFQ.items.length + ' item' + (RFQ.items.length > 1 ? 's' : '') + ' requested — enter your unit price for each';
 
-  RFQ.items.forEach((item, idx) => {
+  RFQ.items.forEach(function(item, idx) {
     const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td><div class="item-num">${item.idx}</div></td>
-      <td>
-        <div class="item-cell">
-          ${item.img
-            ? `<img class="item-thumb-sm" src="${item.img}" alt="" onerror="this.style.display='none'" />`
-            : `<div class="item-thumb-sm" style="display:flex;align-items:center;justify-content:center;color:var(--text-hint);font-size:18px">⬡</div>`
-          }
-          <div>
-            <div class="item-cell-name">${item.item_name}</div>
-            <div class="item-cell-meta">${item.item_code}${item.item_group ? ' · ' + item.item_group : ''}</div>
-            ${item.tds
-              ? `<div style="margin-top:5px"><a href="${item.tds}" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;">📄 Download TDS / Spec Sheet</a></div>`
-              : ''
-            }
-          </div>
-        </div>
-      </td>
-      <td><span class="qty-badge">${item.qty} ${item.uom}</span></td>
-      <td>
-        <div class="price-input-wrap">
-          <span class="price-pfx">₹</span>
-          <input type="number" id="price-${idx}" placeholder="0.00" min="0.01" step="0.01"
-            oninput="calcGrandTotal()" data-idx="${idx}" />
-        </div>
-        <div class="err-inline" id="err-price-${idx}">Required</div>
-      </td>
-      <td>
-        <input type="number" class="lead-input" id="lead-${idx}" placeholder="days" min="1" step="1"
-          data-idx="${idx}" />
-        <div class="err-inline" id="err-lead-${idx}">Required</div>
-      </td>
-      <td><div class="line-total muted" id="line-total-${idx}">—</div></td>
-    `;
+    tr.innerHTML =
+      '<td><div class="item-num">' + item.idx + '</div></td>' +
+      '<td><div class="item-cell">' +
+        (item.img
+          ? '<img class="item-thumb-sm" src="' + item.img + '" alt="" onerror="this.style.display=\'none\'" />'
+          : '<div class="item-thumb-sm" style="display:flex;align-items:center;justify-content:center;color:var(--text-hint);font-size:18px">&#11041;</div>') +
+        '<div>' +
+          '<div class="item-cell-name">' + item.item_name + '</div>' +
+          '<div class="item-cell-meta">' + item.item_code + (item.item_group ? ' · ' + item.item_group : '') + '</div>' +
+          (item.tds ? '<div style="margin-top:5px"><a href="' + item.tds + '" target="_blank" style="font-size:12px;color:var(--accent);text-decoration:none;">&#128196; Download TDS / Spec Sheet</a></div>' : '') +
+        '</div>' +
+      '</div></td>' +
+      '<td><span class="qty-badge">' + item.qty + ' ' + item.uom + '</span></td>' +
+      '<td>' +
+        '<div class="price-input-wrap">' +
+          '<span class="price-pfx">\u20B9</span>' +
+          '<input type="number" id="price-' + idx + '" placeholder="0.00" min="0.01" step="0.01" oninput="calcGrandTotal()" data-idx="' + idx + '" />' +
+        '</div>' +
+        '<div class="err-inline" id="err-price-' + idx + '">Required</div>' +
+      '</td>' +
+      '<td>' +
+        '<input type="number" class="lead-input" id="lead-' + idx + '" placeholder="days" min="1" step="1" data-idx="' + idx + '" />' +
+        '<div class="err-inline" id="err-lead-' + idx + '">Required</div>' +
+      '</td>' +
+      '<td><div class="line-total muted" id="line-total-' + idx + '">—</div></td>';
     tbody.appendChild(tr);
   });
 
-  RFQ.items.forEach((_, idx) => {
-    document.getElementById(`price-${idx}`).addEventListener('input', () => {
-      document.getElementById(`price-${idx}`).classList.remove('invalid');
-      document.getElementById(`err-price-${idx}`).classList.remove('show');
+  RFQ.items.forEach(function(_, idx) {
+    document.getElementById('price-' + idx).addEventListener('input', function() {
+      document.getElementById('price-' + idx).classList.remove('invalid');
+      document.getElementById('err-price-' + idx).classList.remove('show');
     });
-    document.getElementById(`lead-${idx}`).addEventListener('input', () => {
-      document.getElementById(`lead-${idx}`).classList.remove('invalid');
-      document.getElementById(`err-lead-${idx}`).classList.remove('show');
+    document.getElementById('lead-' + idx).addEventListener('input', function() {
+      document.getElementById('lead-' + idx).classList.remove('invalid');
+      document.getElementById('err-lead-' + idx).classList.remove('show');
     });
   });
+
+  initValidityDate();
+}
+
+/* ── Format currency — use real ₹ char, NOT HTML entity (textContent doesn't parse entities) ── */
+function inr(amount) {
+  return '\u20B9' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /* ── Grand total calc ── */
 function calcGrandTotal() {
-  let grand = 0;
-  let allFilled = true;
-
-  RFQ.items.forEach((item, idx) => {
-    const price = parseFloat(document.getElementById(`price-${idx}`).value) || 0;
-    const line  = price * item.qty;
-    const ltEl  = document.getElementById(`line-total-${idx}`);
+  var grand = 0, allFilled = true;
+  RFQ.items.forEach(function(item, idx) {
+    var price = parseFloat(document.getElementById('price-' + idx).value) || 0;
+    var line  = price * item.qty;
+    var ltEl  = document.getElementById('line-total-' + idx);
     if (price > 0) {
-      ltEl.textContent = '₹' + line.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      ltEl.textContent = inr(line);
       ltEl.classList.remove('muted');
       grand += line;
     } else {
@@ -483,12 +628,11 @@ function calcGrandTotal() {
       allFilled = false;
     }
   });
-
-  const gtEl = document.getElementById('grand-total');
-  const gbEl = document.getElementById('grand-breakdown');
+  var gtEl = document.getElementById('grand-total');
+  var gbEl = document.getElementById('grand-breakdown');
   if (grand > 0) {
-    gtEl.textContent = '₹' + grand.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    gbEl.textContent = allFilled ? `Total for ${RFQ.items.length} items` : 'Partial total (fill all prices)';
+    gtEl.textContent = inr(grand);
+    gbEl.textContent = allFilled ? 'Total for ' + RFQ.items.length + ' items' : 'Partial total (fill all prices)';
   } else {
     gtEl.textContent = '—';
     gbEl.textContent = 'Enter prices above to calculate';
@@ -497,25 +641,23 @@ function calcGrandTotal() {
 
 /* ── Validation ── */
 function validate() {
-  let valid = true;
-
-  RFQ.items.forEach((_, idx) => {
-    const priceEl = document.getElementById(`price-${idx}`);
-    const leadEl  = document.getElementById(`lead-${idx}`);
+  var valid = true;
+  RFQ.items.forEach(function(_, idx) {
+    var priceEl = document.getElementById('price-' + idx);
+    var leadEl  = document.getElementById('lead-' + idx);
     if (!priceEl.value || parseFloat(priceEl.value) <= 0) {
       priceEl.classList.add('invalid');
-      document.getElementById(`err-price-${idx}`).classList.add('show');
+      document.getElementById('err-price-' + idx).classList.add('show');
       valid = false;
     }
     if (!leadEl.value || parseInt(leadEl.value) <= 0) {
       leadEl.classList.add('invalid');
-      document.getElementById(`err-lead-${idx}`).classList.add('show');
+      document.getElementById('err-lead-' + idx).classList.add('show');
       valid = false;
     }
   });
-
-  const validTill = document.getElementById('valid-till');
-  const errValid  = document.getElementById('err-valid');
+  var validTill = document.getElementById('valid-till');
+  var errValid  = document.getElementById('err-valid');
   if (!validTill.value) {
     validTill.classList.add('invalid');
     errValid.classList.add('show');
@@ -524,47 +666,63 @@ function validate() {
     validTill.classList.remove('invalid');
     errValid.classList.remove('show');
   }
-
   return valid;
 }
 
 /* ── Toast ── */
-function showToast(msg, type, duration = 5000) {
-  const t = document.getElementById('toast');
+function showToast(msg, type, duration) {
+  duration = duration || 5000;
+  var t = document.getElementById('toast');
   t.innerHTML = '';
   if (type === 'loading') {
-    const sp = document.createElement('div'); sp.className = 'spinner'; t.appendChild(sp);
+    var sp = document.createElement('div'); sp.className = 'spinner'; t.appendChild(sp);
   } else {
-    const svg = type === 'success'
+    var svg = type === 'success'
       ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:#1A6B45;width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg>'
       : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:#C0392B;width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
     t.insertAdjacentHTML('beforeend', svg);
   }
-  t.insertAdjacentHTML('beforeend', `<span>${msg}</span>`);
+  t.insertAdjacentHTML('beforeend', '<span>' + msg + '</span>');
   t.className = 'toast show ' + (type !== 'loading' ? type : '');
-  if (type !== 'loading') setTimeout(() => { t.className = 'toast'; }, duration);
+  if (type !== 'loading') setTimeout(function() { t.className = 'toast'; }, duration);
+}
+
+/* ── Get Frappe CSRF token (required for POST from guest pages) ── */
+async function getFrappeCSRF() {
+  try {
+    var res = await fetch('/api/method/frappe.auth.get_csrf_token', {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.ok) {
+      var data = await res.json();
+      /* Frappe returns { message: "token_string" } */
+      return (data.message && typeof data.message === 'string') ? data.message : 'fetch';
+    }
+  } catch (_) {}
+  return 'fetch'; /* fallback — works on some Frappe versions */
 }
 
 /* ── Submit ── */
 async function submitQuotation() {
   if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
-
-  const btn = document.getElementById('submit-btn');
+  var btn = document.getElementById('submit-btn');
   btn.disabled = true;
   showToast('Submitting your quotation…', 'loading');
 
-  const itemRows = RFQ.items.map((item, idx) => ({
-    item_code:             item.item_code,
-    qty:                   item.qty,
-    uom:                   item.uom,
-    warehouse:             item.warehouse,
-    rate:                  parseFloat(document.getElementById(`price-${idx}`).value),
-    lead_time_days:        parseInt(document.getElementById(`lead-${idx}`).value),
-    material_request:      item.material_request       || '',
-    material_request_item: item.material_request_item  || '',
-  }));
+  var itemRows = RFQ.items.map(function(item, idx) {
+    return {
+      item_code:             item.item_code,
+      qty:                   item.qty,
+      uom:                   item.uom,
+      warehouse:             item.warehouse,
+      rate:                  parseFloat(document.getElementById('price-' + idx).value),
+      lead_time_days:        parseInt(document.getElementById('lead-' + idx).value),
+      material_request:      item.material_request      || '',
+      material_request_item: item.material_request_item || ''
+    };
+  });
 
-  const payload = {
+  var payload = {
     supplier:               RFQ.supplier,
     company:                RFQ.company,
     valid_till:             document.getElementById('valid-till').value,
@@ -575,13 +733,16 @@ async function submitQuotation() {
   };
 
   try {
-    const res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
+    var csrfToken = await getFrappeCSRF();
+    var res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' },
-      body:    JSON.stringify({ data: JSON.stringify(payload) })
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Frappe-CSRF-Token': csrfToken
+      },
+      body: JSON.stringify({ data: JSON.stringify(payload) })
     });
-
-    const data = await res.json();
+    var data = await res.json();
     if (res.ok && data.message && data.message.name) {
       document.getElementById('toast').className = 'toast';
       document.getElementById('form-wrap').style.display = 'none';
@@ -596,9 +757,28 @@ async function submitQuotation() {
   }
 }
 
-/* ── Init ── */
-const ready = loadFromParams();
-if (ready) renderItems();
+/* ── Init ──────────────────────────────────────────────────────
+   Priority: URL items → API fetch → error
+   ──────────────────────────────────────────────────────────── */
+(async function init() {
+  var hasItems = loadFromParams();
+
+  if (hasItems) {
+    renderItems();
+    return;
+  }
+
+  if (RFQ.name) {
+    var fetched = await fetchRFQFromAPI(RFQ.name);
+    if (fetched) renderItems();
+    return;
+  }
+
+  showError(
+    'Invalid or missing link',
+    'No RFQ identifier found in the URL. Please use the link from your email.'
+  );
+})();
 </script>
 </body>
 </html>
