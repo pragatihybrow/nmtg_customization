@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Request for Quotation — Supplier Form</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #F7F5F0; --surface: #FFFFFF; --surface-muted: #F2EFE8;
+    --border: #E2DDD3; --border-strong: #C8C2B5;
+    --text: #1A1714; --text-muted: #6B6459; --text-hint: #9C9287;
+    --accent: #2B4C3F; --accent-light: #E8F0ED; --accent-text: #1A3028;
+    --danger: #C0392B; --danger-bg: #FDEEEC;
+    --success: #1A6B45; --success-bg: #E6F4ED;
+    --warning: #92600A; --warning-bg: #FEF5E4;
+    --radius: 10px; --radius-lg: 16px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --shadow-lg: 0 2px 8px rgba(0,0,0,0.08), 0 12px 40px rgba(0,0,0,0.08);
+  }
+  html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  .topbar { background: var(--accent); color: #fff; padding: 0 2rem; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+  .topbar-brand { font-family: 'DM Serif Display', serif; font-size: 17px; color: #fff; text-decoration: none; }
+  .topbar-rfq { font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; }
+
+  .layout { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+  .hero { margin-bottom: 2.5rem; animation: fadeUp 0.5s ease both; }
+  .hero-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .hero-eyebrow::before { content: ''; display: inline-block; width: 20px; height: 2px; background: var(--accent); border-radius: 2px; }
+  .hero h1 { font-family: 'DM Serif Display', serif; font-size: 34px; line-height: 1.15; color: var(--text); margin-bottom: 8px; }
+  .hero h1 em { font-style: italic; color: var(--accent); }
+  .hero-sub { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+  .info-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 2rem; animation: fadeUp 0.5s 0.07s ease both; }
+  .info-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+  .info-chip svg { width: 14px; height: 14px; stroke: var(--text-hint); flex-shrink: 0; }
+  .info-chip strong { font-weight: 500; color: var(--text); }
+  .info-chip span { color: var(--text-muted); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); animation: fadeUp 0.5s ease both; }
+
+  .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .card-icon { width: 34px; height: 34px; background: var(--accent-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .card-icon svg { width: 16px; height: 16px; stroke: var(--accent); }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .card-subtitle { font-size: 12px; color: var(--text-hint); margin-top: 1px; }
+
+  /* ── Multi-item table ── */
+  .items-table { width: 100%; border-collapse: collapse; }
+  .items-table thead tr { border-bottom: 1px solid var(--border); }
+  .items-table th { font-size: 11.5px; font-weight: 600; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.07em; padding: 0 12px 10px; text-align: left; white-space: nowrap; }
+  .items-table th.right { text-align: right; }
+  .items-table td { padding: 14px 12px; vertical-align: top; }
+  .items-table tbody tr { border-bottom: 1px solid var(--border); }
+  .items-table tbody tr:last-child { border-bottom: none; }
+
+  .item-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .item-cell { display: flex; gap: 10px; align-items: flex-start; }
+  .item-thumb-sm { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; border: 1px solid var(--border); flex-shrink: 0; background: var(--bg); }
+  .item-cell-name { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .item-cell-meta { font-size: 12px; color: var(--text-hint); line-height: 1.5; }
+
+  .qty-badge { display: inline-flex; align-items: center; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 13px; font-weight: 500; color: var(--text); white-space: nowrap; }
+
+  /* inline price inputs */
+  .price-input-wrap { display: flex; min-width: 140px; }
+  .price-pfx { padding: 7px 10px; font-size: 13px; font-weight: 500; background: var(--surface-muted); border: 1px solid var(--border); border-right: none; border-radius: 8px 0 0 8px; color: var(--text-muted); display: flex; align-items: center; }
+  .price-input-wrap input { border-radius: 0 8px 8px 0; flex: 1; padding: 7px 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--bg); border: 1px solid var(--border); color: var(--text); outline: none; transition: border-color 0.18s, background 0.18s; min-width: 0; }
+  .price-input-wrap input:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(43,76,63,0.1); }
+  .price-input-wrap input.invalid { border-color: var(--danger); background: var(--danger-bg); }
+
+  .lead-input { width: 90px; padding: 7px 10px; font-size: 13px; font-family: 'DM Sans', sans-serif; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); outline: none; transition: border-color 0.18s; }
+  .lead-input:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(43,76,63,0.1); }
+  .lead-input.invalid { border-color: var(--danger); background: var(--danger-bg); }
+
+  .line-total { font-size: 13.5px; font-weight: 500; color: var(--text); white-space: nowrap; text-align: right; padding-top: 9px; }
+  .line-total.muted { color: var(--text-hint); font-weight: 400; }
+
+  .err-inline { font-size: 11px; color: var(--danger); display: none; margin-top: 3px; }
+  .err-inline.show { display: block; }
+
+  /* ── Terms card ── */
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  label { font-size: 12.5px; font-weight: 500; color: var(--text-muted); }
+  label .req { color: var(--danger); margin-left: 2px; }
+  input[type="date"], input[type="text"], select, textarea {
+    width: 100%; padding: 9px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif;
+    background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    color: var(--text); outline: none; appearance: none; -webkit-appearance: none;
+    transition: border-color 0.18s, background 0.18s;
+  }
+  input[type="date"]:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(43,76,63,0.1); }
+  input.invalid, select.invalid { border-color: var(--danger); background: var(--danger-bg); }
+  textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6459' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+  .error-msg { font-size: 11.5px; color: var(--danger); display: none; }
+  .error-msg.show { display: block; }
+
+  /* ── Grand total ── */
+  .grand-total-box { background: var(--accent); border-radius: var(--radius); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .gtb-left { font-size: 13px; color: rgba(255,255,255,0.65); }
+  .gtb-left strong { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 3px; color: rgba(255,255,255,0.45); font-weight: 500; }
+  .grand-amount { font-family: 'DM Serif Display', serif; font-size: 28px; color: #fff; }
+
+  .notice { background: var(--warning-bg); border: 1px solid #F0D28A; border-radius: var(--radius); padding: 12px 14px; font-size: 13px; color: var(--warning); display: flex; gap: 8px; align-items: flex-start; margin-bottom: 1.25rem; }
+  .notice svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; stroke: var(--warning); }
+
+  .submit-section { display: flex; flex-direction: column; gap: 12px; animation: fadeUp 0.5s 0.3s ease both; }
+  .btn-submit { width: 100%; padding: 14px; background: var(--accent); color: #fff; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; border: none; border-radius: var(--radius); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 9px; transition: background 0.2s, transform 0.1s; }
+  .btn-submit:hover { background: #1e3a2e; }
+  .btn-submit:active { transform: scale(0.99); }
+  .btn-submit:disabled { background: var(--border-strong); cursor: not-allowed; transform: none; }
+  .btn-submit svg { width: 18px; height: 18px; stroke: #fff; }
+  .form-note { font-size: 12px; color: var(--text-hint); text-align: center; line-height: 1.55; }
+
+  .success-screen { display: none; text-align: center; padding: 4rem 2rem; animation: fadeUp 0.5s ease both; }
+  .success-screen.show { display: block; }
+  .success-icon { width: 72px; height: 72px; background: var(--success-bg); border-radius: 50%; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center; }
+  .success-icon svg { width: 32px; height: 32px; stroke: var(--success); }
+  .success-screen h2 { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--text); margin-bottom: 10px; }
+  .success-screen p { font-size: 14px; color: var(--text-muted); line-height: 1.6; max-width: 380px; margin: 0 auto 1.5rem; }
+  .success-doc { display: inline-block; background: var(--success-bg); border: 1px solid #A8D9BC; border-radius: 8px; padding: 8px 18px; font-size: 14px; font-weight: 500; color: var(--success); }
+
+  #toast { position: fixed; bottom: 28px; right: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 18px; font-size: 13.5px; font-family: 'DM Sans', sans-serif; display: none; align-items: center; gap: 10px; max-width: 360px; z-index: 9999; box-shadow: var(--shadow-lg); }
+  #toast.show { display: flex; }
+  #toast.error { border-color: #F5B7B1; color: var(--danger); }
+  #toast.success { border-color: #A8D9BC; color: var(--success); }
+  .spinner { width: 16px; height: 16px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+
+  footer { text-align: center; padding: 2rem 1rem 1rem; font-size: 12px; color: var(--text-hint); border-top: 1px solid var(--border); margin-top: 3rem; }
+
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 640px) {
+    .topbar { padding: 0 1rem; }
+    .layout { padding: 1.5rem 1rem 4rem; }
+    .hero h1 { font-size: 26px; }
+    .info-strip { gap: 7px; }
+    .items-table thead { display: none; }
+    .items-table td { display: block; padding: 6px 0; }
+    .items-table tbody tr { display: block; border-bottom: 1px solid var(--border); padding: 14px 0; }
+    .field-grid { grid-template-columns: 1fr; }
+    .field.full { grid-column: 1; }
+    #toast { left: 16px; right: 16px; bottom: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="topbar">
+  <span class="topbar-brand">NMTG Mechtrans</span>
+  <span class="topbar-rfq" id="topbar-rfq-id">PUR-RFQ-2026-00007</span>
+</nav>
+
+<div class="layout">
+
+  <div class="hero">
+    <div class="hero-eyebrow">Supplier Portal</div>
+    <h1>Submit your <em>quotation</em></h1>
+    <p class="hero-sub">Please review the items below and provide your best pricing. Your response will be directly recorded in our procurement system.</p>
+  </div>
+
+  <div class="info-strip">
+    <div class="info-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      <span>RFQ Date:</span><strong id="info-date">2026-06-05</strong>
+    </div>
+    <div class="info-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Due by:</span><strong id="info-due">2026-07-03</strong>
+    </div>
+    <div class="info-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Supplier:</span><strong id="info-supplier">MA Inc.</strong>
+    </div>
+    <div class="info-chip">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Company:</span><strong id="info-company">NMTG Mechtrans</strong>
+    </div>
+  </div>
+
+  <div id="form-wrap">
+
+    <div class="notice">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Fields marked with <strong>*</strong> are required. Enter a unit price and lead time for <strong>each item</strong>. Your quotation will be submitted directly as a Supplier Quotation in ERPNext.</span>
+    </div>
+
+    <!-- Items + Pricing card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Items &amp; Pricing</div>
+          <div class="card-subtitle" id="item-count-label">2 items requested — enter your unit price for each</div>
+        </div>
+      </div>
+
+      <table class="items-table" id="items-table">
+        <thead>
+          <tr>
+            <th style="width:36px">#</th>
+            <th>Item</th>
+            <th style="width:90px">Qty</th>
+            <th style="width:160px">Unit price <span style="color:var(--danger)">*</span></th>
+            <th style="width:110px">Lead time <span style="color:var(--danger)">*</span></th>
+            <th class="right" style="width:120px">Line total</th>
+          </tr>
+        </thead>
+        <tbody id="items-tbody">
+          <!-- rows injected by JS -->
+        </tbody>
+      </table>
+
+      <div class="grand-total-box">
+        <div class="gtb-left">
+          <strong>Grand Total</strong>
+          <span id="grand-breakdown">Enter prices above to calculate</span>
+        </div>
+        <div class="grand-amount" id="grand-total">—</div>
+      </div>
+    </div>
+
+    <!-- Terms card -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Terms &amp; Conditions</div>
+          <div class="card-subtitle">Validity, payment terms and remarks</div>
+        </div>
+      </div>
+      <div class="field-grid">
+        <div class="field">
+          <label>Valid until <span class="req">*</span></label>
+          <input type="date" id="valid-till" />
+          <span class="error-msg" id="err-valid">Please enter a validity date.</span>
+        </div>
+        <div class="field">
+          <label>Payment terms</label>
+          <select id="payment-terms">
+            <option value="">— Select terms —</option>
+            <option value="Net 30">Net 30</option>
+            <option value="Net 45">Net 45</option>
+            <option value="Net 60">Net 60</option>
+            <option value="Advance 50%">Advance 50%</option>
+            <option value="Full advance">Full advance</option>
+            <option value="Cash on delivery">Cash on delivery</option>
+          </select>
+        </div>
+        <div class="field full">
+          <label>Remarks / conditions</label>
+          <textarea id="notes" placeholder="Any special terms, packaging details, warranty, or additional conditions…"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="submit-section">
+      <button class="btn-submit" id="submit-btn" onclick="submitQuotation()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Submit Quotation
+      </button>
+      <p class="form-note">
+        By submitting, you confirm this quotation is accurate and valid until the date specified above.<br>
+        This will create a Supplier Quotation in NMTG's ERPNext system.
+      </p>
+    </div>
+
+  </div>
+
+  <div class="success-screen" id="success-screen">
+    <div class="success-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2>Quotation submitted!</h2>
+    <p>Thank you. Your quotation has been recorded in our procurement system and our team will review it shortly.</p>
+    <div class="success-doc" id="success-doc-id">Processing…</div>
+  </div>
+
+</div>
+
+<footer>
+  &copy; 2026 NMTG Mechtrans Techniques Private Limited &nbsp;·&nbsp; Powered by ERPNext
+</footer>
+
+<div id="toast" role="alert" aria-live="assertive"></div>
+
+<script>
+/* ────────────────────────────────────────────────────────────
+   RFQ defaults (overridden by URL params)
+   Items are stored as an array to support N items.
+
+   URL param format for multiple items (0-indexed):
+     items[0][item_code], items[0][item_name], items[0][qty],
+     items[0][uom], items[0][warehouse], items[0][img],
+     items[0][mr], items[0][mr_item], items[0][item_group]
+
+   For convenience, single-item legacy params still work:
+     item_code, item_name, qty, uom, img, warehouse, mr, mr_item
+──────────────────────────────────────────────────────────── */
+const RFQ = {
+  name:             "PUR-RFQ-2026-00007",
+  company:          "NMTG Mechtrans Techniques Private limited (Demo)",
+  transaction_date: "2026-06-05",
+  schedule_date:    "2026-07-03",
+  supplier:         "MA Inc.",
+  supplier_email:   "",
+  items: [
+    {
+      idx:                  1,
+      item_code:            "SKU001",
+      item_name:            "T-shirt",
+      item_group:           "Finished Goods",
+      qty:                  60,
+      uom:                  "Nos",
+      img:                  "https://images.pexels.com/photos/1484808/pexels-photo-1484808.jpeg",
+      warehouse:            "Finished Goods - NMTGD",
+      material_request:     "MAT-MR-2026-00006",
+      material_request_item:"9vu1mnf133"
+    },
+    {
+      idx:                  2,
+      item_code:            "NKLS11300001",
+      item_name:            "Front Nut - ID 12 mm x OD 90 mm x TL 89 mm",
+      item_group:           "Semi Finish Goods",
+      qty:                  50,
+      uom:                  "Nos",
+      img:                  "",
+      warehouse:            "Finished Goods - NMTGD",
+      material_request:     "",
+      material_request_item:""
+    }
+  ]
+};
+
+/* ── Parse URL params ── */
+function loadFromParams() {
+  const p = new URLSearchParams(window.location.search);
+
+  if (p.get('rfq'))      { RFQ.name = p.get('rfq'); document.getElementById('topbar-rfq-id').textContent = p.get('rfq'); }
+  if (p.get('company'))  { RFQ.company = p.get('company'); document.getElementById('info-company').textContent = p.get('company').split('(')[0].trim(); }
+  if (p.get('date'))     { RFQ.transaction_date = p.get('date'); document.getElementById('info-date').textContent = p.get('date'); }
+  if (p.get('due'))      { RFQ.schedule_date = p.get('due'); document.getElementById('info-due').textContent = p.get('due'); }
+  if (p.get('supplier')) { RFQ.supplier = p.get('supplier'); document.getElementById('info-supplier').textContent = p.get('supplier'); }
+  if (p.get('email'))    { RFQ.supplier_email = p.get('email'); }
+
+  // Multi-item params: items[0][item_code] etc.
+  const itemsFromParams = [];
+  let i = 0;
+  while (p.get(`items[${i}][item_code]`)) {
+    itemsFromParams.push({
+      idx:                  i + 1,
+      item_code:            p.get(`items[${i}][item_code]`) || '',
+      item_name:            p.get(`items[${i}][item_name]`) || '',
+      item_group:           p.get(`items[${i}][item_group]`) || '',
+      qty:                  parseInt(p.get(`items[${i}][qty]`)) || 1,
+      uom:                  p.get(`items[${i}][uom]`) || 'Nos',
+      img:                  p.get(`items[${i}][img]`) || '',
+      warehouse:            p.get(`items[${i}][warehouse]`) || '',
+      material_request:     p.get(`items[${i}][mr]`) || '',
+      material_request_item:p.get(`items[${i}][mr_item]`) || ''
+    });
+    i++;
+  }
+  if (itemsFromParams.length > 0) RFQ.items = itemsFromParams;
+
+  // Legacy single-item params (backward compat)
+  else if (p.get('item_code')) {
+    RFQ.items = [{
+      idx: 1,
+      item_code:             p.get('item_code'),
+      item_name:             p.get('item_name') || '',
+      item_group:            p.get('item_group') || '',
+      qty:                   parseInt(p.get('qty')) || 1,
+      uom:                   p.get('uom') || 'Nos',
+      img:                   p.get('img') || '',
+      warehouse:             p.get('warehouse') || '',
+      material_request:      p.get('mr') || '',
+      material_request_item: p.get('mr_item') || ''
+    }];
+  }
+
+  // Validity date default
+  const validEl = document.getElementById('valid-till');
+  const minDate = new Date(); minDate.setDate(minDate.getDate() + 3);
+  validEl.min = minDate.toISOString().split('T')[0];
+  validEl.value = RFQ.schedule_date;
+}
+
+/* ── Render item rows ── */
+function renderItems() {
+  const tbody = document.getElementById('items-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('item-count-label').textContent =
+    `${RFQ.items.length} item${RFQ.items.length > 1 ? 's' : ''} requested — enter your unit price for each`;
+
+  RFQ.items.forEach((item, idx) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><div class="item-num">${item.idx}</div></td>
+      <td>
+        <div class="item-cell">
+          ${item.img
+            ? `<img class="item-thumb-sm" src="${item.img}" alt="" onerror="this.style.display='none'" />`
+            : `<div class="item-thumb-sm" style="display:flex;align-items:center;justify-content:center;color:var(--text-hint);font-size:18px">⬡</div>`
+          }
+          <div>
+            <div class="item-cell-name">${item.item_name}</div>
+            <div class="item-cell-meta">${item.item_code} · ${item.item_group}</div>
+          </div>
+        </div>
+      </td>
+      <td><span class="qty-badge">${item.qty} ${item.uom}</span></td>
+      <td>
+        <div class="price-input-wrap">
+          <span class="price-pfx">₹</span>
+          <input type="number" id="price-${idx}" placeholder="0.00" min="0.01" step="0.01"
+            oninput="calcGrandTotal()" data-idx="${idx}" />
+        </div>
+        <div class="err-inline" id="err-price-${idx}">Required</div>
+      </td>
+      <td>
+        <input type="number" class="lead-input" id="lead-${idx}" placeholder="days" min="1" step="1"
+          data-idx="${idx}" />
+        <div class="err-inline" id="err-lead-${idx}">Required</div>
+      </td>
+      <td><div class="line-total muted" id="line-total-${idx}">—</div></td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Clear invalid on change
+  RFQ.items.forEach((_, idx) => {
+    document.getElementById(`price-${idx}`).addEventListener('input', () => {
+      document.getElementById(`price-${idx}`).classList.remove('invalid');
+      document.getElementById(`err-price-${idx}`).classList.remove('show');
+    });
+    document.getElementById(`lead-${idx}`).addEventListener('input', () => {
+      document.getElementById(`lead-${idx}`).classList.remove('invalid');
+      document.getElementById(`err-lead-${idx}`).classList.remove('show');
+    });
+  });
+}
+
+/* ── Grand total calc ── */
+function calcGrandTotal() {
+  let grand = 0;
+  let allFilled = true;
+
+  RFQ.items.forEach((item, idx) => {
+    const price = parseFloat(document.getElementById(`price-${idx}`).value) || 0;
+    const line = price * item.qty;
+    const ltEl = document.getElementById(`line-total-${idx}`);
+    if (price > 0) {
+      ltEl.textContent = '₹' + line.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      ltEl.classList.remove('muted');
+      grand += line;
+    } else {
+      ltEl.textContent = '—';
+      ltEl.classList.add('muted');
+      allFilled = false;
+    }
+  });
+
+  const gtEl = document.getElementById('grand-total');
+  const gbEl = document.getElementById('grand-breakdown');
+  if (grand > 0) {
+    gtEl.textContent = '₹' + grand.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    gbEl.textContent = allFilled ? `Total for ${RFQ.items.length} items` : 'Partial total (fill all prices)';
+  } else {
+    gtEl.textContent = '—';
+    gbEl.textContent = 'Enter prices above to calculate';
+  }
+}
+
+/* ── Validation ── */
+function validate() {
+  let valid = true;
+
+  RFQ.items.forEach((_, idx) => {
+    const priceEl = document.getElementById(`price-${idx}`);
+    const leadEl  = document.getElementById(`lead-${idx}`);
+    if (!priceEl.value || parseFloat(priceEl.value) <= 0) {
+      priceEl.classList.add('invalid');
+      document.getElementById(`err-price-${idx}`).classList.add('show');
+      valid = false;
+    }
+    if (!leadEl.value || parseInt(leadEl.value) <= 0) {
+      leadEl.classList.add('invalid');
+      document.getElementById(`err-lead-${idx}`).classList.add('show');
+      valid = false;
+    }
+  });
+
+  const validTill = document.getElementById('valid-till');
+  const errValid  = document.getElementById('err-valid');
+  if (!validTill.value) {
+    validTill.classList.add('invalid');
+    errValid.classList.add('show');
+    valid = false;
+  } else {
+    validTill.classList.remove('invalid');
+    errValid.classList.remove('show');
+  }
+
+  return valid;
+}
+
+/* ── Toast ── */
+function showToast(msg, type, duration = 5000) {
+  const t = document.getElementById('toast');
+  t.innerHTML = '';
+  if (type === 'loading') {
+    const sp = document.createElement('div'); sp.className = 'spinner'; t.appendChild(sp);
+  } else {
+    const svg = type === 'success'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:#1A6B45;width:16px;height:16px"><polyline points="20 6 9 17 4 12"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="stroke:#C0392B;width:16px;height:16px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+    t.insertAdjacentHTML('beforeend', svg);
+  }
+  t.insertAdjacentHTML('beforeend', `<span>${msg}</span>`);
+  t.className = 'toast show ' + (type !== 'loading' ? type : '');
+  if (type !== 'loading') setTimeout(() => { t.className = 'toast'; }, duration);
+}
+
+/* ── CSRF ── */
+function getCsrfToken() {
+  try { if (typeof frappe !== 'undefined' && frappe.csrf_token) return frappe.csrf_token; } catch (_) {}
+  const m = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]+)/);
+  return m ? decodeURIComponent(m[1]) : 'fetch';
+}
+
+/* ── Submit ── */
+async function submitQuotation() {
+  if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  showToast('Submitting your quotation…', 'loading');
+
+  const itemRows = RFQ.items.map((item, idx) => ({
+    item_code:              item.item_code,
+    qty:                    item.qty,
+    uom:                    item.uom,
+    warehouse:              item.warehouse,
+    rate:                   parseFloat(document.getElementById(`price-${idx}`).value),
+    lead_time_days:         parseInt(document.getElementById(`lead-${idx}`).value),
+    material_request:       item.material_request      || '',
+    material_request_item:  item.material_request_item || '',
+  }));
+
+  const payload = {
+    supplier:         RFQ.supplier,
+    company:          RFQ.company,
+    valid_till:       document.getElementById('valid-till').value,
+    rfq:              RFQ.name,
+    items:            itemRows,
+    terms:            document.getElementById('notes').value || '',
+    payment_terms_template: document.getElementById('payment-terms').value || ''
+  };
+
+  try {
+    const res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' },
+      body:    JSON.stringify({ data: JSON.stringify(payload) })
+    });
+
+    const data = await res.json();
+    if (res.ok && data.message && data.message.name) {
+      document.getElementById('toast').className = 'toast';
+      document.getElementById('form-wrap').style.display = 'none';
+      document.getElementById('success-screen').classList.add('show');
+      document.getElementById('success-doc-id').textContent = data.message.name;
+    } else {
+      throw new Error(data.exc_type || data.message || 'Submission failed.');
+    }
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error', 8000);
+    btn.disabled = false;
+  }
+}
+
+/* ── Init ── */
+loadFromParams();
+renderItems();
+</script>
+</body>
+</html>
