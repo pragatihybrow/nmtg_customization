@@ -264,7 +264,6 @@ doctype_js = {
     "Material Request":"public/js/material_request.js"
 }
 
-
-# override_doctype_class = {
-#     "Item": "nmtg.config.api.item.CustomItem"
-# }
+override_doctype_class = {
+    "Item": "nmtg.override.item.CustomItem"
+}

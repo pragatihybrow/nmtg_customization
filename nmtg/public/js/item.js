@@ -2,11 +2,15 @@ frappe.ui.form.on("Item", {
     onload: function(frm) { 
         toggle_models_field(frm);
         set_models_filter(frm);
+         if (frm.is_new()) {
+            frm.doc.item_code = "TEMP-" + frappe.utils.get_random(8);
+            frm.doc.item_name = "";
+        }
     },
     refresh: function(frm) { 
         toggle_models_field(frm);
         set_models_filter(frm);
-        generate_item_name(frm)
+       // generate_item_name(frm)
     },
 
     item_group: function(frm) {
@@ -15,7 +19,7 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
-        generate_item_name(frm)
+       // generate_item_name(frm)
     },
 
     custom_product_group: function(frm) {
@@ -23,30 +27,16 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
-        generate_item_name(frm);
+       // generate_item_name(frm);
     },
 
     custom_sub_product_group: function(frm) {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
-        generate_item_code(frm);
+        // generate_item_code(frm);
     },
 
-    custom_item_category(frm) {
-        generate_item_name(frm);
-    },
-
-    custom_model_name(frm) {
-        generate_item_name(frm);
-    },
-
-    custom_assembly_size(frm) {
-        generate_item_name(frm);
-    },
-    custom_product_code(frm) {
-        generate_item_code(frm);
-    },
     custom_id: function(frm) {
         set_actual_size(frm);
     },
@@ -138,6 +128,87 @@ function set_models_filter(frm) {
             });
         });
 }
+
+
+
+
+function generate_item_code(frm) {
+    if (!frm.doc.item_group || !frm.doc.custom_product_group || 
+        !frm.doc.custom_sub_product_group || !frm.doc.custom_product_code) return;
+
+    frappe.call({
+        method: "nmtg.api.item.get_item_code",
+        args: {
+            item_group: frm.doc.item_group,
+            custom_product_group: frm.doc.custom_product_group,
+            custom_sub_product_group: frm.doc.custom_sub_product_group,
+            doc: frm.doc
+        },
+        callback: function(r) {
+            if (r.message) {
+                frm.set_value("item_code", r.message.item_code);
+                frm.set_value("item_name", r.message.item_name);
+            }
+        }
+    });
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function generate_item_name(frm) {
 
     let item_group = frm.doc.item_group || "";
@@ -208,7 +279,7 @@ function generate_item_name(frm) {
     frm.set_value("item_name", item_name.trim());
 }
 
-function generate_item_code(frm) {
+function  generate_item_code(frm) {
 
     const prefix = "N";
     const group_initials = frm.doc.custom_product_group_initials || "";
