@@ -269,13 +269,6 @@ override_doctype_class = {
     "Purchase Order": "nmtg.override.purchase_order.CustomPurchaseOrder"
 }
 
-
-doc_events = {
-    "Purchase Order": {
-        "validate": "nmtg.override.purchase_order.validate_purchase_order"
-    }
-}
-
 # hooks.py
 doctype_list_js = {
     "Quality Inspection": "public/js/quality_inspection_listview.js"

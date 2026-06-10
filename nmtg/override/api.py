@@ -160,9 +160,6 @@ def create_heat_number(po, row_name):
 
     return heat_number
 
-
-    import frappe
-
 @frappe.whitelist()
 def make_quality_inspections_custom(doctype, docname, company, items, inspection_type="Incoming"):
     import json
