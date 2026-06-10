@@ -43,7 +43,6 @@ app_license = "mit"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
-# doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
 
@@ -260,10 +259,24 @@ doctype_js = {
     "Item": "public/js/item.js",
     "Customer":"public/js/customer.js",
     "Item Group":"public/js/item_group.js",
-    # "Request for Quotation":"public/js/rfq.js",
-    "Material Request":"public/js/material_request.js"
+    "Purchase Order":"public/js/purchase_order.js",
+    "Material Request":"public/js/material_request.js",
+    "Purchase Receipt":"public/js/purchase_receipt.js"
 }
 
 override_doctype_class = {
-    "Item": "nmtg.override.item.CustomItem"
+    "Item": "nmtg.override.item.CustomItem",
+    "Purchase Order": "nmtg.override.purchase_order.CustomPurchaseOrder"
+}
+
+
+doc_events = {
+    "Purchase Order": {
+        "validate": "nmtg.override.purchase_order.validate_purchase_order"
+    }
+}
+
+# hooks.py
+doctype_list_js = {
+    "Quality Inspection": "public/js/quality_inspection_listview.js"
 }
