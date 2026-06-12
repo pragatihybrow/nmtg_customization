@@ -95,7 +95,6 @@ class CustomPurchaseOrder(PurchaseOrder):
             if matching_item.custom_single_heat_number:
                 po_hn_normalized = po_hn.split(" - ")[0].strip()  # "NK5833"
                 qc_hn_normalized = qc_hn.split(" - ")[0].strip()  # handles "NK5833 - NK5833" too
-q
                 if qc_hn_normalized != po_hn_normalized:
                     frappe.throw(
                         f"""
