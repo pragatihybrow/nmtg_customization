@@ -94,7 +94,7 @@ def create_heat_number(po, row_name):
     row = frappe.get_value(
         "Purchase Order Item",
         row_name,
-        ["qty", "custom_nmtg_heat_number"],
+        ["qty", "custom_nmtg_heat_number", "custom_single_heat_number"],
         as_dict=True
     )
 
@@ -129,26 +129,30 @@ def create_heat_number(po, row_name):
     )
 
     if not year_initial:
-        frappe.throw(
-            f"Year Initial missing in Fiscal Year {fiscal_year}"
-        )
+        frappe.throw(f"Year Initial missing in Fiscal Year {fiscal_year}")
 
     prefix = f"N{year_initial}"
 
-    first = make_autoname(f"{prefix}.###")
-    start = int(first.replace(prefix, "").replace(".", ""))
+    if row.custom_single_heat_number:
+        # Generate exactly one heat number — no range
+        single = make_autoname(f"{prefix}.###")
+        num = int(single.replace(prefix, "").replace(".", ""))
+        heat_number = f"{prefix}{str(num).zfill(3)}"
+    else:
+        # Generate qty heat numbers and store as a range
+        first = make_autoname(f"{prefix}.###")
+        start = int(first.replace(prefix, "").replace(".", ""))
+        end = start
 
-    end = start
+        for _ in range(qty - 1):
+            nxt = make_autoname(f"{prefix}.###")
+            end = int(nxt.replace(prefix, "").replace(".", ""))
 
-    for _ in range(qty - 1):
-        nxt = make_autoname(f"{prefix}.###")
-        end = int(nxt.replace(prefix, "").replace(".", ""))
-
-    heat_number = (
-        f"{prefix}{str(start).zfill(3)}"
-        f" - "
-        f"{prefix}{str(end).zfill(3)}"
-    )
+        heat_number = (
+            f"{prefix}{str(start).zfill(3)}"
+            f" - "
+            f"{prefix}{str(end).zfill(3)}"
+        )
 
     frappe.db.set_value(
         "Purchase Order Item",
@@ -160,11 +164,16 @@ def create_heat_number(po, row_name):
 
     return heat_number
 
+    
+
+
 @frappe.whitelist()
 def make_quality_inspections_custom(doctype, docname, company, items, inspection_type="Incoming"):
     import json
     if isinstance(items, str):
         items = json.loads(items)
+
+    valid_types = set(frappe.db.sql_list("SELECT name FROM `tabQC Testing Type`"))
 
     qi_names = []
 
@@ -177,17 +186,100 @@ def make_quality_inspections_custom(doctype, docname, company, items, inspection
         qi.item_name = item.get("item_name")
         qi.sample_size = item.get("sample_size") or item.get("qty") or 1
         qi.inspected_by = frappe.session.user
-        qi.inspection_date = frappe.utils.today()
+        qi.report_date = frappe.utils.today()   # <-- was inspection_date
         qi.company = company
         qi.child_row_reference = item.get("child_row_reference", "")
 
-        # Custom fields from supplier selection for QC
         qi.custom_supplier = item.get("supplier", "")
         qi.custom_nmtg_heat_number = item.get("nmtg_heat_number", "")
         qi.custom_vendor_heat_number = item.get("custom_vendor_heat_number", "")
         qi.custom_mill_tc = item.get("custom_mill_tc", "")
 
+        testing_value = item.get("testing_value", "[]")
+        try:
+            testing_types = json.loads(testing_value) if isinstance(testing_value, str) else (testing_value or [])
+        except Exception:
+            testing_types = []
+
+        for tt in testing_types:
+            tt = (tt or "").strip()
+            if not tt or tt not in valid_types:
+                continue
+            qi.append("custom_testing_type", {"testing_type": tt})
+
         qi.insert(ignore_permissions=True)
         qi_names.append(qi.name)
 
+    frappe.db.commit()
     return qi_names
+
+
+
+@frappe.whitelist()
+def update_qc_testing_type(row_name, testing_value):
+    frappe.db.set_value(
+        "Supplier Selection For QC",
+        row_name,
+        "testing_value",
+        testing_value,
+        update_modified=False
+    )
+    frappe.db.commit()
+    return True
+
+
+@frappe.whitelist()
+def get_or_create_qc_series(qi_names):
+    import json
+    from frappe.utils import today
+
+    if isinstance(qi_names, str):
+        qi_names = json.loads(qi_names)
+
+    # Check if all docs already share a qc_series
+    existing_series = set()
+    for name in qi_names:
+        val = frappe.db.get_value("Quality Inspection", name, "custom_qc_series")
+        if val:
+            existing_series.add(val)
+
+    # All already assigned the same series — reuse it
+    if len(existing_series) == 1:
+        return existing_series.pop()
+
+    # Generate new series using fiscal year initials
+    fiscal_year = frappe.db.get_value(
+        "Fiscal Year",
+        {
+            "year_start_date": ["<=", today()],
+            "year_end_date":   [">=", today()],
+            "disabled": 0
+        },
+        "name"
+    )
+
+    if not fiscal_year:
+        frappe.throw("No active Fiscal Year found")
+
+    # Fiscal year name is like "2026-2027", extract "26-27"
+    fy_short = "-".join([part[-2:] for part in fiscal_year.split("-")])
+
+    prefix = f"N-OL-{fy_short}-"
+
+    # Get next sequence number
+    series_key = f"{prefix}.####"
+    next_val = frappe.model.naming.make_autoname(series_key)
+    # next_val will be like "N-OL-26-27-0001"
+
+    # Save to all docs in this group
+    for name in qi_names:
+        frappe.db.set_value(
+            "Quality Inspection",
+            name,
+            "custom_qc_series",
+            next_val,
+            update_modified=False
+        )
+
+    frappe.db.commit()
+    return next_val

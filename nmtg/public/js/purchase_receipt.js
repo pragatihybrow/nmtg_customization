@@ -1,7 +1,3 @@
-// ============================================================
-// File:  apps/nmtg/nmtg/public/js/purchase_receipt.js
-// ============================================================
-
 frappe.ui.form.on('Purchase Receipt Item', {
     form_render: function(frm, cdt, cdn) {
         render_qc_supplier_table(frm, cdt, cdn);
@@ -21,6 +17,7 @@ frappe.ui.form.on("Purchase Receipt", {
     }
 });
 
+
 function render_qc_supplier_table(frm, cdt, cdn) {
     let d = locals[cdt][cdn];
     let row = frm.fields_dict['items'].grid.grid_rows_by_docname[cdn];
@@ -39,25 +36,47 @@ function render_qc_supplier_table(frm, cdt, cdn) {
             .qc-table td { padding: 5px 10px; vertical-align: middle; }
             .qc-table tr:nth-child(even) { background: #f9f9f9; }
             .qc-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #363a50; color: #fff; font-size: 11px; }
+            .qc-test-tag { display: inline-block; padding: 2px 7px; border-radius: 8px; background: #d4a843; color: #0f1117; font-size: 10px; font-weight: 600; margin: 2px 2px; }
         </style>
         <div style="margin: 8px 0;">
             <table class="table table-bordered qc-table">
                 <thead>
-                    <tr><th>#</th><th>Supplier</th><th>Qty</th><th>NMTG Heat Number</th></tr>
+                    <tr>
+                        <th>#</th>
+                        <th>Lab</th>
+                        <th>Qty</th>
+                        <th>NMTG Heat Number</th>
+                        <th>Testing Type</th>
+                    </tr>
                 </thead>
                 <tbody>
     `;
 
     if (!qc_rows.length) {
-        html += `<tr><td colspan="4" style="text-align:center; color:#888; padding:10px;">No supplier QC entries for this item.</td></tr>`;
+        html += `<tr><td colspan="5" style="text-align:center; color:#888; padding:10px;">No supplier QC entries for this item.</td></tr>`;
     } else {
         qc_rows.forEach((r, i) => {
+            let testing_tags = '';
+            try {
+                let types = JSON.parse(r.testing_value || '[]');
+                if (types.length) {
+                    testing_tags = types.map(t =>
+                        `<span class="qc-test-tag">${frappe.utils.escape_html(t)}</span>`
+                    ).join('');
+                } else {
+                    testing_tags = `<span style="color:#888; font-size:11px;">—</span>`;
+                }
+            } catch(e) {
+                testing_tags = `<span style="color:#888; font-size:11px;">—</span>`;
+            }
+
             html += `
                 <tr>
                     <td>${i + 1}</td>
                     <td><span class="qc-badge">${r.supplier || ''}</span></td>
                     <td>${r.qty || 0}</td>
                     <td>${r.nmtg_heat_number || ''}</td>
+                    <td>${testing_tags}</td>
                 </tr>`;
         });
     }
@@ -65,6 +84,7 @@ function render_qc_supplier_table(frm, cdt, cdn) {
     html += `</tbody></table></div>`;
     $(wrapper.wrapper).html(html);
 }
+
 
 function custom_make_quality_inspection(frm) {
     let data = [];
@@ -75,18 +95,19 @@ function custom_make_quality_inspection(frm) {
             fieldtype: "Table",
             fieldname: "items",
             cannot_add_rows: true,
-            cannot_delete_rows: true,   // ← hides the delete (×) button
+            cannot_delete_rows: true,
             in_place_edit: true,
             data: data,
             get_data: () => data,
             fields: [
-                { fieldtype: "Data",      fieldname: "docname",                  hidden: true },
-                { fieldtype: "Data",      fieldname: "child_row_reference",       hidden: true },
-                { fieldtype: "Data",      fieldname: "qc_row_name",              hidden: true },
-                { fieldtype: "Data",      fieldname: "supplier",                 hidden: true },
-                { fieldtype: "Data",      fieldname: "nmtg_heat_number",          hidden: true },
-                { fieldtype: "Data",      fieldname: "custom_vendor_heat_number", hidden: true },
-                { fieldtype: "Data",      fieldname: "custom_mill_tc",            hidden: true },
+                { fieldtype: "Data", fieldname: "docname",                  hidden: true },
+                { fieldtype: "Data", fieldname: "child_row_reference",       hidden: true },
+                { fieldtype: "Data", fieldname: "qc_row_name",              hidden: true },
+                { fieldtype: "Data", fieldname: "supplier",                 hidden: true },
+                { fieldtype: "Data", fieldname: "nmtg_heat_number",          hidden: true },
+                { fieldtype: "Data", fieldname: "custom_vendor_heat_number", hidden: true },
+                { fieldtype: "Data", fieldname: "custom_mill_tc",            hidden: true },
+                { fieldtype: "Data", fieldname: "testing_value",             hidden: true },
                 {
                     fieldtype: "Read Only", fieldname: "item_code",
                     label: __("Item Code"), in_list_view: true, columns: 2,
@@ -97,7 +118,7 @@ function custom_make_quality_inspection(frm) {
                 },
                 {
                     fieldtype: "Read Only", fieldname: "supplier_display",
-                    label: __("Supplier"), in_list_view: true, columns: 2,
+                    label: __("Lab"), in_list_view: true, columns: 2,
                 },
                 {
                     fieldtype: "Read Only", fieldname: "nmtg_heat_number_display",
@@ -110,6 +131,10 @@ function custom_make_quality_inspection(frm) {
                 {
                     fieldtype: "Float", fieldname: "sample_size",
                     label: __("Sample Size"), reqd: true, in_list_view: true, columns: 1,
+                },
+                {
+                    fieldtype: "Read Only", fieldname: "testing_type_display",
+                    label: __("Testing Type"), in_list_view: true, columns: 2,
                 },
                 {
                     fieldtype: "Read Only", fieldname: "duplicate_label",
@@ -133,7 +158,6 @@ function custom_make_quality_inspection(frm) {
                 return;
             }
 
-            // Safety guard — reject duplicates even if somehow checked
             const has_dup = selected.some(r => {
                 const key = `${r.item_code}||${r.supplier || ""}||${r.nmtg_heat_number || ""}`;
                 return duplicate_keys.has(key);
@@ -151,15 +175,16 @@ function custom_make_quality_inspection(frm) {
                     docname: frm.doc.name,
                     inspection_type: "Incoming",
                     items: selected.map(r => ({
-                        item_code: r.item_code,
-                        item_name: r.item_name,
-                        qty: r.qty,
-                        sample_size: r.sample_size,
-                        child_row_reference: r.child_row_reference,
-                        supplier: r.supplier,
-                        nmtg_heat_number: r.nmtg_heat_number,
+                        item_code:                 r.item_code,
+                        item_name:                 r.item_name,
+                        qty:                       r.qty,
+                        sample_size:               r.sample_size,
+                        child_row_reference:       r.child_row_reference,
+                        supplier:                  r.supplier,
+                        nmtg_heat_number:          r.nmtg_heat_number,
                         custom_vendor_heat_number: r.custom_vendor_heat_number,
-                        custom_mill_tc: r.custom_mill_tc,
+                        custom_mill_tc:            r.custom_mill_tc,
+                        testing_value:             r.testing_value || '[]',
                     })),
                 },
                 freeze: true,
@@ -182,10 +207,8 @@ function custom_make_quality_inspection(frm) {
         }
     });
 
-    // Shared Set — filled after API call, also used by primary_action guard
     const duplicate_keys = new Set();
 
-    // ── Build item map ──────────────────────────────────────────────────────────
     const item_map = {};
     (frm.doc.items || []).forEach(item => {
         item_map[item.item_code] = item;
@@ -193,10 +216,17 @@ function custom_make_quality_inspection(frm) {
 
     let grid_field = dialog.fields_dict.items;
 
-    // Populate rows
     (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
         const parent_item = item_map[qc.item];
         if (!parent_item) return;
+
+        let testing_type_display = '';
+        try {
+            let types = JSON.parse(qc.testing_value || '[]');
+            testing_type_display = types.join(', ') || '—';
+        } catch(e) {
+            testing_type_display = '—';
+        }
 
         grid_field.df.data.push({
             docname:                   parent_item.name,
@@ -212,6 +242,8 @@ function custom_make_quality_inspection(frm) {
             sample_size:               0,
             child_row_reference:       parent_item.name,
             qc_row_name:               qc.name,
+            testing_value:             qc.testing_value || '[]',
+            testing_type_display:      testing_type_display,
             duplicate_label:           __("Checking…"),
         });
     });
@@ -224,7 +256,6 @@ function custom_make_quality_inspection(frm) {
     grid_field.grid.refresh();
     dialog.show();
 
-    // ── Fetch existing QIs and apply duplicate styling ──────────────────────────
     frappe.call({
         method: "frappe.client.get_list",
         args: {
@@ -246,14 +277,13 @@ function custom_make_quality_inspection(frm) {
                 );
             });
 
-            // Update label on each data row and collect duplicate cdns
             const duplicate_cdns = new Set();
 
             grid_field.df.data.forEach(row => {
                 const key = `${row.item_code}||${row.supplier || ""}||${row.nmtg_heat_number || ""}`;
                 if (duplicate_keys.has(key)) {
                     row.duplicate_label = __("⚠ QI Exists");
-                    duplicate_cdns.add(row.name); // frappe assigns .name as cdn
+                    duplicate_cdns.add(row.name);
                 } else {
                     row.duplicate_label = __("✔ New");
                 }
@@ -261,19 +291,18 @@ function custom_make_quality_inspection(frm) {
 
             grid_field.grid.refresh();
 
-            // ── Disable checkboxes on duplicate rows via DOM ──────────────────
-            // Use a short delay to ensure the grid has re-rendered
             setTimeout(() => {
                 apply_duplicate_row_styles(grid_field, duplicate_keys);
             }, 150);
 
-            // Re-apply after any grid refresh (e.g. user scrolls / sorts)
             grid_field.grid.wrapper.on("change", ".grid-heading-row .select-like input", function() {
                 setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_keys), 50);
             });
         }
     });
 }
+
+
 
 // ── Walk every rendered grid row, match by data, disable duplicates ───────────
 function apply_duplicate_row_styles(grid_field, duplicate_keys) {

@@ -1,7 +1,3 @@
-// ============================================================
-// File:  apps/nmtg/nmtg/public/js/quality_inspection_listview.js
-// ============================================================
-
 frappe.listview_settings["Quality Inspection"] = {
   onload(listview) {
     listview.page.add_action_item(__("Print Challan"), () => {
@@ -15,7 +11,7 @@ frappe.listview_settings["Quality Inspection"] = {
   },
 };
 
-// ─── fetch all docs then render ───────────────────────────────────────────────
+// ─── fetch all docs, group by supplier + date, assign series, then render ─────
 async function print_challans(names) {
   frappe.show_progress(__("Preparing Challan…"), 0, names.length);
 
@@ -36,18 +32,150 @@ async function print_challans(names) {
     return;
   }
 
-  open_challan_window(docs);
+  // ── Group by custom_supplier + report_date ────────────────────────────────
+  const groups = {};
+  for (const doc of docs) {
+    const supplier = doc.custom_supplier || "__no_supplier__";
+    const date     = doc.report_date     || "__no_date__";
+    const key      = `${supplier}||${date}`;
+    if (!groups[key]) groups[key] = { supplier, date, docs: [] };
+    groups[key].docs.push(doc);
+  }
+
+  // ── For each group: get or create qc_series, assign to all docs in group ──
+  frappe.show_progress(__("Assigning Challan IDs…"), 0, Object.keys(groups).length);
+  let g_idx = 0;
+
+  for (const group of Object.values(groups)) {
+    const qi_names = group.docs.map(d => d.name);
+
+    const r = await frappe.call({
+      method: "nmtg.override.api.get_or_create_qc_series",
+      args: { qi_names: JSON.stringify(qi_names) }
+    });
+
+    const series = r.message || "";
+
+    // Stamp the series on every doc in this group (in-memory for rendering)
+    group.docs.forEach(d => { d.custom_qc_series = series; });
+    group.qc_series = series;
+
+    frappe.show_progress(__("Assigning Challan IDs…"), ++g_idx, Object.keys(groups).length);
+  }
+
+  frappe.hide_progress();
+
+  // ── Fetch address for each unique supplier in parallel ────────────────────
+  const unique_suppliers = [...new Set(
+    Object.values(groups)
+      .map(g => g.supplier)
+      .filter(s => s !== "__no_supplier__")
+  )];
+
+  const supplier_addresses = {};
+  await Promise.all(
+    unique_suppliers.map(async supplier => {
+      supplier_addresses[supplier] = await fetch_supplier_address(supplier);
+    })
+  );
+
+  open_challan_window(groups, supplier_addresses);
 }
 
-// ─── build HTML: ONE page, ONE table, all docs as rows ────────────────────────
-function open_challan_window(docs) {
-  // Use first doc for Lab name / Date (all should share company)
-  const lab_name    = docs[0].company || "";
-  const report_date = docs[0].report_date
-    ? frappe.datetime.str_to_user(docs[0].report_date)
-    : "";
+// ─── fetch primary address for a supplier ─────────────────────────────────────
+async function fetch_supplier_address(supplier) {
+  try {
+    const r = await frappe.call({
+      method: "frappe.client.get_list",
+      args: {
+        doctype: "Address",
+        filters: [
+          ["Dynamic Link", "link_doctype", "=", "Supplier"],
+          ["Dynamic Link", "link_name",    "=", supplier],
+          ["is_primary_address",           "=", 1]
+        ],
+        fields: ["address_line1", "address_line2", "city", "state", "pincode", "country"],
+        limit: 1
+      }
+    });
+    if (r.message && r.message.length) return r.message[0];
 
-  const data_rows = docs.map((doc, idx) => render_data_row(doc, idx + 1)).join("\n");
+    const fallback = await frappe.call({
+      method: "frappe.client.get_list",
+      args: {
+        doctype: "Address",
+        filters: [
+          ["Dynamic Link", "link_doctype", "=", "Supplier"],
+          ["Dynamic Link", "link_name",    "=", supplier]
+        ],
+        fields: ["address_line1", "address_line2", "city", "state", "pincode", "country"],
+        limit: 1
+      }
+    });
+    return (fallback.message && fallback.message.length) ? fallback.message[0] : null;
+
+  } catch (e) {
+    console.warn("Could not fetch address for supplier:", supplier, e);
+    return null;
+  }
+}
+
+// ─── format address object into a single line ─────────────────────────────────
+function format_address(addr) {
+  if (!addr) return "";
+  return [addr.address_line1, addr.address_line2, addr.city, addr.state, addr.pincode, addr.country]
+    .filter(Boolean)
+    .join(", ");
+}
+
+// ─── build HTML: one page per supplier + date group ──────────────────────────
+function open_challan_window(groups, supplier_addresses) {
+
+  const pages = Object.values(groups).map(({ supplier, date, docs, qc_series }) => {
+    const supplier_label = supplier === "__no_supplier__" ? "—" : supplier;
+    const address_str    = format_address(supplier_addresses[supplier] || null);
+    const report_date    = date !== "__no_date__"
+      ? frappe.datetime.str_to_user(date)
+      : "";
+
+    const data_rows = docs.map((doc, idx) => render_data_row(doc, idx + 1)).join("\n");
+
+    return `
+    <div class="challan-page">
+      <div class="challan-title">Challan &nbsp;&nbsp; <span style="font-weight:normal;font-size:11px;">${esc(qc_series || "")}</span></div>
+      <table class="challan-table">
+
+        <!-- Row 1: Lab name (Supplier + Address) + Date -->
+        <tr>
+          <td colspan="4">
+            <span class="col-label">Lab name</span><br>
+            ${esc(supplier_label)}
+            ${address_str ? `<br><span class="col-address">${esc(address_str)}</span>` : ""}
+          </td>
+          <td colspan="3">
+            <span class="col-label">Date</span><br>
+            ${esc(report_date)}
+          </td>
+        </tr>
+
+        <!-- Row 2: Column headers -->
+        <tr>
+          <td style="width:5%"  class="col-label">Sr. No</td>
+          <td style="width:18%" class="col-label">Nmtg Heat Number</td>
+          <td style="width:28%" class="col-label">Item name</td>
+          <td style="width:18%" class="col-label">Mill TC number / Vendor Heat Number</td>
+          <td style="width:5%"  class="col-label">Qty</td>
+          <td style="width:20%" class="col-label">Test Type</td>
+          <td style="width:6%"  class="col-label">Remark</td>
+        </tr>
+
+        <!-- Data rows -->
+        ${data_rows}
+
+      </table>
+    </div>`;
+
+  }).join('<div class="page-break"></div>\n');
 
   const html = `<!DOCTYPE html>
 <html>
@@ -69,6 +197,11 @@ function open_challan_window(docs) {
       padding: 10mm;
     }
 
+    .page-break {
+      page-break-after: always;
+      break-after: page;
+    }
+
     .challan-title {
       background: #e2efda;
       font-weight: bold;
@@ -76,6 +209,9 @@ function open_challan_window(docs) {
       padding: 4px 8px;
       border: 1px solid #999;
       border-bottom: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
 
     .challan-table {
@@ -90,66 +226,25 @@ function open_challan_window(docs) {
       font-size: 11px;
     }
 
-    .col-header { font-size: 10px; color: #555; font-style: italic; }
-    .col-label  { font-weight: bold; }
+    .col-label   { font-weight: bold; }
+    .col-address { font-size: 10px; color: #444; margin-top: 2px; display: block; }
 
     .test-type-list { margin: 0; padding: 0; list-style: none; }
     .test-type-list li {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-      margin-bottom: 2px;
       font-size: 10px;
+      margin-bottom: 2px;
     }
-    .test-type-list li input[type=checkbox] { pointer-events: none; }
 
     @media print {
       body { margin: 0; }
       .challan-page { padding: 8mm; }
+      .page-break { page-break-after: always; break-after: page; }
       @page { size: A4 portrait; margin: 8mm; }
     }
   </style>
 </head>
 <body>
-<div class="challan-page">
-
-  <div class="challan-title">Challan</div>
-
-  <table class="challan-table">
-
-    <!-- Row 1: Lab name + Date -->
-    <tr>
-      <td colspan="4">
-        <span class="col-label">Lab name</span><br>
-        ${esc(lab_name)}
-      </td>
-      <td colspan="3">
-        <span class="col-label">Date</span><br>
-        ${esc(report_date)}
-      </td>
-    </tr>
-
-    <!-- Row 2: Column headers -->
-    <tr>
-      <td style="width:5%"  class="col-label">Sr. No</td>
-      <td style="width:18%" class="col-label">
-        Nmtg Heat Number
-      </td>
-      <td style="width:28%" class="col-label">
-        Item name
-      </td>
-      <td style="width:18%" class="col-label">Mill TC number / Vendor Heat Number</td>
-      <td style="width:5%"  class="col-label">Qty</td>
-      <td style="width:20%" class="col-label">Test Type</td>
-      <td style="width:6%"  class="col-label">Remark</td>
-    </tr>
-
-    <!-- Data rows: one per selected QI -->
-    ${data_rows}
-
-  </table>
-
-</div>
+  ${pages}
 <script>
   window.onload = () => { window.print(); };
 <\/script>
@@ -167,35 +262,31 @@ function render_data_row(doc, sr_no) {
   const heat_number  = doc.custom_nmtg_heat_number || "";
   const item_display = [doc.item_code, doc.item_name].filter(Boolean).join(" – ");
 
+  // const mill_tc_raw  = doc.custom_mill_tc || "";
+  // const mill_tc      = mill_tc_raw ? mill_tc_raw.split("/").pop() : "";
   const vendor_heat  = doc.custom_vendor_heat_number || "";
-  const mill_tc_cell = [vendor_heat].filter(Boolean).join(" / ");
+  const mill_tc_cell = [esc(vendor_heat)].filter(Boolean).join("<br>");
 
   const qty           = doc.sample_size != null ? doc.sample_size : "";
   const testing_types = doc.custom_testing_type || [];
-  const material_name = doc.item_name || doc.item_code || "";
   const remark        = doc.remarks || "";
 
   return `<tr>
     <td>${sr_no}</td>
     <td>${esc(heat_number)}</td>
     <td>${esc(item_display)}</td>
-    <td>${esc(mill_tc_cell)}</td>
+    <td>${mill_tc_cell}</td>
     <td>${esc(String(qty))}</td>
-    <td>
-      ${render_testing_types(testing_types)}
-    </td>
+    <td>${render_testing_types(testing_types)}</td>
     <td>${esc(remark)}</td>
   </tr>`;
 }
 
-// ─── checkbox list for testing types ─────────────────────────────────────────
+// ─── plain list for testing types ────────────────────────────────────────────
 function render_testing_types(rows) {
   if (!rows || !rows.length) return "<em style='color:#aaa;font-size:10px'>—</em>";
   return `<ul class="test-type-list">
-    ${rows.map((r) => `<li>
-      <input type="checkbox" checked disabled/>
-      ${esc(r.testing_type || "")}
-    </li>`).join("")}
+    ${rows.map((r) => `<li>${esc(r.testing_type || "")}</li>`).join("")}
   </ul>`;
 }
 
