@@ -216,92 +216,118 @@ function custom_make_quality_inspection(frm) {
 
     let grid_field = dialog.fields_dict.items;
 
-    (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
-        const parent_item = item_map[qc.item];
-        if (!parent_item) return;
-
-        let testing_type_display = '';
-        try {
-            let types = JSON.parse(qc.testing_value || '[]');
-            testing_type_display = types.join(', ') || '—';
-        } catch(e) {
-            testing_type_display = '—';
-        }
-
-        grid_field.df.data.push({
-            docname:                   parent_item.name,
-            item_code:                 qc.item,
-            item_name:                 parent_item.item_name,
-            supplier:                  qc.supplier,
-            nmtg_heat_number:          qc.nmtg_heat_number,
-            custom_vendor_heat_number: parent_item.custom_vendor_heat_number || "",
-            custom_mill_tc:            parent_item.custom_mill_tc || "",
-            supplier_display:          qc.supplier,
-            nmtg_heat_number_display:  qc.nmtg_heat_number,
-            qty:                       qc.qty,
-            sample_size:               0,
-            child_row_reference:       parent_item.name,
-            qc_row_name:               qc.name,
-            testing_value:             qc.testing_value || '[]',
-            testing_type_display:      testing_type_display,
-            duplicate_label:           __("Checking…"),
-        });
-    });
-
-    if (!grid_field.df.data.length) {
-        frappe.msgprint(__("No supplier QC entries found."));
-        return;
-    }
-
-    grid_field.grid.refresh();
-    dialog.show();
+    // ── Collect unique item codes to fetch custom_quality_inspection_percent ──
+    const unique_item_codes = [
+        ...new Set(
+            (frm.doc.custom_supplier_selection_for_qc || []).map(qc => qc.item).filter(Boolean)
+        )
+    ];
 
     frappe.call({
         method: "frappe.client.get_list",
         args: {
-            doctype: "Quality Inspection",
-            filters: {
-                reference_type: frm.doc.doctype,
-                reference_name: frm.doc.name,
-                docstatus: ["!=", 2],
-            },
-            fields: ["name", "item_code", "custom_supplier", "custom_nmtg_heat_number"],
-            limit_page_length: 500,
+            doctype: "Item",
+            filters: [["item_code", "in", unique_item_codes]],
+            fields: ["item_code", "custom_quality_inspection_percent"],
+            limit_page_length: unique_item_codes.length || 1,
         },
         callback: function(res) {
-            const existing = res.message || [];
-
-            existing.forEach(qi => {
-                duplicate_keys.add(
-                    `${qi.item_code}||${qi.custom_supplier || ""}||${qi.custom_nmtg_heat_number || ""}`
-                );
+            // Build a map: item_code → inspection_percent
+            const qc_percent_map = {};
+            (res.message || []).forEach(item => {
+                qc_percent_map[item.item_code] = flt(item.custom_quality_inspection_percent) || 0;
             });
 
-            const duplicate_cdns = new Set();
+            (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
+                const parent_item = item_map[qc.item];
+                if (!parent_item) return;
 
-            grid_field.df.data.forEach(row => {
-                const key = `${row.item_code}||${row.supplier || ""}||${row.nmtg_heat_number || ""}`;
-                if (duplicate_keys.has(key)) {
-                    row.duplicate_label = __("⚠ QI Exists");
-                    duplicate_cdns.add(row.name);
-                } else {
-                    row.duplicate_label = __("✔ New");
+                let testing_type_display = '';
+                try {
+                    let types = JSON.parse(qc.testing_value || '[]');
+                    testing_type_display = types.join(', ') || '—';
+                } catch(e) {
+                    testing_type_display = '—';
                 }
+
+                // ── Sample size = ceil(qty * percent / 100), minimum 1 ──
+                const percent = qc_percent_map[qc.item] || 0;
+                const qty = flt(qc.qty) || 0;
+                const sample_size = percent > 0 ? Math.ceil(qty * percent / 100) : 0;
+
+                grid_field.df.data.push({
+                    docname:                   parent_item.name,
+                    item_code:                 qc.item,
+                    item_name:                 parent_item.item_name,
+                    supplier:                  qc.supplier,
+                    nmtg_heat_number:          qc.nmtg_heat_number,
+                    custom_vendor_heat_number: parent_item.custom_vendor_heat_number || "",
+                    custom_mill_tc:            parent_item.custom_mill_tc || "",
+                    supplier_display:          qc.supplier,
+                    nmtg_heat_number_display:  qc.nmtg_heat_number,
+                    qty:                       qty,
+                    sample_size:               sample_size,
+                    child_row_reference:       parent_item.name,
+                    qc_row_name:               qc.name,
+                    testing_value:             qc.testing_value || '[]',
+                    testing_type_display:      testing_type_display,
+                    duplicate_label:           __("Checking…"),
+                });
             });
+
+            if (!grid_field.df.data.length) {
+                frappe.msgprint(__("No supplier QC entries found."));
+                return;
+            }
 
             grid_field.grid.refresh();
+            dialog.show();
 
-            setTimeout(() => {
-                apply_duplicate_row_styles(grid_field, duplicate_keys);
-            }, 150);
+            // ── Check for existing QIs ──
+            frappe.call({
+                method: "frappe.client.get_list",
+                args: {
+                    doctype: "Quality Inspection",
+                    filters: {
+                        reference_type: frm.doc.doctype,
+                        reference_name: frm.doc.name,
+                        docstatus: ["!=", 2],
+                    },
+                    fields: ["name", "item_code", "custom_supplier", "custom_nmtg_heat_number"],
+                    limit_page_length: 500,
+                },
+                callback: function(res) {
+                    const existing = res.message || [];
 
-            grid_field.grid.wrapper.on("change", ".grid-heading-row .select-like input", function() {
-                setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_keys), 50);
+                    existing.forEach(qi => {
+                        duplicate_keys.add(
+                            `${qi.item_code}||${qi.custom_supplier || ""}||${qi.custom_nmtg_heat_number || ""}`
+                        );
+                    });
+
+                    grid_field.df.data.forEach(row => {
+                        const key = `${row.item_code}||${row.supplier || ""}||${row.nmtg_heat_number || ""}`;
+                        if (duplicate_keys.has(key)) {
+                            row.duplicate_label = __("⚠ QI Exists");
+                        } else {
+                            row.duplicate_label = __("✔ New");
+                        }
+                    });
+
+                    grid_field.grid.refresh();
+
+                    setTimeout(() => {
+                        apply_duplicate_row_styles(grid_field, duplicate_keys);
+                    }, 150);
+
+                    grid_field.grid.wrapper.on("change", ".grid-heading-row .select-like input", function() {
+                        setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_keys), 50);
+                    });
+                }
             });
         }
     });
 }
-
 
 
 // ── Walk every rendered grid row, match by data, disable duplicates ───────────
@@ -311,24 +337,18 @@ function apply_duplicate_row_styles(grid_field, duplicate_keys) {
         const cdn  = $row.attr("data-name");
         if (!cdn) return;
 
-        // Find the data row by cdn (Frappe sets row.name = cdn)
         const row_data = grid_field.df.data.find(r => r.name === cdn);
         if (!row_data) return;
 
         const key = `${row_data.item_code}||${row_data.supplier || ""}||${row_data.nmtg_heat_number || ""}`;
         if (!duplicate_keys.has(key)) return;
 
-        // Uncheck + disable the checkbox
         const $cb = $row.find(".row-check input[type='checkbox']");
         $cb.prop("checked", false).prop("disabled", true);
 
-        // Grey out the entire row
         $row.css({ "opacity": "0.45", "pointer-events": "none" });
-
-        // But keep the checkbox wrapper itself pointer-events: none already via row
     });
 
-    // Intercept header "select all" — uncheck and re-disable duplicates
     grid_field.grid.wrapper.off("change.dup_guard").on("change.dup_guard",
         ".grid-heading-row input[type='checkbox']", function() {
             setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_keys), 30);
