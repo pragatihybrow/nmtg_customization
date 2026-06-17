@@ -136,13 +136,6 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
 
 # Scheduled Tasks
 # ---------------
@@ -259,17 +252,27 @@ doctype_js = {
     "Item": "public/js/item.js",
     "Customer":"public/js/customer.js",
     "Item Group":"public/js/item_group.js",
-    "Purchase Order":"public/js/purchase_order.js",
+    # "Purchase Order":"public/js/purchase_order.js",
     "Material Request":"public/js/material_request.js",
-    "Purchase Receipt":"public/js/purchase_receipt.js"
+    "Purchase Receipt":"public/js/purchase_receipt.js",
+    "Quality Inspection": "public/js/quality_inspection.js"
 }
 
 override_doctype_class = {
     "Item": "nmtg.override.item.CustomItem",
-    "Purchase Order": "nmtg.override.purchase_order.CustomPurchaseOrder"
+    # "Purchase Order": "nmtg.override.purchase_order.CustomPurchaseOrder"
+     "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt"
 }
 
 # hooks.py
 doctype_list_js = {
     "Quality Inspection": "public/js/quality_inspection_listview.js"
+}
+
+
+
+doc_events = {
+	"Quality Inspection": {
+		"before_save": "nmtg.override.api.compute_row_status",
+	}
 }

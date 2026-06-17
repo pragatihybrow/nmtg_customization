@@ -2,6 +2,7 @@
 import frappe
 from frappe.model.naming import make_autoname
 from frappe.utils import today
+import json
 
 @frappe.whitelist(allow_guest=True)
 def submit_supplier_quotation(data):
@@ -87,14 +88,13 @@ def get_rfq_for_supplier(rfq, supplier):
     }
 
 
-
 @frappe.whitelist()
 def create_heat_number(po, row_name):
 
     row = frappe.get_value(
-        "Purchase Order Item",
+        "Purchase Receipt Item",
         row_name,
-        ["qty", "custom_nmtg_heat_number", "custom_single_heat_number"],
+        ["qty", "custom_qty_in_no", "custom_nmtg_heat_number", "custom_single_heat_number"],
         as_dict=True
     )
 
@@ -104,10 +104,10 @@ def create_heat_number(po, row_name):
     if row.custom_nmtg_heat_number:
         frappe.throw("Heat Number already generated")
 
-    qty = int(row.qty)
+    qty = int(row.custom_qty_in_no or 0)  # ✅ use custom_qty_in_no instead of qty
 
     if qty <= 0:
-        frappe.throw("Qty must be greater than 0")
+        frappe.throw("Please set a valid Qty In No before generating Heat Number.")
 
     fiscal_year = frappe.db.get_value(
         "Fiscal Year",
@@ -134,12 +134,10 @@ def create_heat_number(po, row_name):
     prefix = f"N{year_initial}"
 
     if row.custom_single_heat_number:
-        # Generate exactly one heat number — no range
         single = make_autoname(f"{prefix}.###")
         num = int(single.replace(prefix, "").replace(".", ""))
         heat_number = f"{prefix}{str(num).zfill(3)}"
     else:
-        # Generate qty heat numbers and store as a range
         first = make_autoname(f"{prefix}.###")
         start = int(first.replace(prefix, "").replace(".", ""))
         end = start
@@ -155,7 +153,7 @@ def create_heat_number(po, row_name):
         )
 
     frappe.db.set_value(
-        "Purchase Order Item",
+        "Purchase Receipt Item",
         row_name,
         "custom_nmtg_heat_number",
         heat_number,
@@ -283,3 +281,65 @@ def get_or_create_qc_series(qi_names):
 
     frappe.db.commit()
     return next_val
+
+
+
+
+
+
+def compute_row_status(doc, method=None):
+	for row in doc.get("readings", []):
+		if not row.custom_reading_details:
+			continue
+		new_status = _compute_row_status(row)
+		if new_status:
+			row.status = new_status
+
+
+def _compute_row_status(row):
+	try:
+		details = json.loads(row.custom_reading_details or "{}")
+	except Exception:
+		details = {}
+
+	accepted = 0
+	rejected = 0
+
+	for value in details.values():
+		if value in (None, ""):
+			continue
+
+		if row.manual_inspection:
+			accepted += 1
+			continue
+
+		if not row.numeric:
+			continue
+
+		try:
+			min_v = float(row.min_value)
+			max_v = float(row.max_value)
+		except (TypeError, ValueError):
+			continue
+
+		if min_v == 0 and max_v == 0:
+			continue
+
+		try:
+			num = float(value)
+		except (TypeError, ValueError):
+			rejected += 1
+			continue
+
+		if min_v <= num <= max_v:
+			accepted += 1
+		else:
+			rejected += 1
+
+	if accepted == 0 and rejected == 0:
+		return None
+	if rejected == 0:
+		return "Accepted"
+	if accepted == 0:
+		return "Rejected"
+	return "Partially Accepted"
