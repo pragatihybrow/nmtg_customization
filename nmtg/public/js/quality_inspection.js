@@ -192,91 +192,6 @@ function compute_row_overall_status(param_meta, heatNumbers, draftForSpec) {
 // Shows per-heat-number Accepted / Rejected status
 // ─────────────────────────────────────────────────────────────────────────────
 const READING_PAGE_SIZE = 10;
-
-// function render_paginated_reading_table($container, entries, page, param_meta) {
-//     page = page || 1;
-
-//     if (!entries.length) {
-//         $container.html(`<span style="color:#888;font-size:13px;">No readings entered yet.</span>`);
-//         return;
-//     }
-
-//     const totalPages  = Math.max(1, Math.ceil(entries.length / READING_PAGE_SIZE));
-//     page              = Math.min(Math.max(page, 1), totalPages);
-//     const start       = (page - 1) * READING_PAGE_SIZE;
-//     const pageEntries = entries.slice(start, start + READING_PAGE_SIZE);
-
-//     const rows = pageEntries.map(([hn, val]) => {
-//         const result = param_meta ? check_value_status(val, param_meta) : null;
-
-//         const statusBadge = result === true
-//             ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#d4edda;color:#155724;border:1px solid #c3e6cb;">✓ Accepted</span>`
-//             : result === false
-//             ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#f8d7da;color:#721c24;border:1px solid #f5c6cb;">✗ Rejected</span>`
-//             : `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#e9ecef;color:#6c757d;border:1px solid #dee2e6;">— N/A</span>`;
-
-//         const valBg = result === true ? "#f0faf3" : result === false ? "#fff5f5" : "#fff";
-
-//         return `
-//             <tr>
-//                 <td style="border:1px solid #d1d8dd;padding:7px 12px;font-size:13px;font-weight:600;background:#f7f9fb;">
-//                     ${frappe.utils.escape_html(hn)}
-//                 </td>
-//                 <td style="border:1px solid #d1d8dd;padding:7px 12px;font-size:13px;background:${valBg};">
-//                     ${frappe.utils.escape_html(String(val))}
-//                 </td>
-//                 <td style="border:1px solid #d1d8dd;padding:7px 10px;font-size:13px;text-align:center;background:#fff;">
-//                     ${statusBadge}
-//                 </td>
-//             </tr>`;
-//     }).join("");
-
-//     // Range hint shown in Value column header (not applicable for manual inspection rows)
-//     const hasRange = param_meta && param_meta.numeric && !param_meta.manual_inspection
-//                      && !(parseFloat(param_meta.min_value) === 0 && parseFloat(param_meta.max_value) === 0);
-//     const rangeHint = hasRange
-//         ? `<span style="font-size:10px;font-weight:400;color:#999;margin-left:4px;">(${param_meta.min_value} – ${param_meta.max_value})</span>`
-//         : ``;
-
-//     const pagerHtml = totalPages > 1 ? `
-//         <div class="cr-pager" style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--text-muted,#6c757d);">
-//             <button type="button" class="cr-prev btn btn-default btn-xs"
-//                 ${page === 1 ? "disabled" : ""}
-//                 style="padding:3px 10px;cursor:pointer;">‹ Prev</button>
-//             <span>Page <b>${page}</b> of <b>${totalPages}</b> &nbsp;·&nbsp; ${entries.length} readings total</span>
-//             <button type="button" class="cr-next btn btn-default btn-xs"
-//                 ${page === totalPages ? "disabled" : ""}
-//                 style="padding:3px 10px;cursor:pointer;">Next ›</button>
-//         </div>`
-//         : `<div style="margin-top:6px;font-size:11px;color:#888;">${entries.length} reading${entries.length !== 1 ? "s" : ""}</div>`;
-
-//     $container.html(`
-//         <table style="width:100%;border-collapse:collapse;font-family:var(--font-stack);">
-//             <thead>
-//                 <tr>
-//                     <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f0f4f7;font-size:12px;text-align:left;white-space:nowrap;">
-//                         Heat No
-//                     </th>
-//                     <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f0f4f7;font-size:12px;text-align:left;white-space:nowrap;">
-//                         Value${rangeHint}
-//                     </th>
-//                     <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f0f4f7;font-size:12px;text-align:center;white-space:nowrap;">
-//                         Status
-//                     </th>
-//                 </tr>
-//             </thead>
-//             <tbody>${rows}</tbody>
-//         </table>
-//         ${pagerHtml}
-//     `);
-
-//     $container.find(".cr-prev").off("click").on("click", () =>
-//         render_paginated_reading_table($container, entries, page - 1, param_meta));
-//     $container.find(".cr-next").off("click").on("click", () =>
-//         render_paginated_reading_table($container, entries, page + 1, param_meta));
-// }
-
-
 function render_paginated_reading_table($container, entries, page, param_meta, allHeatNumbers = []) {
     page = page || 1;
 
@@ -837,6 +752,7 @@ function save_readings(frm, params, heatNumbers, draft, dialog) {
     });
 
     Promise.all(set_value_promises).then(() => {
+        update_parent_status(frm);
         frm.refresh_field("readings");
 
         setTimeout(() => {
@@ -858,4 +774,27 @@ function save_readings(frm, params, heatNumbers, draft, dialog) {
             });
         });
     });
+}
+
+function update_parent_status(frm) {
+    const statuses = (frm.doc.readings || [])
+        .map(r => (r.status || "").trim())
+        .filter(s => s);
+
+    if (!statuses.length) return;
+
+    let parent_status = "";
+
+    const allAccepted = statuses.every(s => s === "Accepted");
+    const allRejected = statuses.every(s => s === "Rejected");
+
+    if (allAccepted) {
+        parent_status = "Accepted";
+    } else if (allRejected) {
+        parent_status = "Rejected";
+    } else {
+        parent_status = "Partially Accepted";
+    }
+
+    frm.set_value("status", parent_status);
 }

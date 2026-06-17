@@ -2,40 +2,100 @@ frappe.ui.form.on('Purchase Receipt Item', {
     form_render: function(frm, cdt, cdn) {
         render_qc_supplier_table(frm, cdt, cdn);
     },
-    custom_create_heat_number(frm, cdt, cdn) {
+//     custom_create_heat_number(frm, cdt, cdn) {
+//     let row = locals[cdt][cdn];
+
+//     if (!row.custom_qty_in_no || row.custom_qty_in_no <= 0) {  // ✅ was row.qty
+//         frappe.msgprint("Please set a valid Qty In No before generating Heat Number.");
+//         return;
+//     }
+
+//     frappe.call({
+//         method: "nmtg.override.api.create_heat_number",
+//         args: {
+//             po: frm.doc.name,
+//             row_name: row.name
+//         },
+//         callback(r) {
+//             if (r.message) {
+//                 locals[cdt][cdn].custom_nmtg_heat_number = r.message;
+//                 frm.refresh_field("items");
+
+//                 (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
+//                     if (qc.item === row.item_code) {
+//                         frappe.model.set_value(
+//                             "Supplier Selection For QC",
+//                             qc.name,
+//                             "nmtg_heat_number",
+//                             r.message
+//                         );
+//                     }
+//                 });
+//                 frm.refresh_field("custom_supplier_selection_for_qc");
+//             }
+//         }
+//     });
+// }
+
+custom_create_heat_number(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
 
-    if (!row.custom_qty_in_no || row.custom_qty_in_no <= 0) {  // ✅ was row.qty
+    if (!row.custom_qty_in_no || row.custom_qty_in_no <= 0) {
         frappe.msgprint("Please set a valid Qty In No before generating Heat Number.");
         return;
     }
 
-    frappe.call({
-        method: "nmtg.override.api.create_heat_number",
-        args: {
-            po: frm.doc.name,
-            row_name: row.name
-        },
-        callback(r) {
-            if (r.message) {
-                locals[cdt][cdn].custom_nmtg_heat_number = r.message;
-                frm.refresh_field("items");
+    let msg = row.custom_single_heat_number
+        ? __("Are you sure you want to create <b>Single Heat Number</b> for item <b>{0}</b>?", [row.item_code])
+        : __("Are you sure you want to create <b>Multiple Heat Numbers</b> for item <b>{0}</b>?", [row.item_code]);
 
-                (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
-                    if (qc.item === row.item_code) {
+    frappe.confirm(
+        msg,
+
+        function () {
+            // YES
+            frappe.call({
+                method: "nmtg.override.api.create_heat_number",
+                args: {
+                    po: frm.doc.name,
+                    row_name: row.name
+                },
+                callback(r) {
+                    if (r.message) {
                         frappe.model.set_value(
-                            "Supplier Selection For QC",
-                            qc.name,
-                            "nmtg_heat_number",
+                            cdt,
+                            cdn,
+                            "custom_nmtg_heat_number",
                             r.message
                         );
+
+                        (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
+                            if (qc.item === row.item_code) {
+                                frappe.model.set_value(
+                                    "Supplier Selection For QC",
+                                    qc.name,
+                                    "nmtg_heat_number",
+                                    r.message
+                                );
+                            }
+                        });
+
+                        frm.refresh_field("items");
+                        frm.refresh_field("custom_supplier_selection_for_qc");
                     }
-                });
-                frm.refresh_field("custom_supplier_selection_for_qc");
-            }
+                }
+            });
+        },
+
+        function () {
+            frappe.show_alert({
+                message: __("Heat Number creation cancelled"),
+                indicator: "orange"
+            });
         }
-    });
+    );
 }
+
 });
 
 frappe.ui.form.on("Purchase Receipt", {
