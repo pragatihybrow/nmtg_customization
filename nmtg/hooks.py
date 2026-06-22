@@ -270,9 +270,11 @@ doctype_list_js = {
 }
 
 
-
 doc_events = {
-	"Quality Inspection": {
-		"before_save": "nmtg.override.api.compute_row_status",
-	}
+    "Quality Inspection": {
+        "before_save": [
+            "nmtg.override.api.compute_row_status",
+            "nmtg.override.api.validate_heat_range_vs_sample_size"
+        ]
+    }
 }

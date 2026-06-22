@@ -3,6 +3,7 @@ import frappe
 from frappe.model.naming import make_autoname
 from frappe.utils import today
 import json
+import re
 
 @frappe.whitelist(allow_guest=True)
 def submit_supplier_quotation(data):
@@ -343,3 +344,47 @@ def _compute_row_status(row):
 	if accepted == 0:
 		return "Rejected"
 	return "Partially Accepted"
+
+
+
+def validate_heat_range_vs_sample_size(doc, method=None):
+    if doc.workflow_state != "Draft":
+        return
+
+    heat_range = (doc.custom_nmtg_heat_number or "").strip()
+
+    if not heat_range:
+        frappe.throw(
+            "Please enter NMTG Heat Number before sending for Internal QC Inspection."
+        )
+
+    parts = re.split(r"\s*-\s*", heat_range)
+
+    if len(parts) != 2:
+        frappe.throw(
+            f"Invalid heat number format: {heat_range}. Example: NK272 - NK281"
+        )
+
+    m1 = re.match(r'^([A-Za-z]*)(\d+)$', parts[0].strip())
+    m2 = re.match(r'^([A-Za-z]*)(\d+)$', parts[1].strip())
+
+    if not m1 or not m2:
+        frappe.throw("Invalid NMTG Heat Number format.")
+
+    start_num = int(m1.group(2))
+    end_num = int(m2.group(2))
+
+    if end_num < start_num:
+        frappe.throw("End heat number cannot be smaller than start heat number.")
+
+    heat_count = (end_num - start_num) + 1
+    sample_size = doc.sample_size or 0
+
+    if heat_count != sample_size:
+        prefix = m1.group(1)
+        suggested_end = start_num + sample_size - 1
+        frappe.throw(
+            f"Heat Range Count ({heat_count}) does not match Sample Size ({sample_size}). "
+            f"For Sample Size {sample_size}, the range should be exactly "
+            f"{prefix}{start_num} - {prefix}{suggested_end}."
+        )

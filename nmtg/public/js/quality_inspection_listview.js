@@ -1,18 +1,29 @@
 frappe.listview_settings["Quality Inspection"] = {
   onload(listview) {
-    listview.page.add_action_item(__("Print Challan"), () => {
-      const selected = listview.get_checked_items();
-      if (!selected.length) {
-        frappe.msgprint(__("Please select at least one Quality Inspection record."));
-        return;
-      }
-      print_challans(selected.map((r) => r.name));
+    listview.page.add_action_item(__("Print Preview"), () => {
+      const names = get_selected_names(listview);
+      if (names) print_challans(names, { autoPrint: false });
     });
+
+    // listview.page.add_action_item(__("Print Challan"), () => {
+    //   const names = get_selected_names(listview);
+    //   if (names) print_challans(names, { autoPrint: true });
+    // });
   },
 };
 
+// ─── helper: validate selection, return list of names or null ───────────────
+function get_selected_names(listview) {
+  const selected = listview.get_checked_items();
+  if (!selected.length) {
+    frappe.msgprint(__("Please select at least one Quality Inspection record."));
+    return null;
+  }
+  return selected.map((r) => r.name);
+}
+
 // ─── fetch all docs, group by supplier + date, assign series, then render ─────
-async function print_challans(names) {
+async function print_challans(names, { autoPrint = true } = {}) {
   frappe.show_progress(__("Preparing Challan…"), 0, names.length);
 
   const docs = [];
@@ -56,7 +67,6 @@ async function print_challans(names) {
 
     const series = r.message || "";
 
-    // Stamp the series on every doc in this group (in-memory for rendering)
     group.docs.forEach(d => { d.custom_qc_series = series; });
     group.qc_series = series;
 
@@ -79,7 +89,7 @@ async function print_challans(names) {
     })
   );
 
-  open_challan_window(groups, supplier_addresses);
+  open_challan_window(groups, supplier_addresses, autoPrint);
 }
 
 // ─── fetch primary address for a supplier ─────────────────────────────────────
@@ -129,7 +139,7 @@ function format_address(addr) {
 }
 
 // ─── build HTML: one page per supplier + date group ──────────────────────────
-function open_challan_window(groups, supplier_addresses) {
+function open_challan_window(groups, supplier_addresses, autoPrint) {
 
   const pages = Object.values(groups).map(({ supplier, date, docs, qc_series }) => {
     const supplier_label = supplier === "__no_supplier__" ? "—" : supplier;
@@ -191,9 +201,35 @@ function open_challan_window(groups, supplier_addresses) {
       background: #fff;
     }
 
+    .challan-toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #f5f5f5;
+      border-bottom: 1px solid #ccc;
+      padding: 10px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .challan-toolbar button {
+      font-size: 13px;
+      padding: 6px 18px;
+      border: 1px solid #888;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .challan-toolbar button.primary {
+      background: #2490ef;
+      color: #fff;
+      border-color: #2490ef;
+    }
+    .challan-toolbar button:hover { opacity: 0.85; }
+
     .challan-page {
       width: 210mm;
-      margin: 0 auto;
+      margin: 10px auto;
       padding: 10mm;
     }
 
@@ -237,21 +273,28 @@ function open_challan_window(groups, supplier_addresses) {
 
     @media print {
       body { margin: 0; }
-      .challan-page { padding: 8mm; }
+      .challan-toolbar { display: none !important; }
+      .challan-page { padding: 8mm; margin: 0; }
       .page-break { page-break-after: always; break-after: page; }
       @page { size: A4 portrait; margin: 8mm; }
     }
   </style>
 </head>
 <body>
+  <div class="challan-toolbar">
+    <button class="primary" onclick="window.print()">Print</button>
+    <button onclick="window.close()">Close</button>
+  </div>
   ${pages}
-<script>
-  window.onload = () => { window.print(); };
-<\/script>
+${autoPrint ? `<script>window.onload = () => { window.print(); };<\/script>` : ""}
 </body>
 </html>`;
 
-  const w = window.open("", "_blank");
+  const w = window.open(
+    "",
+    "_blank",
+    `width=${screen.availWidth},height=${screen.availHeight},left=0,top=0`
+  );
   w.document.open();
   w.document.write(html);
   w.document.close();
@@ -262,8 +305,6 @@ function render_data_row(doc, sr_no) {
   const heat_number  = doc.custom_nmtg_heat_number || "";
   const item_display = [doc.item_code, doc.item_name].filter(Boolean).join(" – ");
 
-  // const mill_tc_raw  = doc.custom_mill_tc || "";
-  // const mill_tc      = mill_tc_raw ? mill_tc_raw.split("/").pop() : "";
   const vendor_heat  = doc.custom_vendor_heat_number || "";
   const mill_tc_cell = [esc(vendor_heat)].filter(Boolean).join("<br>");
 

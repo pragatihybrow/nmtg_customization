@@ -1,4 +1,3 @@
-
 frappe.ui.form.on("Quality Inspection Reading", {
     form_render(frm, cdt, cdn) {
         render_custom_reading_html(frm, cdt, cdn);
@@ -39,8 +38,20 @@ frappe.ui.form.on("Quality Inspection", {
         const params   = collect_params(readings);
         const existing = build_existing_map(readings, params);
 
-        open_reading_dialog(frm, heatNumbers, params, existing);
-    }
+        // Extract remarks from any reading row's custom_reading_details["__remarks__"]
+        let existingRemarks = {};
+        for (const r of readings) {
+            let details = {};
+            try { details = JSON.parse(r.custom_reading_details || "{}"); } catch (e) {}
+            if (details["__remarks__"] && typeof details["__remarks__"] === "object") {
+                existingRemarks = details["__remarks__"];
+                break;
+            }
+        }
+
+        open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks);
+    },
+    
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -98,29 +109,29 @@ function collect_params(readings) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build  { spec → { heatNo → value } }  from existing readings rows
+// Strips the reserved "__remarks__" key so it never leaks into value maps
 // ─────────────────────────────────────────────────────────────────────────────
 function build_existing_map(readings, params) {
-    const map = {};
+    const existing = {};
     for (const p of params) {
-        map[p.spec] = {};
+        existing[p.spec] = {};
     }
     for (const r of readings) {
         const spec = (r.specification || "").trim();
         if (!spec) continue;
-        if (!map[spec]) map[spec] = {};
+        if (!existing[spec]) existing[spec] = {};
         let details = {};
         try { details = JSON.parse(r.custom_reading_details || "{}"); } catch (e) {}
-        Object.assign(map[spec], details);
+        // Strip reserved key before merging values
+        const { __remarks__, ...values } = details;
+        Object.assign(existing[spec], values);
     }
-    return map;
+    return existing;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Check if a single value passes min/max for a param
 // Returns: true = pass, false = fail, null = not applicable
-//
-// If the parameter row has "Manual Inspection" checked, any non-empty value
-// is treated as accepted — min/max criteria are bypassed entirely.
 // ─────────────────────────────────────────────────────────────────────────────
 function check_value_status(val, param_meta) {
     if (!param_meta) return null;
@@ -141,7 +152,6 @@ function check_value_status(val, param_meta) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build heat-number → overall status map across all params
-// (used for the per-heat-number "Overall" column in the dialog — binary)
 // ─────────────────────────────────────────────────────────────────────────────
 function build_hn_status_map(heatNumbers, params, draft) {
     const map = {};
@@ -162,12 +172,7 @@ function build_hn_status_map(heatNumbers, params, draft) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Compute the 3-way overall status for a single parameter row, across all
-// heat numbers entered for it:
-//   - all entered values accepted  → "Accepted"
-//   - all entered values rejected  → "Rejected"
-//   - a mix of accepted & rejected → "Partially Accepted"
-//   - no applicable values entered → null (leave status untouched)
+// Compute the 3-way overall status for a single parameter row
 // ─────────────────────────────────────────────────────────────────────────────
 function compute_row_overall_status(param_meta, heatNumbers, draftForSpec) {
     let countAccepted = 0;
@@ -188,43 +193,32 @@ function compute_row_overall_status(param_meta, heatNumbers, draftForSpec) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// READ-ONLY paginated preview table inside child table row (custom_reading)
-// Shows per-heat-number Accepted / Rejected status
+// READ-ONLY paginated preview table inside child table row
+// remarks = flat { hn → remark string } extracted from __remarks__ key
 // ─────────────────────────────────────────────────────────────────────────────
 const READING_PAGE_SIZE = 10;
-function render_paginated_reading_table($container, entries, page, param_meta, allHeatNumbers = []) {
-    page = page || 1;
-
-    const detailMap = {};
-    entries.forEach(([hn, val]) => {
-        detailMap[hn] = val;
-    });
+function render_paginated_reading_table($container, entries, page, param_meta, allHeatNumbers, remarks) {
+    page    = page || 1;
+    remarks = remarks || {};
 
     let accepted_count = 0;
     let rejected_count = 0;
 
     entries.forEach(([hn, val]) => {
         const result = param_meta ? check_value_status(val, param_meta) : null;
-
-        if (result === true) {
-            accepted_count++;
-        } else if (result === false) {
-            rejected_count++;
-        }
+        if (result === true)       accepted_count++;
+        else if (result === false) rejected_count++;
     });
 
-    const total_heat_count = allHeatNumbers.length || entries.length;
-    const entered_count = entries.length;
-    const not_added_count = total_heat_count - entered_count;
-
-    const totalPages = Math.max(1, Math.ceil(entries.length / READING_PAGE_SIZE));
-    page = Math.min(Math.max(page, 1), totalPages);
-
-    const start = (page - 1) * READING_PAGE_SIZE;
-    const pageEntries = entries.slice(start, start + READING_PAGE_SIZE);
+    const total_heat_count = (allHeatNumbers || []).length || entries.length;
+    const not_added_count  = total_heat_count - entries.length;
+    const totalPages       = Math.max(1, Math.ceil(entries.length / READING_PAGE_SIZE));
+    page                   = Math.min(Math.max(page, 1), totalPages);
+    const pageEntries      = entries.slice((page - 1) * READING_PAGE_SIZE, page * READING_PAGE_SIZE);
 
     const rows = pageEntries.map(([hn, val]) => {
         const result = param_meta ? check_value_status(val, param_meta) : null;
+        const remark = remarks[hn] || "";
 
         const statusBadge = result === true
             ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#d4edda;color:#155724;">✓ Accepted</span>`
@@ -234,8 +228,9 @@ function render_paginated_reading_table($container, entries, page, param_meta, a
 
         return `
             <tr>
-                <td style="border:1px solid #d1d8dd;padding:7px 12px;">${hn}</td>
-                <td style="border:1px solid #d1d8dd;padding:7px 12px;">${val}</td>
+                <td style="border:1px solid #d1d8dd;padding:7px 12px;">${frappe.utils.escape_html(hn)}</td>
+                <td style="border:1px solid #d1d8dd;padding:7px 12px;">${frappe.utils.escape_html(String(val))}</td>
+                <td style="border:1px solid #d1d8dd;padding:7px 12px;color:#555;font-style:italic;">${frappe.utils.escape_html(remark)}</td>
                 <td style="border:1px solid #d1d8dd;padding:7px 12px;text-align:center;">${statusBadge}</td>
             </tr>`;
     }).join("");
@@ -244,9 +239,10 @@ function render_paginated_reading_table($container, entries, page, param_meta, a
         <table style="width:100%;border-collapse:collapse;">
             <thead>
                 <tr>
-                    <th>Heat No</th>
-                    <th>Value</th>
-                    <th>Status</th>
+                    <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f0f4f7;">Heat No</th>
+                    <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f0f4f7;">Value</th>
+                    <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f7f3ff;color:#5e35b1;">Remark</th>
+                    <th style="border:1px solid #d1d8dd;padding:7px 12px;background:#f0f4f7;">Status</th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -256,11 +252,9 @@ function render_paginated_reading_table($container, entries, page, param_meta, a
             <span style="padding:4px 10px;background:#d4edda;border-radius:12px;">
                 ✓ Accepted: ${accepted_count}
             </span>
-
             <span style="padding:4px 10px;background:#f8d7da;border-radius:12px;">
                 ✗ Rejected: ${rejected_count}
             </span>
-
             <span style="padding:4px 10px;background:#e9ecef;border-radius:12px;">
                 — Not Added: ${not_added_count}
             </span>
@@ -282,6 +276,12 @@ function render_custom_reading_html(frm, cdt, cdn) {
     let details = {};
     try { details = JSON.parse(d.custom_reading_details || "{}"); } catch (e) {}
 
+    // Extract remarks from the reserved __remarks__ key; strip it from values
+    const remarks = (details["__remarks__"] && typeof details["__remarks__"] === "object")
+        ? details["__remarks__"]
+        : {};
+    const { __remarks__, ...valueDetails } = details;
+
     const param_meta = {
         numeric           : d.numeric,
         min_value         : d.min_value,
@@ -289,34 +289,37 @@ function render_custom_reading_html(frm, cdt, cdn) {
         manual_inspection : d.manual_inspection
     };
 
-    // render_paginated_reading_table($(wrapper.wrapper), Object.entries(details), 1, param_meta);
-
-    const rawRange = (frm.doc.custom_nmtg_heat_number || "").trim();
+    const rawRange    = (frm.doc.custom_nmtg_heat_number || "").trim();
     const heatNumbers = parse_heat_range(rawRange) || [];
 
     render_paginated_reading_table(
         $(wrapper.wrapper),
-        Object.entries(details),
+        Object.entries(valueDetails),
         1,
         param_meta,
-        heatNumbers
+        heatNumbers,
+        remarks
     );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build & open the main dialog
 // ─────────────────────────────────────────────────────────────────────────────
-function open_reading_dialog(frm, heatNumbers, params, existing) {
+function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks) {
 
     const noParams   = params.length === 0;
     const PAGE_SIZE  = 10;
     const totalPages = Math.max(1, Math.ceil(heatNumbers.length / PAGE_SIZE));
     let currentPage  = 1;
 
+    // draft[spec][hn] = value  (no __remarks__ key here — kept separate)
     const draft = {};
     params.forEach(p => {
         draft[p.spec] = Object.assign({}, existing[p.spec] || {});
     });
+
+    // remarkDraft[hn] = remark string
+    const remarkDraft = Object.assign({}, existingRemarks || {});
 
     function rawRange() {
         return (frm.doc.custom_nmtg_heat_number || "").trim();
@@ -333,11 +336,13 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
             const spec = $(this).data("spec");
             const val  = $(this).val().trim();
             if (!draft[spec]) draft[spec] = {};
-            if (val) {
-                draft[spec][hn] = val;
-            } else {
-                delete draft[spec][hn];
-            }
+            if (val) { draft[spec][hn] = val; } else { delete draft[spec][hn]; }
+        });
+
+        dialog.$wrapper.find(".qir-remark").each(function () {
+            const hn  = $(this).data("hn");
+            const val = $(this).val().trim();
+            if (val) { remarkDraft[hn] = val; } else { delete remarkDraft[hn]; }
         });
     }
 
@@ -368,7 +373,6 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
         const pageHeatNumbers = get_page_slice(currentPage);
         const hnStatusMap     = build_hn_status_map(heatNumbers, params, draft);
 
-        // ── Per-column (param) overall status — 3-way: Accepted / Rejected / Partially Accepted ──
         const paramStatus = {};
         if (!noParams) {
             for (const p of params) {
@@ -376,7 +380,6 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
             }
         }
 
-        // ── Header ───────────────────────────────────────────────────────
         let headerCells = `<th class="qir-th qir-th--hn">NMTG Heat No</th>`;
         headerCells    += `<th class="qir-th qir-th--status">Overall</th>`;
 
@@ -384,7 +387,7 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
             headerCells += `<th class="qir-th" style="color:#999;">No parameters found in Readings table</th>`;
         } else {
             for (const p of params) {
-                const st = paramStatus[p.spec];
+                const st    = paramStatus[p.spec];
                 const badge = st === "Accepted"
                     ? `<span class="qir-badge qir-badge--pass">✓ Pass</span>`
                     : st === "Rejected"
@@ -407,10 +410,11 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
             }
         }
 
-        // ── Body rows ─────────────────────────────────────────────────────
+        headerCells += `<th class="qir-th qir-th--remark">Remark</th>`;
+
         let bodyRows = "";
         for (const hn of pageHeatNumbers) {
-            const hnSt = hnStatusMap[hn];
+            const hnSt    = hnStatusMap[hn];
             const hnBadge = hnSt === "accepted"
                 ? `<span class="qir-badge qir-badge--pass">✓ Accepted</span>`
                 : hnSt === "rejected"
@@ -418,7 +422,7 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
                 : `<span class="qir-badge qir-badge--na">— N/A</span>`;
 
             let cells = `<td class="qir-td qir-td--hn">${frappe.utils.escape_html(hn)}</td>`;
-            cells     += `<td class="qir-td qir-td--status">${hnBadge}</td>`;
+            cells    += `<td class="qir-td qir-td--status">${hnBadge}</td>`;
 
             if (noParams) {
                 cells += `<td class="qir-td"></td>`;
@@ -437,10 +441,24 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
                                       type="text"
                                       value="${frappe.utils.escape_html(String(val))}"
                                       autocomplete="off"
+                                      placeholder="Value"
                                   />
                               </td>`;
                 }
             }
+
+            const remark = remarkDraft[hn] || "";
+            cells += `<td class="qir-td qir-td--remark">
+                          <input
+                              class="qir-remark"
+                              data-hn="${frappe.utils.escape_html(hn)}"
+                              type="text"
+                              value="${frappe.utils.escape_html(String(remark))}"
+                              autocomplete="off"
+                              placeholder="Remark…"
+                          />
+                      </td>`;
+
             bodyRows += `<tr class="qir-row">${cells}</tr>`;
         }
 
@@ -488,6 +506,11 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
                 min-width: 130px;
                 text-align: center;
             }
+            .qir-th--remark {
+                background: #f7f3ff;
+                color: #5e35b1;
+                min-width: 200px;
+            }
             .qir-td {
                 border: 1px solid #e4e9ef;
                 padding: 6px 8px;
@@ -527,9 +550,16 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
                 vertical-align: middle;
                 background: #fff5f5;
             }
+            .qir-td--remark {
+                border: 1px solid #e4e9ef;
+                padding: 6px 8px;
+                vertical-align: middle;
+                background: #faf8ff;
+            }
             .qir-row:hover .qir-td,
             .qir-row:hover .qir-td--cell-pass,
-            .qir-row:hover .qir-td--cell-fail { filter: brightness(.97); }
+            .qir-row:hover .qir-td--cell-fail,
+            .qir-row:hover .qir-td--remark { filter: brightness(.97); }
             .qir-badge {
                 display: inline-block;
                 padding: 2px 9px;
@@ -539,26 +569,10 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
                 letter-spacing: .03em;
                 vertical-align: middle;
             }
-            .qir-badge--pass {
-                background: #d4edda;
-                color: #155724;
-                border: 1px solid #c3e6cb;
-            }
-            .qir-badge--fail {
-                background: #f8d7da;
-                color: #721c24;
-                border: 1px solid #f5c6cb;
-            }
-            .qir-badge--partial {
-                background: #fff3cd;
-                color: #856404;
-                border: 1px solid #ffeeba;
-            }
-            .qir-badge--na {
-                background: #e9ecef;
-                color: #6c757d;
-                border: 1px solid #dee2e6;
-            }
+            .qir-badge--pass    { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+            .qir-badge--fail    { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+            .qir-badge--partial { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+            .qir-badge--na      { background: #e9ecef; color: #6c757d; border: 1px solid #dee2e6; }
             .qir-range-hint {
                 display: block;
                 font-size: 10px;
@@ -579,7 +593,19 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
                 transition: border-color .15s, background .15s;
                 box-sizing: border-box;
             }
-            .qir-input:focus {
+            .qir-remark {
+                width: 100%;
+                min-width: 160px;
+                border: 1px solid transparent;
+                border-radius: 4px;
+                padding: 8px 10px;
+                font-size: 14px;
+                background: transparent;
+                color: #444;
+                transition: border-color .15s, background .15s;
+                box-sizing: border-box;
+            }
+            .qir-input:focus, .qir-remark:focus {
                 outline: none;
                 border-color: var(--primary, #2490ef);
                 background: #fff;
@@ -674,49 +700,48 @@ function open_reading_dialog(frm, heatNumbers, params, existing) {
         primary_action_label: __("Save Readings"),
         primary_action() {
             capture_visible_inputs();
-            save_readings(frm, params, heatNumbers, draft, dialog);
+            save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog);
         }
     });
 
     dialog.show();
     bind_events();
 
-    dialog.$wrapper.on("keydown", ".qir-input", function (e) {
-        const inputs = dialog.$wrapper.find(".qir-input").toArray();
-        const idx    = inputs.indexOf(this);
-        const cols   = params.length || 1;
+    dialog.$wrapper.on("keydown", ".qir-input, .qir-remark", function (e) {
+        const allInputs  = dialog.$wrapper.find(".qir-input, .qir-remark").toArray();
+        const idx        = allInputs.indexOf(this);
+        const colsPerRow = (params.length || 1) + 1;
 
-        if (e.key === "Enter" || (e.key === "Tab" && !e.shiftKey)) {
+        if (e.key === "Enter") {
             e.preventDefault();
-            const next = e.key === "Enter" ? inputs[idx + cols] : inputs[idx + 1];
+            const next = allInputs[idx + colsPerRow];
             if (next) {
                 next.focus(); next.select();
-            } else if (e.key === "Enter" && currentPage < totalPages) {
+            } else if (currentPage < totalPages) {
                 go_to_page(currentPage + 1);
                 setTimeout(() => {
-                    const first = dialog.$wrapper.find(".qir-input").get(0);
+                    const first = dialog.$wrapper.find(".qir-input, .qir-remark").get(0);
                     if (first) { first.focus(); first.select(); }
                 }, 0);
             }
+        } else if (e.key === "Tab" && !e.shiftKey) {
+            e.preventDefault();
+            const next = allInputs[idx + 1];
+            if (next) { next.focus(); next.select(); }
         } else if (e.key === "Tab" && e.shiftKey) {
             e.preventDefault();
-            const prev = inputs[idx - 1];
+            const prev = allInputs[idx - 1];
             if (prev) { prev.focus(); prev.select(); }
         }
     });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Save readings back to child table rows and persist to DB
-//
-// For each parameter row, also computes and sets the row's "status" field:
-//   - all entered heat-number values accepted  → "Accepted"
-//   - all entered heat-number values rejected  → "Rejected"
-//   - a mix of accepted and rejected            → "Partially Accepted"
-// Rows with manual_inspection checked treat any non-empty value as accepted.
-// If no applicable values were entered for a row, its status is left as-is.
+// Save readings back to child table rows
+// Remarks are stored as { "__remarks__": { hn: remark } } inside each row's
+// custom_reading_details — no separate custom_hn_remarks field needed
 // ─────────────────────────────────────────────────────────────────────────────
-function save_readings(frm, params, heatNumbers, draft, dialog) {
+function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
     if (!params.length) {
         dialog.hide();
         return;
@@ -730,12 +755,16 @@ function save_readings(frm, params, heatNumbers, draft, dialog) {
         const spec = row.specification;
         if (!draft[spec]) return;
 
+        // Merge values with the reserved __remarks__ key
+        const detailsToSave = Object.assign({}, draft[spec], {
+            __remarks__: remarkDraft
+        });
+
         set_value_promises.push(
             frappe.model.set_value(
-                row.doctype,
-                row.name,
+                row.doctype, row.name,
                 "custom_reading_details",
-                JSON.stringify(draft[spec])
+                JSON.stringify(detailsToSave)
             )
         );
 
@@ -783,18 +812,13 @@ function update_parent_status(frm) {
 
     if (!statuses.length) return;
 
-    let parent_status = "";
-
     const allAccepted = statuses.every(s => s === "Accepted");
     const allRejected = statuses.every(s => s === "Rejected");
 
-    if (allAccepted) {
-        parent_status = "Accepted";
-    } else if (allRejected) {
-        parent_status = "Rejected";
-    } else {
-        parent_status = "Partially Accepted";
-    }
-
-    frm.set_value("status", parent_status);
+    frm.set_value("status",
+        allAccepted ? "Accepted" :
+        allRejected ? "Rejected" :
+        "Partially Accepted"
+    );
 }
+
