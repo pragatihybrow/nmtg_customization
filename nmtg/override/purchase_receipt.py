@@ -127,3 +127,24 @@ class CustomPurchaseReceipt(PurchaseReceipt):
 
             existing.append((qc_start, qc_end, qc.nmtg_heat_number))
             used_ranges[qc.item] = existing
+
+
+
+
+
+def calculate_qty_in_kg(doc, method):
+    for item in doc.items:
+        if item.item_code and item.qty:
+            conversion_factor = frappe.db.get_value(
+                "UOM Conversion Detail",
+                {
+                    "parent": item.item_code,
+                    "uom": "Kg"
+                },
+                "conversion_factor"
+            )
+
+            if conversion_factor:
+                item.custom_qty_in_kg = item.qty * conversion_factor
+            else:
+                item.custom_qty_in_kg = 0

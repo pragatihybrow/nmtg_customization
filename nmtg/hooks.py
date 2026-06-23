@@ -269,12 +269,18 @@ doctype_list_js = {
     "Quality Inspection": "public/js/quality_inspection_listview.js"
 }
 
-
 doc_events = {
     "Quality Inspection": {
-        "before_save": [
+        "validate": [
             "nmtg.override.api.compute_row_status",
+            "nmtg.override.api.update_parent_status",
             "nmtg.override.api.validate_heat_range_vs_sample_size"
         ]
+    },
+    "Purchase Order": {
+        "validate": "nmtg.override.purchase_order.calculate_qty_in_kg"
+    },
+     "Purchase Receipt": {
+        "validate": "nmtg.override.purchase_receipt.calculate_qty_in_kg"
     }
 }

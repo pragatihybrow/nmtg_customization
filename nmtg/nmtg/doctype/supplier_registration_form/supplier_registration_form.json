@@ -1,0 +1,173 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-06-16 14:20:16.424560",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_5dbf",
+  "amended_from",
+  "name_of_the_enterprise",
+  "any_qms_certification",
+  "qms_certification_number",
+  "qms_certification_agency",
+  "address",
+  "city",
+  "state",
+  "fax_no",
+  "email_id",
+  "name_contact_person",
+  "any_associates",
+  "associates_name",
+  "legal_information_tab",
+  "shop_establishment_reg_no",
+  "arn_no",
+  "gst_no",
+  "pan_no",
+  "msme_no"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_5dbf",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Supplier Registration Form",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "name_of_the_enterprise",
+   "fieldtype": "Link",
+   "label": "Name of the Enterprise",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "any_qms_certification",
+   "fieldtype": "Select",
+   "label": "Any QMS Certification",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.any_qms_certification === \"Yes\"",
+   "fieldname": "qms_certification_number",
+   "fieldtype": "Data",
+   "label": "QMS Certification Number"
+  },
+  {
+   "fieldname": "qms_certification_agency",
+   "fieldtype": "Attach",
+   "label": "QMS Certification Agency"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Link",
+   "label": "Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "fieldname": "state",
+   "fieldtype": "Select",
+   "label": "State",
+   "options": "\nAndhra Pradesh\nArunachal Pradesh\nAssam\nBihar\nChhattisgarh\nGoa\nGujarat\nHaryana\nHimachal Pradesh\nJharkhand\nKarnataka\nKerala\nMadhya Pradesh\nMaharashtra\nManipur\nMeghalaya\nMizoram\nNagaland\nOdisha\nPunjab\nRajasthan\nSikkim\nTamil Nadu\nTelangana\nTripura\nUttarakhand\nUttar Pradesh\nWest Bengal"
+  },
+  {
+   "fieldname": "fax_no",
+   "fieldtype": "Data",
+   "label": "Fax No"
+  },
+  {
+   "fieldname": "email_id",
+   "fieldtype": "Data",
+   "label": "Email ID"
+  },
+  {
+   "fieldname": "name_contact_person",
+   "fieldtype": "Link",
+   "label": "Name Contact Person",
+   "options": "Contact"
+  },
+  {
+   "fieldname": "any_associates",
+   "fieldtype": "Select",
+   "label": "Any Associates",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.any_associates===\"Yes\"",
+   "fieldname": "associates_name",
+   "fieldtype": "Data",
+   "label": "Associates Name"
+  },
+  {
+   "fieldname": "legal_information_tab",
+   "fieldtype": "Tab Break",
+   "label": "Legal Information"
+  },
+  {
+   "fieldname": "shop_establishment_reg_no",
+   "fieldtype": "Data",
+   "label": "Shop & Establishment Reg. No"
+  },
+  {
+   "fieldname": "arn_no",
+   "fieldtype": "Data",
+   "label": "ARN. No"
+  },
+  {
+   "fieldname": "gst_no",
+   "fieldtype": "Data",
+   "label": "GST No"
+  },
+  {
+   "fieldname": "pan_no",
+   "fieldtype": "Data",
+   "label": "PAN No"
+  },
+  {
+   "fieldname": "msme_no",
+   "fieldtype": "Data",
+   "label": "MSME No"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-06-16 15:00:44.454630",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Supplier Registration Form",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

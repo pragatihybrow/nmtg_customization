@@ -1,9 +1,11 @@
-
 import frappe
 from frappe.model.naming import make_autoname
 from frappe.utils import today
 import json
 import re
+
+REMARKS_KEY = "__remarks__"
+
 
 @frappe.whitelist(allow_guest=True)
 def submit_supplier_quotation(data):
@@ -163,7 +165,6 @@ def create_heat_number(po, row_name):
 
     return heat_number
 
-    
 
 
 @frappe.whitelist()
@@ -284,9 +285,16 @@ def get_or_create_qc_series(qi_names):
     return next_val
 
 
-
-
-
+# ─────────────────────────────────────────────────────────────────────────────
+# Quality Inspection row + parent status hooks
+# Registered under "validate" in hooks.py, in this exact order:
+#   1. compute_row_status      — recompute each reading row's status
+#   2. update_parent_status    — roll row statuses up into the parent
+#   3. validate_heat_range_vs_sample_size
+# "validate" (not before_save) ensures this runs identically on both
+# Save and Submit, after core's own doctype validate() has already run,
+# so our status always has the final word.
+# ─────────────────────────────────────────────────────────────────────────────
 
 def compute_row_status(doc, method=None):
 	for row in doc.get("readings", []):
@@ -306,7 +314,12 @@ def _compute_row_status(row):
 	accepted = 0
 	rejected = 0
 
-	for value in details.values():
+	for key, value in details.items():
+		# FIX: skip the reserved remarks blob — it is a dict, not a reading
+		# value, and must never be counted toward accepted/rejected totals.
+		if key == REMARKS_KEY:
+			continue
+
 		if value in (None, ""):
 			continue
 
@@ -345,6 +358,25 @@ def _compute_row_status(row):
 		return "Rejected"
 	return "Partially Accepted"
 
+
+def update_parent_status(doc, method=None):
+	"""
+	Server-side source of truth for the parent `status` field.
+	Must run AFTER compute_row_status, so it reads the freshly
+	recomputed row statuses rather than stale ones.
+	"""
+	statuses = [(row.status or "").strip() for row in doc.get("readings", [])]
+	statuses = [s for s in statuses if s]
+
+	if not statuses:
+		return
+
+	if all(s == "Accepted" for s in statuses):
+		doc.status = "Accepted"
+	elif all(s == "Rejected" for s in statuses):
+		doc.status = "Rejected"
+	else:
+		doc.status = "Partially Accepted"
 
 
 def validate_heat_range_vs_sample_size(doc, method=None):
