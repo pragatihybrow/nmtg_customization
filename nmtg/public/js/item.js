@@ -1,6 +1,7 @@
 frappe.ui.form.on("Item", {
     onload: function(frm) { 
         toggle_models_field(frm);
+        apply_item_settings_fields(frm);
         set_models_filter(frm);
          if (frm.is_new()) {
             frm.doc.item_code = "TEMP-" + frappe.utils.get_random(8);
@@ -10,6 +11,7 @@ frappe.ui.form.on("Item", {
     refresh: function(frm) { 
         toggle_models_field(frm);
         set_models_filter(frm);
+        apply_item_settings_fields(frm);
        // generate_item_name(frm)
     },
 
@@ -19,6 +21,7 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
+        apply_item_settings_fields(frm);
        // generate_item_name(frm)
     },
 
@@ -27,6 +30,7 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
+        apply_item_settings_fields(frm);
        // generate_item_name(frm);
     },
 
@@ -34,6 +38,7 @@ frappe.ui.form.on("Item", {
         frm.set_value("custom_models", []);
         toggle_models_field(frm);
         set_models_filter(frm);
+        apply_item_settings_fields(frm);
         // generate_item_code(frm);
     },
 
@@ -152,61 +157,6 @@ function generate_item_code(frm) {
         }
     });
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 function generate_item_name(frm) {
@@ -338,4 +288,67 @@ function set_actual_size(frm) {
     } else {
         frm.set_value("custom_actual_size", "");
     }
+}
+
+function apply_item_settings_fields(frm) {
+
+    // Fields always visible
+    let always_visible = [
+        "custom_product_group",
+        "custom_product_group_initials",
+        "custom_sub_product_group",
+        "custom_product_code",
+        "custom_models",
+        "custom_material_type",
+        "custom_material_sub_type",
+        "custom_section_break_0x4t9",
+        "custom_section_break_qnbdu",
+        "gst_hsn_code",
+        "is_ineligible_for_itc",
+        "custom_quality_inspection_percent",
+        "custom_column_break_uehck",
+        "custom_drawing",
+        "custom_tds_attachment"
+    ];
+
+    // Hide only dynamic custom fields
+    frm.meta.fields.forEach(df => {
+        if (
+            df.fieldname &&
+            df.fieldname.startsWith("custom_") &&
+            !always_visible.includes(df.fieldname)
+        ) {
+            frm.set_df_property(df.fieldname, "hidden", 1);
+        }
+    });
+
+    frappe.call({
+        method: "frappe.client.get",
+        args: {
+            doctype: "Item Settings",
+            name: "Item Settings"
+        },
+        callback: function(r) {
+            if (!r.message) return;
+
+            let settings = r.message.item_settings || [];
+
+            let matched_row = settings.find(row => {
+                return (
+                    row.item_group === frm.doc.item_group &&
+                    row.product_group === frm.doc.custom_product_group &&
+                    row.sub_product_group === frm.doc.custom_sub_product_group &&
+                    (!row.material_type || row.material_type === frm.doc.custom_material_type)
+                );
+            });
+
+            if (matched_row && matched_row.feilds) {
+                matched_row.feilds.split(",").forEach(field => {
+                    frm.set_df_property(field.trim(), "hidden", 0);
+                });
+            }
+
+            frm.refresh_fields();
+        }
+    });
 }
