@@ -40,9 +40,7 @@ function render_required_fields_multiselect(frm, cdt, cdn) {
         method: "frappe.client.get_list",
         args: {
             doctype: "Custom Field",
-            filters: {
-                dt: "Item"
-            },
+            filters: { dt: "Item" },
             fields: ["fieldname", "label"],
             limit_page_length: 0,
             order_by: "idx asc"
@@ -54,7 +52,7 @@ function render_required_fields_multiselect(frm, cdt, cdn) {
 
             let options = custom_fields.map(f => ({
                 value: f.fieldname,
-                label: f.label || f.fieldname
+                label: `${f.label || f.fieldname} (${f.fieldname})`
             }));
 
             let control = frappe.ui.form.make_control({
@@ -70,20 +68,23 @@ function render_required_fields_multiselect(frm, cdt, cdn) {
 
             // Set old values
             if (row.feilds) {
-                control.set_value(
-                    row.feilds.split(",").map(x => x.trim())
-                );
+                let saved_fieldnames = row.feilds
+                    .split(",")
+                    .map(x => x.trim())
+                    .filter(Boolean);
+                control.set_value(saved_fieldnames);
             }
 
-            // Save selected values
-            control.$input.on("change", function () {
+            // ✅ MutationObserver — watches pill DOM, fires on both add AND remove
+            const pills_container = $wrapper[0];
+            const observer = new MutationObserver(function () {
                 let selected = control.get_value() || [];
-                frappe.model.set_value(
-                    cdt,
-                    cdn,
-                    "feilds",
-                    selected.join(",")
-                );
+                frappe.model.set_value(cdt, cdn, "feilds", selected.join(","));
+            });
+
+            observer.observe(pills_container, {
+                childList: true,
+                subtree: true
             });
         }
     });
