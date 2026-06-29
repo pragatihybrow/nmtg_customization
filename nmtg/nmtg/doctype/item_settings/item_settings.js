@@ -33,7 +33,8 @@ function render_required_fields_multiselect(frm, cdt, cdn) {
         "custom_quality_inspection_percent",
         "custom_column_break_uehck",
         "custom_drawing",
-        "custom_tds_attachment"
+        "custom_tds_attachment",
+        "custom_formula_for_conversion"
     ];
 
     frappe.call({

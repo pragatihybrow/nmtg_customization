@@ -274,8 +274,10 @@ doc_events = {
         "validate": [
             "nmtg.override.api.compute_row_status",
             "nmtg.override.api.update_parent_status",
-            "nmtg.override.api.validate_heat_range_vs_sample_size"
-        ]
+            "nmtg.override.api.validate_heat_range_vs_sample_size",
+            # "nmtg.override.api.calculate_accepted_rejected_weight",
+        ],
+        "on_submit": "nmtg.override.quality_inspection.on_submit"
     },
     "Purchase Order": {
         "validate": "nmtg.override.purchase_order.calculate_qty_in_kg"

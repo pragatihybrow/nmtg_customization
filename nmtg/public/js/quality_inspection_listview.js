@@ -53,7 +53,7 @@ async function print_challans(names, { autoPrint = true } = {}) {
     groups[key].docs.push(doc);
   }
 
-  // ── For each group: get or create qc_series, assign to all docs in group ──
+ // ── For each group: get or create qc_series, assign to all docs in group ──
   frappe.show_progress(__("Assigning Challan IDs…"), 0, Object.keys(groups).length);
   let g_idx = 0;
 
@@ -69,6 +69,25 @@ async function print_challans(names, { autoPrint = true } = {}) {
 
     group.docs.forEach(d => { d.custom_qc_series = series; });
     group.qc_series = series;
+
+    // ── Persist challan status for all docs in this group ──────────────────
+    if (series) {
+      await Promise.all(
+        qi_names.map(name =>
+          frappe.call({
+            method: "frappe.client.set_value",
+            args: {
+              doctype: "Quality Inspection",
+              name: name,
+              fieldname: {
+                custom_qc_series: series,
+                custom_challan_status: "Challan Created"
+              }
+            }
+          })
+        )
+      );
+    }
 
     frappe.show_progress(__("Assigning Challan IDs…"), ++g_idx, Object.keys(groups).length);
   }

@@ -420,3 +420,4 @@ def validate_heat_range_vs_sample_size(doc, method=None):
             f"For Sample Size {sample_size}, the range should be exactly "
             f"{prefix}{start_num} - {prefix}{suggested_end}."
         )
+

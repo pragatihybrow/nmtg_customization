@@ -308,7 +308,8 @@ function apply_item_settings_fields(frm) {
         "custom_quality_inspection_percent",
         "custom_column_break_uehck",
         "custom_drawing",
-        "custom_tds_attachment"
+        "custom_tds_attachment",
+        "custom_formula_for_conversion"
     ];
 
     // Hide only dynamic custom fields

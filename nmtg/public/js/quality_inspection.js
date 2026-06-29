@@ -51,7 +51,7 @@ frappe.ui.form.on("Quality Inspection", {
 
         open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks);
     },
-    
+
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,12 +95,13 @@ function collect_params(readings) {
         if (s && !seen.has(s)) {
             seen.add(s);
             result.push({
-                spec              : s,
-                label             : s,
-                numeric           : r.numeric,
-                min_value         : r.min_value,
-                max_value         : r.max_value,
-                manual_inspection : r.manual_inspection
+                spec                               : s,
+                label                              : s,
+                numeric                            : r.numeric,
+                min_value                          : r.min_value,
+                max_value                          : r.max_value,
+                manual_inspection                  : r.manual_inspection,
+                custom_calculate_weight_per_piece_kg: r.custom_calculate_weight_per_piece_kg
             });
         }
     }
@@ -122,11 +123,92 @@ function build_existing_map(readings, params) {
         if (!existing[spec]) existing[spec] = {};
         let details = {};
         try { details = JSON.parse(r.custom_reading_details || "{}"); } catch (e) {}
-        // Strip reserved key before merging values
         const { __remarks__, ...values } = details;
         Object.assign(existing[spec], values);
     }
     return existing;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Parse variable tokens like "Diameter(mm)", "Length(mm)" from a formula string
+// ─────────────────────────────────────────────────────────────────────────────
+function parse_formula_variables(formula) {
+    const TOKEN_RE = /[A-Za-z_][A-Za-z0-9_ ]*\([^)]*\)/g;
+    return [...new Set(formula.match(TOKEN_RE) || [])];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Evaluate custom_formula_for_conversion dynamically
+// ─────────────────────────────────────────────────────────────────────────────
+function evaluate_formula(formula, item_field_map, param_value_map) {
+    if (!formula) return null;
+
+    const tokens = parse_formula_variables(formula);
+    let expr = formula;
+
+    for (const token of tokens) {
+        let val = null;
+
+        if (token in item_field_map) {
+            val = flt(item_field_map[token]);
+        } else if (token in param_value_map) {
+            const raw = param_value_map[token];
+            if (raw === undefined || raw === null || raw === "") return null;
+            val = flt(raw);
+        } else {
+            console.warn("[evaluate_formula] Unknown token:", token, "| formula:", formula,
+                         "| item_field_map keys:", Object.keys(item_field_map),
+                         "| param_value_map keys:", Object.keys(param_value_map));
+            return null;
+        }
+
+        if (isNaN(val)) {
+            console.warn("[evaluate_formula] NaN for token:", token, "val:", val);
+            return null;
+        }
+
+        expr = expr.split(token).join(String(val));
+    }
+
+    try {
+        const result = Function('"use strict"; return (' + expr + ')')();
+        if (!isFinite(result)) {
+            console.warn("[evaluate_formula] Non-finite result:", result, "expr:", expr);
+            return null;
+        }
+        return result;
+    } catch (e) {
+        console.error("[evaluate_formula] Eval error:", e, "expr:", expr);
+        return null;
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build item_field_map from item_doc
+// ─────────────────────────────────────────────────────────────────────────────
+function build_item_field_map(item_doc) {
+    return {
+        "Diameter(mm)" : flt(item_doc.custom_diameter),
+        "OD(mm)"       : flt(item_doc.custom_od),
+        "ID(mm)"       : flt(item_doc.custom_id),
+        "TL(mm)"       : flt(item_doc.custom_tl),
+    };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Build param_value_map for a single heat number
+// ─────────────────────────────────────────────────────────────────────────────
+function build_param_value_map(params, draft, hn) {
+    const map = {};
+    for (const p of params) {
+        const specDraft = draft[p.spec];
+        if (!specDraft) continue;
+        const val = specDraft[hn];
+        if (val !== undefined && val !== null && val !== "") {
+            map[p.spec] = val;
+        }
+    }
+    return map;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,6 +234,7 @@ function check_value_status(val, param_meta) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build heat-number → overall status map across all params
+// Returns: "accepted" | "rejected" | "na"
 // ─────────────────────────────────────────────────────────────────────────────
 function build_hn_status_map(heatNumbers, params, draft) {
     const map = {};
@@ -178,41 +261,26 @@ function compute_row_overall_status(param_meta, heatNumbers, draftForSpec) {
     let countAccepted = 0;
     let countRejected = 0;
 
-    // remove remarks object if present
     const values = Object.entries(draftForSpec || {}).filter(
         ([key, val]) => key !== "__remarks__" && val !== "" && val !== null && val !== undefined
     );
 
     for (const [hn, val] of values) {
         const result = check_value_status(val, param_meta);
-
-        if (result === true) {
-            countAccepted++;
-        } else if (result === false) {
-            countRejected++;
-        }
+        if (result === true)  countAccepted++;
+        else if (result === false) countRejected++;
     }
 
-    // Final status logic
-    if (values.length === 0) {
-        return null;
-    }
+    if (values.length === 0) return null;
 
-    if (countRejected === 0 && countAccepted === values.length) {
-        return "Accepted";
-    }
-
-    if (countAccepted === 0 && countRejected > 0) {
-        return "Rejected";
-    }
-
+    if (countRejected === 0 && countAccepted === values.length) return "Accepted";
+    if (countAccepted === 0 && countRejected > 0) return "Rejected";
     return "Partially Accepted";
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // READ-ONLY paginated preview table inside child table row
-// remarks = flat { hn → remark string } extracted from __remarks__ key
 // ─────────────────────────────────────────────────────────────────────────────
-const READING_PAGE_SIZE = 10;
 function render_paginated_reading_table(
     $container,
     entries,
@@ -220,9 +288,12 @@ function render_paginated_reading_table(
     param_meta,
     allHeatNumbers,
     remarks,
-    kg_conversion_factor = 0
+    formula,
+    item_field_map,
+    params,
+    draft
 ) {
-    page = page || 1;
+    page    = page    || 1;
     remarks = remarks || {};
 
     const PAGE_SIZE = 10;
@@ -232,28 +303,26 @@ function render_paginated_reading_table(
 
     entries.forEach(([hn, val]) => {
         const result = param_meta ? check_value_status(val, param_meta) : null;
-        if (result === true) accepted_count++;
+        if (result === true)  accepted_count++;
         else if (result === false) rejected_count++;
     });
 
     const total_heat_count = (allHeatNumbers || []).length || entries.length;
-    const not_added_count = total_heat_count - entries.length;
-
-    const totalPages = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
+    const not_added_count  = total_heat_count - entries.length;
+    const totalPages       = Math.max(1, Math.ceil(entries.length / PAGE_SIZE));
     page = Math.min(Math.max(page, 1), totalPages);
 
-    const pageEntries = entries.slice(
-        (page - 1) * PAGE_SIZE,
-        page * PAGE_SIZE
-    );
+    const pageEntries = entries.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     const rows = pageEntries.map(([hn, val]) => {
         const result = param_meta ? check_value_status(val, param_meta) : null;
         const remark = remarks[hn] || "";
 
         let weight = "";
-        if (param_meta.custom_calculate_weight_per_piece_kg && val) {
-            weight = flt(val) * flt(kg_conversion_factor);
+        if (param_meta.custom_calculate_weight_per_piece_kg && formula) {
+            const param_value_map = build_param_value_map(params || [], draft || {}, hn);
+            const w = evaluate_formula(formula, item_field_map || {}, param_value_map);
+            weight = w !== null ? w.toFixed(3) : "0.000";
         }
 
         const statusBadge =
@@ -270,28 +339,17 @@ function render_paginated_reading_table(
                 <td style="border:1px solid #d1d8dd;padding:7px 12px;">${frappe.utils.escape_html(remark)}</td>
                 <td style="border:1px solid #d1d8dd;padding:7px 12px;text-align:center;">${statusBadge}</td>
                 <td style="border:1px solid #d1d8dd;padding:7px 12px;">${weight}</td>
-            </tr>
-        `;
+            </tr>`;
     }).join("");
 
     let pagination_html = "";
-
     if (totalPages > 1) {
         pagination_html = `
             <div style="margin-top:10px;display:flex;justify-content:center;gap:8px;">
-                <button class="btn btn-default prev-page" ${page === 1 ? "disabled" : ""}>
-                    Prev
-                </button>
-
-                <span style="padding:6px 12px;">
-                    Page ${page} of ${totalPages}
-                </span>
-
-                <button class="btn btn-default next-page" ${page === totalPages ? "disabled" : ""}>
-                    Next
-                </button>
-            </div>
-        `;
+                <button class="btn btn-default prev-page" ${page === 1 ? "disabled" : ""}>Prev</button>
+                <span style="padding:6px 12px;">Page ${page} of ${totalPages}</span>
+                <button class="btn btn-default next-page" ${page === totalPages ? "disabled" : ""}>Next</button>
+            </div>`;
     }
 
     $container.html(`
@@ -309,17 +367,9 @@ function render_paginated_reading_table(
         </table>
 
         <div style="margin-top:10px;display:flex;gap:12px;">
-            <span style="padding:4px 10px;background:#d4edda;border-radius:12px;">
-                ✓ Accepted: ${accepted_count}
-            </span>
-
-            <span style="padding:4px 10px;background:#f8d7da;border-radius:12px;">
-                ✗ Rejected: ${rejected_count}
-            </span>
-
-            <span style="padding:4px 10px;background:#e9ecef;border-radius:12px;">
-                — Not Added: ${not_added_count}
-            </span>
+            <span style="padding:4px 10px;background:#d4edda;border-radius:12px;">✓ Accepted: ${accepted_count}</span>
+            <span style="padding:4px 10px;background:#f8d7da;border-radius:12px;">✗ Rejected: ${rejected_count}</span>
+            <span style="padding:4px 10px;background:#e9ecef;border-radius:12px;">— Not Added: ${not_added_count}</span>
         </div>
 
         ${pagination_html}
@@ -327,25 +377,14 @@ function render_paginated_reading_table(
 
     $container.find(".prev-page").on("click", function () {
         render_paginated_reading_table(
-            $container,
-            entries,
-            page - 1,
-            param_meta,
-            allHeatNumbers,
-            remarks,
-            kg_conversion_factor
+            $container, entries, page - 1, param_meta,
+            allHeatNumbers, remarks, formula, item_field_map, params, draft
         );
     });
-
     $container.find(".next-page").on("click", function () {
         render_paginated_reading_table(
-            $container,
-            entries,
-            page + 1,
-            param_meta,
-            allHeatNumbers,
-            remarks,
-            kg_conversion_factor
+            $container, entries, page + 1, param_meta,
+            allHeatNumbers, remarks, formula, item_field_map, params, draft
         );
     });
 }
@@ -363,33 +402,36 @@ function render_custom_reading_html(frm, cdt, cdn) {
     const d = locals[cdt][cdn];
 
     let details = {};
-    try {
-        details = JSON.parse(d.custom_reading_details || "{}");
-    } catch (e) {}
+    try { details = JSON.parse(d.custom_reading_details || "{}"); } catch (e) {}
 
     const remarks = details["__remarks__"] || {};
     const { __remarks__, ...valueDetails } = details;
 
     frappe.db.get_doc("Item", frm.doc.item_code).then(item_doc => {
-        let kg_conversion_factor = 0;
-
-        if (item_doc.uoms && item_doc.uoms.length) {
-            const kg_row = item_doc.uoms.find(u => u.uom === "Kg");
-            if (kg_row) {
-                kg_conversion_factor = flt(kg_row.conversion_factor);
-            }
-        }
+        const formula        = item_doc.custom_formula_for_conversion || "";
+        const item_field_map = build_item_field_map(item_doc);
 
         const param_meta = {
-            numeric: d.numeric,
-            min_value: d.min_value,
-            max_value: d.max_value,
-            manual_inspection: d.manual_inspection,
-            custom_calculate_weight_per_piece_kg: d.custom_calculate_weight_per_piece_kg
+            numeric                              : d.numeric,
+            min_value                            : d.min_value,
+            max_value                            : d.max_value,
+            manual_inspection                    : d.manual_inspection,
+            custom_calculate_weight_per_piece_kg : d.custom_calculate_weight_per_piece_kg
         };
 
-        const rawRange = (frm.doc.custom_nmtg_heat_number || "").trim();
+        const rawRange    = (frm.doc.custom_nmtg_heat_number || "").trim();
         const heatNumbers = parse_heat_range(rawRange) || [];
+
+        // Rebuild params + draft from ALL readings so cross-param formula
+        // tokens (e.g. "Thickness(mm)" used in weight formula) always resolve
+        const allReadings = frm.doc.readings || [];
+        const params      = collect_params(allReadings);
+        const draft       = build_existing_map(allReadings, params);
+
+        console.log("[render_custom_reading_html] formula:", formula);
+        console.log("[render_custom_reading_html] item_field_map:", item_field_map);
+        console.log("[render_custom_reading_html] params:", params.map(p => p.spec));
+        console.log("[render_custom_reading_html] draft:", JSON.stringify(draft));
 
         render_paginated_reading_table(
             $(wrapper.wrapper),
@@ -398,7 +440,10 @@ function render_custom_reading_html(frm, cdt, cdn) {
             param_meta,
             heatNumbers,
             remarks,
-            kg_conversion_factor
+            formula,
+            item_field_map,
+            params,
+            draft
         );
     });
 }
@@ -413,7 +458,7 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
     const totalPages = Math.max(1, Math.ceil(heatNumbers.length / PAGE_SIZE));
     let currentPage  = 1;
 
-    // draft[spec][hn] = value  (no __remarks__ key here — kept separate)
+    // draft[spec][hn] = value
     const draft = {};
     params.forEach(p => {
         draft[p.spec] = Object.assign({}, existing[p.spec] || {});
@@ -548,17 +593,19 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 }
             }
 
-            const remark = remarkDraft[hn] || "";
-            cells += `<td class="qir-td qir-td--remark">
-                          <input
-                              class="qir-remark"
-                              data-hn="${frappe.utils.escape_html(hn)}"
-                              type="text"
-                              value="${frappe.utils.escape_html(String(remark))}"
-                              autocomplete="off"
-                              placeholder="Remark…"
-                          />
-                      </td>`;
+        const remark    = remarkDraft[hn] || "";
+        const isReject  = hnStatusMap[hn] === "rejected";
+        cells += `<td class="qir-td qir-td--remark">
+                    <input
+                        class="qir-remark${isReject ? " qir-remark--required" : ""}"
+                        data-hn="${frappe.utils.escape_html(hn)}"
+                        data-required="${isReject ? "1" : "0"}"
+                        type="text"
+                        value="${frappe.utils.escape_html(String(remark))}"
+                        autocomplete="off"
+                        placeholder="${isReject ? "Remark required ✱" : "Remark…"}"
+                    />
+                </td>`;
 
             bodyRows += `<tr class="qir-row">${cells}</tr>`;
         }
@@ -744,6 +791,18 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 border-radius: 4px;
                 border: 1px solid var(--border-color, #d1d8dd);
             }
+            .qir-remark--required {
+            border-color: #f5c6cb !important;
+            background: #fff8f8 !important;
+            }
+            .qir-remark--required:focus {
+                border-color: #dc3545 !important;
+                box-shadow: 0 0 0 2px rgba(220,53,69,.15) !important;
+            }
+            .qir-remark--required::placeholder {
+                color: #dc3545;
+                font-weight: 500;
+            }
         </style>
 
         <p class="qir-meta">
@@ -799,10 +858,51 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
             }
         ],
         primary_action_label: __("Save Readings"),
-        primary_action() {
-            capture_visible_inputs();
-            save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog);
+       // REPLACE WITH:
+primary_action() {
+    capture_visible_inputs();
+
+    // Validate: remark mandatory for rejected heat numbers
+    const hnStatusMap = build_hn_status_map(heatNumbers, params, draft);
+    const missing = heatNumbers.filter(hn =>
+        hnStatusMap[hn] === "rejected" &&
+        !(remarkDraft[hn] || "").trim()
+    );
+
+    if (missing.length) {
+        // Navigate to the page containing the first offending HN
+        const firstIdx  = heatNumbers.indexOf(missing[0]);
+        const needsPage = Math.floor(firstIdx / PAGE_SIZE) + 1;
+        if (needsPage !== currentPage) {
+            currentPage = needsPage;
+            render();
         }
+
+        // Highlight all missing remark inputs on the current page
+        setTimeout(() => {
+            dialog.$wrapper.find(".qir-remark[data-required='1']").each(function () {
+                if (!$(this).val().trim()) {
+                    $(this).addClass("qir-remark--required").css("border-color", "#dc3545");
+                }
+            });
+            const firstInput = dialog.$wrapper.find(".qir-remark[data-required='1']").filter(function () {
+                return !$(this).val().trim();
+            }).first();
+            if (firstInput.length) firstInput.focus();
+        }, 50);
+
+        frappe.msgprint({
+            title    : __("Remark Required"),
+            message  : __(`<b>${missing.length}</b> rejected heat number(s) are missing a remark:<br><br>`)
+                     + missing.slice(0, 10).map(hn => `<b>${frappe.utils.escape_html(hn)}</b>`).join(", ")
+                     + (missing.length > 10 ? ` <i>… and ${missing.length - 10} more</i>` : ""),
+            indicator: "red"
+        });
+        return;
+    }
+
+    save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog);
+}
     });
 
     dialog.show();
@@ -838,9 +938,7 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Save readings back to child table rows
-// Remarks are stored as { "__remarks__": { hn: remark } } inside each row's
-// custom_reading_details — no separate custom_hn_remarks field needed
+// Save readings back to child table rows + update parent totals
 // ─────────────────────────────────────────────────────────────────────────────
 function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
     if (!params.length) {
@@ -848,82 +946,161 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
         return;
     }
 
-    const set_value_promises = [];
     const params_by_spec = {};
-    params.forEach(p => {
-        params_by_spec[p.spec] = p;
-    });
+    params.forEach(p => { params_by_spec[p.spec] = p; });
 
     frappe.db.get_doc("Item", frm.doc.item_code).then(item_doc => {
-        let kg_conversion_factor = 0;
+        const formula        = item_doc.custom_formula_for_conversion || "";
+        const item_field_map = build_item_field_map(item_doc);
 
-        if (item_doc.uoms && item_doc.uoms.length) {
-            const kg_row = item_doc.uoms.find(u => u.uom === "Kg");
-            if (kg_row) {
-                kg_conversion_factor = flt(kg_row.conversion_factor);
-            }
-        }
+        console.log("[save_readings] formula:", formula);
+        console.log("[save_readings] item_field_map:", item_field_map);
+        console.log("[save_readings] draft:", JSON.stringify(draft));
 
+        const set_value_promises = [];
+
+        // ── Steps 1–3: per reading-row saves ────────────────────────────────
         (frm.doc.readings || []).forEach(row => {
-            const spec = row.specification;
+            const spec = (row.specification || "").trim();
             if (!draft[spec]) return;
 
+            // 1. Save reading details (values + remarks)
             const detailsToSave = Object.assign({}, draft[spec], {
                 __remarks__: remarkDraft
             });
 
             set_value_promises.push(
                 frappe.model.set_value(
-                    row.doctype,
-                    row.name,
+                    row.doctype, row.name,
                     "custom_reading_details",
                     JSON.stringify(detailsToSave)
-                )
+                ).catch(err => console.error("[save_readings] set custom_reading_details failed:", err))
             );
 
-            if (row.custom_calculate_weight_per_piece_kg) {
-                let total_weight = 0;
+            // 2. Calculate & save total weight per reading row
+            if (row.custom_calculate_weight_per_piece_kg && formula) {
+                let total_weight  = 0;
+                let weight_errors = 0;
 
-                Object.values(draft[spec]).forEach(val => {
-                    if (val && !isNaN(val)) {
-                        total_weight += flt(val) * kg_conversion_factor;
+                heatNumbers.forEach(hn => {
+                    const param_value_map = build_param_value_map(params, draft, hn);
+                    console.log(`[save_readings] HN: ${hn} | param_value_map:`, param_value_map);
+
+                    const w = evaluate_formula(formula, item_field_map, param_value_map);
+                    console.log(`[save_readings] HN: ${hn} | weight:`, w);
+
+                    if (w !== null) {
+                        total_weight += w;
+                    } else {
+                        weight_errors++;
                     }
                 });
 
-                // FIX: write the aggregate weight to its own custom field
-                // instead of the core "value" field. "value" was being read
-                // by ERPNext's built-in Quality Inspection validation and
-                // compared against min_value/max_value (a spec range meant
-                // for a single reading, e.g. Outer Diameter), which made the
-                // whole inspection get force-rejected regardless of how many
-                // of the actual heat-number readings passed.
+                console.log(`[save_readings] spec: ${spec} | total_weight: ${total_weight} | skipped HNs: ${weight_errors}`);
+
                 set_value_promises.push(
                     frappe.model.set_value(
-                        row.doctype,
-                        row.name,
+                        row.doctype, row.name,
                         "custom_total_weight_kg",
-                        total_weight
-                    )
+                        flt(total_weight, 3)
+                    ).catch(err => console.error("[save_readings] set custom_total_weight_kg failed:", err))
                 );
+            } else {
+                if (!formula) {
+                    console.warn("[save_readings] Skipping weight: formula is empty on Item", frm.doc.item_code);
+                }
+                if (!row.custom_calculate_weight_per_piece_kg) {
+                    console.warn("[save_readings] Skipping weight: custom_calculate_weight_per_piece_kg is falsy on row", row.name);
+                }
             }
 
+            // 3. Compute & save row-level status
             const param_meta = params_by_spec[spec];
-            const rowStatus = param_meta
+            const rowStatus  = param_meta
                 ? compute_row_overall_status(param_meta, heatNumbers, draft[spec])
                 : null;
 
             if (rowStatus) {
                 set_value_promises.push(
                     frappe.model.set_value(
-                        row.doctype,
-                        row.name,
+                        row.doctype, row.name,
                         "status",
                         rowStatus
-                    )
+                    ).catch(err => console.error("[save_readings] set status failed:", err))
                 );
             }
         });
 
+      
+        const hnStatusMap = build_hn_status_map(heatNumbers, params, draft);
+
+        // Find the Length(mm) param — by name first, fallback to first manual_inspection param
+        const lengthParam = params.find(p => p.spec === "Length(mm)")
+                         || params.find(p => p.manual_inspection);
+
+        let total_accepted_mm = 0;
+        let total_rejected_mm = 0;
+        let total_accepted_kg = 0;
+        let total_rejected_kg = 0;
+
+        heatNumbers.forEach(hn => {
+            const hnStatus = hnStatusMap[hn];
+
+            // Skip HNs with no values entered
+            if (hnStatus === "na") return;
+
+            // MM contribution: sum of Length(mm) value for this HN
+            if (lengthParam) {
+                const lengthVal = parseFloat((draft[lengthParam.spec] || {})[hn]);
+                if (!isNaN(lengthVal)) {
+                    if (hnStatus === "accepted") {
+                        total_accepted_mm += lengthVal;
+                    } else if (hnStatus === "rejected") {
+                        total_rejected_mm += lengthVal;
+                    }
+                }
+            }
+
+            // Weight contribution (only if formula exists)
+            if (formula) {
+                const param_value_map = build_param_value_map(params, draft, hn);
+                const w = evaluate_formula(formula, item_field_map, param_value_map);
+
+                if (w !== null) {
+                    if (hnStatus === "accepted") {
+                        total_accepted_kg += w;
+                    } else if (hnStatus === "rejected") {
+                        total_rejected_kg += w;
+                    }
+                }
+            }
+        });
+
+        console.log("[save_readings] parent totals →",
+            "acc_mm:", total_accepted_mm,
+            "rej_mm:", total_rejected_mm,
+            "acc_kg:", total_accepted_kg.toFixed(3),
+            "rej_kg:", total_rejected_kg.toFixed(3)
+        );
+
+        set_value_promises.push(
+            frappe.model.set_value(frm.doctype, frm.docname, "custom_total_accepted_in_mm", total_accepted_mm)
+                .catch(err => console.error("[save_readings] set custom_total_accepted_in_mm failed:", err))
+        );
+        set_value_promises.push(
+            frappe.model.set_value(frm.doctype, frm.docname, "custom_total_rejected_in_mm", total_rejected_mm)
+                .catch(err => console.error("[save_readings] set custom_total_rejected_in_mm failed:", err))
+        );
+        set_value_promises.push(
+            frappe.model.set_value(frm.doctype, frm.docname, "custom_total_accepted_in_kg", flt(total_accepted_kg, 3))
+                .catch(err => console.error("[save_readings] set custom_total_accepted_in_kg failed:", err))
+        );
+        set_value_promises.push(
+            frappe.model.set_value(frm.doctype, frm.docname, "custom_total_rejected_in_kg", flt(total_rejected_kg, 3))
+                .catch(err => console.error("[save_readings] set custom_total_rejected_in_kg failed:", err))
+        );
+
+        // ── Flush all promises then save ─────────────────────────────────────
         Promise.all(set_value_promises).then(() => {
             update_parent_status(frm);
             frm.refresh_field("readings");
@@ -941,15 +1118,29 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
             dialog.hide();
 
             frm.save(null, function () {
-                frappe.show_alert({
-                    message: __("Readings saved"),
-                    indicator: "green"
-                });
+                frappe.show_alert({ message: __("Readings saved"), indicator: "green" });
             });
+        }).catch(err => {
+            console.error("[save_readings] Promise.all failed:", err);
+            frappe.msgprint({
+                title: __("Save Error"),
+                message: __("Some readings could not be saved. Check the browser console for details."),
+                indicator: "red"
+            });
+        });
+
+    }).catch(err => {
+        console.error("[save_readings] Failed to fetch Item doc:", err);
+        frappe.msgprint({
+            title: __("Item Fetch Error"),
+            message: __("Could not load Item details for weight calculation."),
+            indicator: "red"
         });
     });
 }
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Update Quality Inspection parent status from all reading row statuses
+// ─────────────────────────────────────────────────────────────────────────────
 function update_parent_status(frm) {
     const statuses = (frm.doc.readings || [])
         .map(r => (r.status || "").trim())
