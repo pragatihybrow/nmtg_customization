@@ -17,7 +17,9 @@
   "accepted_weight",
   "rejected_weight",
   "accepted_in_mm",
-  "rejected_in_mm"
+  "rejected_in_mm",
+  "accepted_qty",
+  "rejected_qty"
  ],
  "fields": [
   {
@@ -64,7 +66,7 @@
   },
   {
    "fieldname": "qc",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "label": "QC",
    "options": "Quality Inspection"
   },
@@ -87,13 +89,23 @@
    "fieldname": "rejected_in_mm",
    "fieldtype": "Float",
    "label": "Rejected In MM"
+  },
+  {
+   "fieldname": "accepted_qty",
+   "fieldtype": "Int",
+   "label": "Accepted Qty"
+  },
+  {
+   "fieldname": "rejected_qty",
+   "fieldtype": "Int",
+   "label": "Rejected Qty"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-06-25 14:24:48.337176",
+ "modified": "2026-06-29 14:44:53.351890",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Selection For QC",

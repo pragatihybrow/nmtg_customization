@@ -166,14 +166,19 @@ def create_heat_number(po, row_name):
     return heat_number
 
 
-
 @frappe.whitelist()
 def make_quality_inspections_custom(doctype, docname, company, items, inspection_type="Incoming"):
     import json
+
     if isinstance(items, str):
         items = json.loads(items)
 
-    valid_types = set(frappe.db.sql_list("SELECT name FROM `tabQC Testing Type`"))
+    valid_types = set(frappe.db.sql_list(
+        "SELECT name FROM `tabQC Testing Type`"
+    ))
+
+    # Get supplier from GRN (Purchase Receipt)
+    grn_supplier = frappe.db.get_value(doctype, docname, "supplier")
 
     qi_names = []
 
@@ -186,33 +191,44 @@ def make_quality_inspections_custom(doctype, docname, company, items, inspection
         qi.item_name = item.get("item_name")
         qi.sample_size = item.get("sample_size") or item.get("qty") or 1
         qi.inspected_by = frappe.session.user
-        qi.report_date = frappe.utils.today()   # <-- was inspection_date
+        qi.report_date = frappe.utils.today()
         qi.company = company
         qi.child_row_reference = item.get("child_row_reference", "")
 
+        # Lab Name
         qi.custom_supplier = item.get("supplier", "")
+
+        # Actual GRN Supplier Name
+        qi.custom_supplier_name = grn_supplier
+
         qi.custom_nmtg_heat_number = item.get("nmtg_heat_number", "")
         qi.custom_vendor_heat_number = item.get("custom_vendor_heat_number", "")
         qi.custom_mill_tc = item.get("custom_mill_tc", "")
 
         testing_value = item.get("testing_value", "[]")
+
         try:
-            testing_types = json.loads(testing_value) if isinstance(testing_value, str) else (testing_value or [])
+            testing_types = (
+                json.loads(testing_value)
+                if isinstance(testing_value, str)
+                else (testing_value or [])
+            )
         except Exception:
             testing_types = []
 
         for tt in testing_types:
             tt = (tt or "").strip()
-            if not tt or tt not in valid_types:
-                continue
-            qi.append("custom_testing_type", {"testing_type": tt})
+            if tt and tt in valid_types:
+                qi.append("custom_testing_type", {
+                    "testing_type": tt
+                })
 
         qi.insert(ignore_permissions=True)
         qi_names.append(qi.name)
 
     frappe.db.commit()
     return qi_names
-
+    
 
 
 @frappe.whitelist()

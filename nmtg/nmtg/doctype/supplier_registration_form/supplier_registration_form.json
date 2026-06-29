@@ -7,25 +7,48 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_5dbf",
+  "supplier_type",
   "amended_from",
-  "name_of_the_enterprise",
-  "any_qms_certification",
-  "qms_certification_number",
-  "qms_certification_agency",
-  "address",
-  "city",
-  "state",
-  "fax_no",
-  "email_id",
-  "name_contact_person",
-  "any_associates",
-  "associates_name",
+  "column_break_gzpc",
+  "external_provider_name",
+  "organization_information_section",
+  "types_of_business",
+  "other",
+  "no_of_technical_employees",
+  "international_organization_for_standards",
+  "if_yes_which_standards",
+  "details_of_associatessister_concerns",
+  "column_break_ytqs",
+  "types_of_organization",
+  "no_of_non_technical_employees",
+  "if_others_pl_specify",
+  "certifying_body",
+  "date_of_registration",
+  "scope_of_registration",
+  "date_of_expiry",
+  "name_materials",
+  "attach",
+  "section_break_talp",
+  "department_info",
+  "competency_years_of_experience",
   "legal_information_tab",
   "shop_establishment_reg_no",
   "arn_no",
   "gst_no",
   "pan_no",
-  "msme_no"
+  "msme_no",
+  "address_contact_tab",
+  "telephone",
+  "email_id",
+  "office_address",
+  "detail_office_address",
+  "column_break_qzqj",
+  "fax_no",
+  "website",
+  "factory_address",
+  "detail_factory_address",
+  "section_break_lpbe",
+  "contact_details"
  ],
  "fields": [
   {
@@ -43,46 +66,6 @@
    "search_index": 1
   },
   {
-   "fieldname": "name_of_the_enterprise",
-   "fieldtype": "Link",
-   "label": "Name of the Enterprise",
-   "options": "Supplier"
-  },
-  {
-   "fieldname": "any_qms_certification",
-   "fieldtype": "Select",
-   "label": "Any QMS Certification",
-   "options": "\nYes\nNo"
-  },
-  {
-   "depends_on": "eval:doc.any_qms_certification === \"Yes\"",
-   "fieldname": "qms_certification_number",
-   "fieldtype": "Data",
-   "label": "QMS Certification Number"
-  },
-  {
-   "fieldname": "qms_certification_agency",
-   "fieldtype": "Attach",
-   "label": "QMS Certification Agency"
-  },
-  {
-   "fieldname": "address",
-   "fieldtype": "Link",
-   "label": "Address",
-   "options": "Address"
-  },
-  {
-   "fieldname": "city",
-   "fieldtype": "Data",
-   "label": "City"
-  },
-  {
-   "fieldname": "state",
-   "fieldtype": "Select",
-   "label": "State",
-   "options": "\nAndhra Pradesh\nArunachal Pradesh\nAssam\nBihar\nChhattisgarh\nGoa\nGujarat\nHaryana\nHimachal Pradesh\nJharkhand\nKarnataka\nKerala\nMadhya Pradesh\nMaharashtra\nManipur\nMeghalaya\nMizoram\nNagaland\nOdisha\nPunjab\nRajasthan\nSikkim\nTamil Nadu\nTelangana\nTripura\nUttarakhand\nUttar Pradesh\nWest Bengal"
-  },
-  {
    "fieldname": "fax_no",
    "fieldtype": "Data",
    "label": "Fax No"
@@ -91,24 +74,6 @@
    "fieldname": "email_id",
    "fieldtype": "Data",
    "label": "Email ID"
-  },
-  {
-   "fieldname": "name_contact_person",
-   "fieldtype": "Link",
-   "label": "Name Contact Person",
-   "options": "Contact"
-  },
-  {
-   "fieldname": "any_associates",
-   "fieldtype": "Select",
-   "label": "Any Associates",
-   "options": "\nYes\nNo"
-  },
-  {
-   "depends_on": "eval:doc.any_associates===\"Yes\"",
-   "fieldname": "associates_name",
-   "fieldtype": "Data",
-   "label": "Associates Name"
   },
   {
    "fieldname": "legal_information_tab",
@@ -139,13 +104,201 @@
    "fieldname": "msme_no",
    "fieldtype": "Data",
    "label": "MSME No"
+  },
+  {
+   "fieldname": "supplier_type",
+   "fieldtype": "Select",
+   "label": "Supplier Type",
+   "options": "\nDomestic\nInternational"
+  },
+  {
+   "fieldname": "external_provider_name",
+   "fieldtype": "Data",
+   "label": "External Provider Name "
+  },
+  {
+   "fieldname": "address_contact_tab",
+   "fieldtype": "Tab Break",
+   "label": "Address & Contact"
+  },
+  {
+   "fieldname": "telephone",
+   "fieldtype": "Phone",
+   "label": "Telephone"
+  },
+  {
+   "fieldname": "website",
+   "fieldtype": "Data",
+   "label": "Website"
+  },
+  {
+   "fieldname": "column_break_qzqj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "office_address",
+   "fieldtype": "Link",
+   "label": "Office Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "factory_address",
+   "fieldtype": "Link",
+   "label": "Factory Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "detail_office_address",
+   "fieldtype": "Small Text",
+   "label": "Detail Office Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "detail_factory_address",
+   "fieldtype": "Small Text",
+   "label": "Detail Factory Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_lpbe",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "contact_details",
+   "fieldtype": "Table",
+   "label": "Contact Details",
+   "options": "Contact Details CT"
+  },
+  {
+   "fieldname": "organization_information_section",
+   "fieldtype": "Section Break",
+   "label": "Organization Information"
+  },
+  {
+   "fieldname": "types_of_business",
+   "fieldtype": "Select",
+   "label": "Types Of Business",
+   "options": "\nManufacture\nTrader\nDealer/Distributor\nService Provider / Subcontractor\nOther"
+  },
+  {
+   "depends_on": "eval:doc.types_of_business === \"Other\"",
+   "fieldname": "other",
+   "fieldtype": "Data",
+   "label": "Other"
+  },
+  {
+   "fieldname": "types_of_organization",
+   "fieldtype": "Select",
+   "label": "Types Of Organization",
+   "options": "\nPrivate ltd\nPublic ltd\nPartnership                            Proprietorship"
+  },
+  {
+   "fieldname": "column_break_ytqs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_talp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "department_info",
+   "fieldtype": "Table",
+   "label": "Department Info",
+   "options": "Department Info CT"
+  },
+  {
+   "fieldname": "no_of_technical_employees",
+   "fieldtype": "Int",
+   "label": "No Of Technical Employees"
+  },
+  {
+   "fieldname": "no_of_non_technical_employees",
+   "fieldtype": "Int",
+   "label": "No Of Non-Technical Employees"
+  },
+  {
+   "fieldname": "international_organization_for_standards",
+   "fieldtype": "Select",
+   "label": "Are you certified by the International Organization for Standards? ",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "fieldname": "if_yes_which_standards",
+   "fieldtype": "Table",
+   "label": " If yes, which standard(s)? ",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "fieldname": "if_others_pl_specify",
+   "fieldtype": "Data",
+   "label": "If Others, pl Specify   ",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "fieldname": "certifying_body",
+   "fieldtype": "Data",
+   "label": " Certifying Body               ",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "fieldname": "date_of_registration",
+   "fieldtype": "Date",
+   "label": "Date of Registration  ",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "fieldname": "scope_of_registration",
+   "fieldtype": "Data",
+   "label": "Scope of Registration",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "fieldname": "date_of_expiry",
+   "fieldtype": "Date",
+   "label": "Date of Expiry   ",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.types_of_business !== \"Trader\" && doc.types_of_business !== \"Dealer/Distributor\"",
+   "fieldname": "competency_years_of_experience",
+   "fieldtype": "Table",
+   "label": "Competency & Years of Experience",
+   "options": "Competency CT"
+  },
+  {
+   "fieldname": "column_break_gzpc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Add Comma Seprated Associates ",
+   "fieldname": "details_of_associatessister_concerns",
+   "fieldtype": "Small Text",
+   "label": " Details of Associates/Sister concerns"
+  },
+  {
+   "fieldname": "name_materials",
+   "fieldtype": "Select",
+   "label": "Name materials that you are supplying to us through our approved External Providers",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.name_materials ===\"Yes\"",
+   "fieldname": "attach",
+   "fieldtype": "Attach",
+   "label": "Attach"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-16 15:00:44.454630",
+ "modified": "2026-06-29 12:49:49.743262",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

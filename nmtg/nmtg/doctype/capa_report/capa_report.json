@@ -1,0 +1,214 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "format:{ncpr_no}",
+ "creation": "2026-06-29 17:56:38.696410",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_egcz",
+  "amended_from",
+  "ncpr_no",
+  "part__product_code",
+  "external_provider_name",
+  "external_provider_representative_name",
+  "column_break_loqm",
+  "date",
+  "part__product_name",
+  "non_conformance_qty",
+  "customer_representative_name",
+  "review__disposition_of_non_conforming_products_section",
+  "the_non_conforming_products_are",
+  "action_taken_by",
+  "action_taken_date",
+  "comments",
+  "root_cause_of_non_conformance",
+  "action_taken_by_copy",
+  "action_date",
+  "corrective_action_to_be_taken",
+  "corrective_action_date",
+  "corrective_action_taken_by",
+  "verified_for_implementation_of_corrective_actions",
+  "review_of_ca",
+  "ncpr_closed",
+  "action_taken_by_on__implementation_of_corrective_actions",
+  "corrective_action_taken_on"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_egcz",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "CAPA Report",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "ncpr_no",
+   "fieldtype": "Data",
+   "label": "NCPR No"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date"
+  },
+  {
+   "fetch_from": "part__product_code.item_name",
+   "fieldname": "part__product_name",
+   "fieldtype": "Data",
+   "label": "Part / Product Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_loqm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "part__product_code",
+   "fieldtype": "Link",
+   "label": "Part / Product Code",
+   "options": "Item"
+  },
+  {
+   "fieldname": "external_provider_name",
+   "fieldtype": "Data",
+   "label": "External Provider Name"
+  },
+  {
+   "fieldname": "non_conformance_qty",
+   "fieldtype": "Int",
+   "label": "Non Conformance Qty"
+  },
+  {
+   "fieldname": "external_provider_representative_name",
+   "fieldtype": "Data",
+   "label": "External Provider Representative Name"
+  },
+  {
+   "fieldname": "customer_representative_name",
+   "fieldtype": "Data",
+   "label": "Customer Representative Name"
+  },
+  {
+   "fieldname": "review__disposition_of_non_conforming_products_section",
+   "fieldtype": "Section Break",
+   "label": "Review  & Disposition of Non Conforming Products"
+  },
+  {
+   "fieldname": "the_non_conforming_products_are",
+   "fieldtype": "Select",
+   "label": "The non conforming Products are",
+   "options": "\nTo be Rejected or Scraped\nTo be accepted without repair by conversation / Authorization with External Provider"
+  },
+  {
+   "fieldname": "action_taken_by",
+   "fieldtype": "Data",
+   "label": "Authorized by"
+  },
+  {
+   "fieldname": "action_taken_date",
+   "fieldtype": "Date",
+   "label": "Action Taken Date"
+  },
+  {
+   "fieldname": "comments",
+   "fieldtype": "Small Text",
+   "label": "Comments"
+  },
+  {
+   "fieldname": "root_cause_of_non_conformance",
+   "fieldtype": "Small Text",
+   "label": "Root Cause of Non Conformance"
+  },
+  {
+   "fieldname": "action_taken_by_copy",
+   "fieldtype": "Data",
+   "label": "Action Taken By On Root Cause of Non Conformance"
+  },
+  {
+   "fieldname": "action_date",
+   "fieldtype": "Date",
+   "label": "Action Date "
+  },
+  {
+   "fieldname": "corrective_action_to_be_taken",
+   "fieldtype": "Small Text",
+   "label": "Corrective Action to be taken"
+  },
+  {
+   "fieldname": "corrective_action_taken_by",
+   "fieldtype": "Data",
+   "label": "Corrective Action Taken By"
+  },
+  {
+   "fieldname": "corrective_action_date",
+   "fieldtype": "Date",
+   "label": "Corrective Action Date"
+  },
+  {
+   "fieldname": "verified_for_implementation_of_corrective_actions",
+   "fieldtype": "Small Text",
+   "label": "Verified for Implementation of Corrective Actions"
+  },
+  {
+   "fieldname": "review_of_ca",
+   "fieldtype": "Select",
+   "label": "Review of C.A",
+   "options": "\nSatisfactory\nUnsatisfactory"
+  },
+  {
+   "fieldname": "ncpr_closed",
+   "fieldtype": "Select",
+   "label": "NCPR Closed",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "action_taken_by_on__implementation_of_corrective_actions",
+   "fieldtype": "Data",
+   "label": "Action Taken By On  Implementation of Corrective Actions"
+  },
+  {
+   "fieldname": "corrective_action_taken_on",
+   "fieldtype": "Date",
+   "label": "Date"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-06-29 18:08:46.438795",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "CAPA Report",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

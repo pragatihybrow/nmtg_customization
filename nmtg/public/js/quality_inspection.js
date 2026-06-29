@@ -1031,17 +1031,19 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
             }
         });
 
-      
+        // ── Step 4: parent-level totals ──────────────────────────────────────
         const hnStatusMap = build_hn_status_map(heatNumbers, params, draft);
 
         // Find the Length(mm) param — by name first, fallback to first manual_inspection param
         const lengthParam = params.find(p => p.spec === "Length(mm)")
                          || params.find(p => p.manual_inspection);
 
-        let total_accepted_mm = 0;
-        let total_rejected_mm = 0;
-        let total_accepted_kg = 0;
-        let total_rejected_kg = 0;
+        let total_accepted_mm  = 0;
+        let total_rejected_mm  = 0;
+        let total_accepted_kg  = 0;
+        let total_rejected_kg  = 0;
+        let total_accepted_qty = 0;
+        let total_rejected_qty = 0;
 
         heatNumbers.forEach(hn => {
             const hnStatus = hnStatusMap[hn];
@@ -1074,13 +1076,22 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
                     }
                 }
             }
+
+            // Qty contribution: count of accepted/rejected heat numbers
+            if (hnStatus === "accepted") {
+                total_accepted_qty++;
+            } else if (hnStatus === "rejected") {
+                total_rejected_qty++;
+            }
         });
 
         console.log("[save_readings] parent totals →",
-            "acc_mm:", total_accepted_mm,
-            "rej_mm:", total_rejected_mm,
-            "acc_kg:", total_accepted_kg.toFixed(3),
-            "rej_kg:", total_rejected_kg.toFixed(3)
+            "acc_mm:",  total_accepted_mm,
+            "rej_mm:",  total_rejected_mm,
+            "acc_kg:",  total_accepted_kg.toFixed(3),
+            "rej_kg:",  total_rejected_kg.toFixed(3),
+            "acc_qty:", total_accepted_qty,
+            "rej_qty:", total_rejected_qty
         );
 
         set_value_promises.push(
@@ -1098,6 +1109,14 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
         set_value_promises.push(
             frappe.model.set_value(frm.doctype, frm.docname, "custom_total_rejected_in_kg", flt(total_rejected_kg, 3))
                 .catch(err => console.error("[save_readings] set custom_total_rejected_in_kg failed:", err))
+        );
+        set_value_promises.push(
+            frappe.model.set_value(frm.doctype, frm.docname, "custom_total_accepted_qty", total_accepted_qty)
+                .catch(err => console.error("[save_readings] set custom_total_accepted_qty failed:", err))
+        );
+        set_value_promises.push(
+            frappe.model.set_value(frm.doctype, frm.docname, "custom_total_rejected_qty", total_rejected_qty)
+                .catch(err => console.error("[save_readings] set custom_total_rejected_qty failed:", err))
         );
 
         // ── Flush all promises then save ─────────────────────────────────────
