@@ -1,0 +1,129 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "format:{supplier_name}-{evaluation_month}",
+ "creation": "2026-07-01 13:01:02.761665",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_73ai",
+  "amended_from",
+  "supplier_name",
+  "supplier_email",
+  "evaluation_month",
+  "total_purchase_orders__supplies",
+  "on_time_delivery_score",
+  "quality_score",
+  "rejection__non__conformance_cases",
+  "ppm_score",
+  "capa_cases_count",
+  "overall_supplier_rating",
+  "performance_grade"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_73ai",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Supplier Performance Summary",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "supplier_name",
+   "fieldtype": "Link",
+   "label": "Supplier Name",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "evaluation_month",
+   "fieldtype": "Data",
+   "label": "Evaluation Month"
+  },
+  {
+   "fieldname": "total_purchase_orders__supplies",
+   "fieldtype": "Int",
+   "label": "Total Purchase Orders / Supplies"
+  },
+  {
+   "fieldname": "on_time_delivery_score",
+   "fieldtype": "Percent",
+   "label": "On Time Delivery Score"
+  },
+  {
+   "fieldname": "quality_score",
+   "fieldtype": "Percent",
+   "label": "Quality Score"
+  },
+  {
+   "fieldname": "rejection__non__conformance_cases",
+   "fieldtype": "Int",
+   "label": "Rejection / Non  Conformance Cases"
+  },
+  {
+   "fieldname": "ppm_score",
+   "fieldtype": "Float",
+   "label": "PPM Score"
+  },
+  {
+   "fieldname": "capa_cases_count",
+   "fieldtype": "Int",
+   "label": "CAPA Cases Count"
+  },
+  {
+   "fieldname": "overall_supplier_rating",
+   "fieldtype": "Float",
+   "label": "Overall Supplier Rating"
+  },
+  {
+   "fieldname": "performance_grade",
+   "fieldtype": "Data",
+   "label": "Performance Grade"
+  },
+  {
+   "fetch_from": "supplier_name.email_id",
+   "fieldname": "supplier_email",
+   "fieldtype": "Data",
+   "label": "Supplier Email",
+   "options": "Email",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-07-01 13:44:16.082994",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Supplier Performance Summary",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

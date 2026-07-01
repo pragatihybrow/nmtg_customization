@@ -250,21 +250,18 @@ app_license = "mit"
 
 doctype_js = {
     "Item": "public/js/item.js",
-    "Customer":"public/js/customer.js",
-    "Item Group":"public/js/item_group.js",
-    # "Purchase Order":"public/js/purchase_order.js",
-    "Material Request":"public/js/material_request.js",
-    "Purchase Receipt":"public/js/purchase_receipt.js",
+    "Customer": "public/js/customer.js",
+    "Item Group": "public/js/item_group.js",
+    "Material Request": "public/js/material_request.js",
+    "Purchase Receipt": "public/js/purchase_receipt.js",
     "Quality Inspection": "public/js/quality_inspection.js"
 }
 
 override_doctype_class = {
     "Item": "nmtg.override.item.CustomItem",
-    # "Purchase Order": "nmtg.override.purchase_order.CustomPurchaseOrder"
-     "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt"
+    "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt"
 }
 
-# hooks.py
 doctype_list_js = {
     "Quality Inspection": "public/js/quality_inspection_listview.js"
 }
@@ -275,14 +272,23 @@ doc_events = {
             "nmtg.override.api.compute_row_status",
             "nmtg.override.api.update_parent_status",
             "nmtg.override.api.validate_heat_range_vs_sample_size",
-            # "nmtg.override.api.calculate_accepted_rejected_weight",
+            
         ],
-        "on_submit": "nmtg.override.quality_inspection.on_submit"
+        "on_submit":[
+            "nmtg.override.quality_inspection.on_submit",
+            # "nmtg.override.quality_inspection.split_purchase_receipt_rows"
+    
+        ],
+        # "on_cancel": "nmtg.override.quality_inspection.on_cancel",
     },
-    "Purchase Order": {
-        "validate": "nmtg.override.purchase_order.calculate_qty_in_kg"
-    },
-     "Purchase Receipt": {
-        "validate": "nmtg.override.purchase_receipt.calculate_qty_in_kg"
-    }
+    # "Purchase Order": {
+    #     "validate": "nmtg.override.purchase_order.calculate_qty_in_kg"
+    # },
+    
+}
+
+scheduler_events = {
+    "monthly": [
+        "nmtg.nmtg.doctype.supplier_performance_summary.supplier_performance_summary.create_monthly_supplier_performance"
+    ]
 }

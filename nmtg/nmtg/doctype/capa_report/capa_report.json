@@ -33,7 +33,8 @@
   "review_of_ca",
   "ncpr_closed",
   "action_taken_by_on__implementation_of_corrective_actions",
-  "corrective_action_taken_on"
+  "corrective_action_taken_on",
+  "material_quality_inspection"
  ],
  "fields": [
   {
@@ -53,12 +54,14 @@
   {
    "fieldname": "ncpr_no",
    "fieldtype": "Data",
-   "label": "NCPR No"
+   "label": "NCPR No",
+   "read_only": 1
   },
   {
    "fieldname": "date",
    "fieldtype": "Date",
-   "label": "Date"
+   "label": "Date",
+   "read_only": 1
   },
   {
    "fetch_from": "part__product_code.item_name",
@@ -79,8 +82,9 @@
   },
   {
    "fieldname": "external_provider_name",
-   "fieldtype": "Data",
-   "label": "External Provider Name"
+   "fieldtype": "Link",
+   "label": "External Provider Name",
+   "options": "Supplier"
   },
   {
    "fieldname": "non_conformance_qty",
@@ -179,13 +183,20 @@
    "fieldname": "corrective_action_taken_on",
    "fieldtype": "Date",
    "label": "Date"
+  },
+  {
+   "fieldname": "material_quality_inspection",
+   "fieldtype": "Link",
+   "label": "Material Quality Inspection",
+   "options": "Quality Inspection",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-29 18:08:46.438795",
+ "modified": "2026-07-01 13:42:04.338894",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "CAPA Report",

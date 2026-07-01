@@ -8,6 +8,14 @@ from frappe.utils import flt
 
 
 # --------------------------------------------------------------------------
+# WEIGHTS  (50% Quality, 50% Delivery)
+# --------------------------------------------------------------------------
+
+QUALITY_WEIGHT = 0.5
+DELIVERY_WEIGHT = 0.5
+
+
+# --------------------------------------------------------------------------
 # COLUMNS
 # --------------------------------------------------------------------------
 
@@ -73,6 +81,13 @@ def get_columns():
             "label": _("Delivery %"),
             "fieldtype": "Percent",
             "width": 120,
+        },
+        {
+            "fieldname": "ppm",
+            "label": _("PPM"),
+            "fieldtype": "Float",
+            "precision": 0,
+            "width": 130,
         },
         {
             "fieldname": "overall_pct",
@@ -151,11 +166,17 @@ def get_data(filters):
                 "deliveries_rejected": 0,
                 "on_time_delivery": 0,
                 "deliveries_off_time": 0,
+                "total_ordered_qty": 0.0,
+                "total_rejected_qty": 0.0,
             }
 
         entry = aggregated[key]
 
         entry["total_deliveries"] += 1
+
+        # Ordered / rejected quantities (for PPM)
+        entry["total_ordered_qty"] += flt(row.qty)
+        entry["total_rejected_qty"] += flt(row.rejected_qty)
 
         if flt(row.rejected_qty) == 0:
             entry["deliveries_accepted"] += 1
@@ -177,10 +198,19 @@ def get_data(filters):
         rejected = row["deliveries_rejected"]
         on_time = row["on_time_delivery"]
         off_time = row["deliveries_off_time"]
+        ordered_qty = row["total_ordered_qty"]
+        rejected_qty = row["total_rejected_qty"]
 
         quality_pct = flt((accepted / total) * 100, 2) if total else 0
         delivery_pct = flt((on_time / total) * 100, 2) if total else 0
-        overall_pct = flt((quality_pct + delivery_pct) / 2, 2)
+
+        # PPM = (Rejected Qty / Ordered Qty) * 10^6
+        ppm = flt((rejected_qty / ordered_qty) * 1000000, 0) if ordered_qty else 0
+
+        # 50% Quality + 50% Delivery
+        overall_pct = flt(
+            (quality_pct * QUALITY_WEIGHT) + (delivery_pct * DELIVERY_WEIGHT), 2
+        )
 
         rating, remarks = _get_rating(overall_pct)
 
@@ -198,6 +228,7 @@ def get_data(filters):
             "on_time_delivery": on_time,
             "deliveries_off_time": off_time,
             "delivery_pct": delivery_pct,
+            "ppm": ppm,
             "overall_pct": overall_pct,
             "rating": rating,
             "remarks": remarks,
@@ -257,6 +288,7 @@ def get_report_summary(data):
     avg_quality = flt(sum(d["quality_pct"] for d in data) / total, 2)
     avg_delivery = flt(sum(d["delivery_pct"] for d in data) / total, 2)
     avg_overall = flt(sum(d["overall_pct"] for d in data) / total, 2)
+    avg_ppm = flt(sum(d["ppm"] for d in data) / total, 0)
 
     return [
         {
@@ -273,6 +305,11 @@ def get_report_summary(data):
             "label": _("Average Delivery %"),
             "value": avg_delivery,
             "indicator": "Orange"
+        },
+        {
+            "label": _("Average PPM"),
+            "value": avg_ppm,
+            "indicator": "Red"
         },
         {
             "label": _("Average Overall %"),
