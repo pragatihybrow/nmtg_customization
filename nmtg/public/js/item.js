@@ -309,7 +309,8 @@ function apply_item_settings_fields(frm) {
         "custom_column_break_uehck",
         "custom_drawing",
         "custom_tds_attachment",
-        "custom_formula_for_conversion"
+        "custom_formula_for_conversion",
+        "custom_only_internal_qc"
     ];
 
     // Hide only dynamic custom fields

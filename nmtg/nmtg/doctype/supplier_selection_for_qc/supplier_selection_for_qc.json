@@ -1,6 +1,5 @@
 {
  "actions": [],
- "allow_bulk_edit": 1,
  "allow_rename": 1,
  "creation": "2026-06-09 16:08:55.250630",
  "doctype": "DocType",
@@ -8,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "item",
+  "only_internal_qc",
   "qty",
   "supplier",
   "nmtg_heat_number",
@@ -28,8 +28,8 @@
    "in_list_view": 1,
    "label": "Lab",
    "link_filters": "[[\"Supplier\",\"supplier_group\",\"=\",\"Lab\"]]",
-   "options": "Supplier",
-   "reqd": 1
+   "mandatory_depends_on": "eval:!doc.only_internal_qc",
+   "options": "Supplier"
   },
   {
    "fieldname": "item",
@@ -50,7 +50,7 @@
    "fieldname": "nmtg_heat_number",
    "fieldtype": "Small Text",
    "in_list_view": 1,
-   "label": "NMTG Heat Number",
+   "label": "NMTG Code",
    "reqd": 1
   },
   {
@@ -68,44 +68,59 @@
    "fieldname": "qc",
    "fieldtype": "Data",
    "label": "QC",
-   "options": "Quality Inspection"
+   "options": "Quality Inspection",
+   "read_only": 1
   },
   {
    "fieldname": "accepted_weight",
    "fieldtype": "Float",
-   "label": "Accepted Weight"
+   "label": "Accepted Weight",
+   "read_only": 1
   },
   {
    "fieldname": "rejected_weight",
    "fieldtype": "Float",
-   "label": "Rejected Weight"
+   "label": "Rejected Weight",
+   "read_only": 1
   },
   {
    "fieldname": "accepted_in_mm",
    "fieldtype": "Float",
-   "label": "Accepted In MM"
+   "label": "Accepted In MM",
+   "read_only": 1
   },
   {
    "fieldname": "rejected_in_mm",
    "fieldtype": "Float",
-   "label": "Rejected In MM"
+   "label": "Rejected In MM",
+   "read_only": 1
   },
   {
    "fieldname": "accepted_qty",
    "fieldtype": "Int",
-   "label": "Accepted Qty"
+   "label": "Accepted Qty",
+   "read_only": 1
   },
   {
    "fieldname": "rejected_qty",
    "fieldtype": "Int",
-   "label": "Rejected Qty"
+   "label": "Rejected Qty",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fetch_from": "item.custom_only_internal_qc",
+   "fieldname": "only_internal_qc",
+   "fieldtype": "Check",
+   "label": "Only Internal QC",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-06-29 14:44:53.351890",
+ "modified": "2026-07-02 17:31:52.443797",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Selection For QC",
