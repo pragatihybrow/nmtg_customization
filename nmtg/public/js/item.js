@@ -310,7 +310,8 @@ function apply_item_settings_fields(frm) {
         "custom_drawing",
         "custom_tds_attachment",
         "custom_formula_for_conversion",
-        "custom_only_internal_qc"
+        "custom_only_internal_qc",
+        "custom_create_nmtg_code"
     ];
 
     // Hide only dynamic custom fields

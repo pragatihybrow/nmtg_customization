@@ -28,20 +28,32 @@
   .topbar-brand { font-family: 'DM Serif Display', serif; font-size: 17px; color: #fff; text-decoration: none; }
   .topbar-rfq { font-size: 12px; font-weight: 500; background: rgba(255,255,255,0.15); padding: 4px 12px; border-radius: 20px; }
 
-  .layout { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+  .layout { max-width: 900px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
 
-  .hero { margin-bottom: 2.5rem; animation: fadeUp 0.5s ease both; }
+  .hero { margin-bottom: 1.5rem; animation: fadeUp 0.5s ease both; }
   .hero-eyebrow { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
   .hero-eyebrow::before { content: ''; display: inline-block; width: 20px; height: 2px; background: var(--accent); border-radius: 2px; }
   .hero h1 { font-family: 'DM Serif Display', serif; font-size: 34px; line-height: 1.15; color: var(--text); margin-bottom: 8px; }
   .hero h1 em { font-style: italic; color: var(--accent); }
   .hero-sub { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
 
-  .info-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 2rem; animation: fadeUp 0.5s 0.07s ease both; }
+  .info-strip { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 1.5rem; animation: fadeUp 0.5s 0.07s ease both; }
   .info-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; font-size: 13px; display: flex; align-items: center; gap: 7px; }
   .info-chip svg { width: 14px; height: 14px; stroke: var(--text-hint); flex-shrink: 0; }
   .info-chip strong { font-weight: 500; color: var(--text); }
   .info-chip span { color: var(--text-muted); }
+
+  /* ── Page-level tabs ── */
+  .page-tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; margin-bottom: 1.5rem; overflow-x: auto; animation: fadeUp 0.5s 0.05s ease both; }
+  .page-tab-btn { flex: 1 1 auto; white-space: nowrap; padding: 10px 14px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-muted); background: transparent; border: none; border-radius: 8px; cursor: pointer; transition: background 0.15s, color 0.15s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .page-tab-btn svg { width: 15px; height: 15px; stroke: currentColor; flex-shrink: 0; }
+  .page-tab-btn:hover { background: var(--surface-muted); color: var(--text); }
+  .page-tab-btn.active { background: var(--accent); color: #fff; }
+  .page-tab-btn .tab-badge { background: rgba(0,0,0,0.15); color: inherit; font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 20px; }
+  .page-tab-btn.active .tab-badge { background: rgba(255,255,255,0.25); }
+  .page-tab-btn.has-error { color: var(--danger); }
+  .page-tab-panel { display: none; }
+  .page-tab-panel.active { display: block; animation: fadeUp 0.35s ease both; }
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin-bottom: 1.25rem; box-shadow: var(--shadow); animation: fadeUp 0.5s ease both; }
   .card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.25rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
@@ -61,8 +73,9 @@
   .items-table th { font-size: 11.5px; font-weight: 600; color: var(--text-hint); text-transform: uppercase; letter-spacing: 0.07em; padding: 0 12px 10px; text-align: left; white-space: nowrap; }
   .items-table th.right { text-align: right; }
   .items-table td { padding: 14px 12px; vertical-align: top; }
-  .items-table tbody tr { border-bottom: 1px solid var(--border); }
-  .items-table tbody tr:last-child { border-bottom: none; }
+  .items-table tbody tr.item-row { border-bottom: 1px solid var(--border); }
+  .items-table tbody tr.item-row.expanded { border-bottom: none; }
+  .items-table tbody tr.item-panel-row > td { padding: 0; border-bottom: 1px solid var(--border); }
 
   .item-num { width: 28px; height: 28px; border-radius: 50%; background: var(--accent-light); color: var(--accent); font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   .item-cell { display: flex; gap: 10px; align-items: flex-start; }
@@ -88,23 +101,53 @@
   .err-inline { font-size: 11px; color: var(--danger); display: none; margin-top: 3px; }
   .err-inline.show { display: block; }
 
+  .details-toggle-btn { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-muted); border: 1px solid var(--border); border-radius: 7px; padding: 6px 11px; font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; white-space: nowrap; transition: background 0.15s, color 0.15s; }
+  .details-toggle-btn:hover { background: var(--accent-light); color: var(--accent-text); }
+  .details-toggle-btn svg { width: 13px; height: 13px; stroke: currentColor; transition: transform 0.2s; }
+  .details-toggle-btn.open svg { transform: rotate(180deg); }
+  .details-toggle-btn .fill-count { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 20px; }
+
+  /* ── Per-item detail panel ── */
+  .item-detail-panel { background: var(--surface-muted); border-top: 1px dashed var(--border-strong); padding: 1.25rem 1.5rem; }
+  .item-tabs { display: flex; gap: 6px; margin-bottom: 1rem; border-bottom: 1px solid var(--border); }
+  .item-tab-btn { padding: 8px 14px; font-family: 'DM Sans', sans-serif; font-size: 12.5px; font-weight: 600; color: var(--text-muted); background: transparent; border: none; border-bottom: 2px solid transparent; cursor: pointer; margin-bottom: -1px; }
+  .item-tab-btn:hover { color: var(--text); }
+  .item-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .item-tab-panel { display: none; }
+  .item-tab-panel.active { display: block; }
+  .item-tab-empty { font-size: 12.5px; color: var(--text-hint); padding: 0.75rem 0; line-height: 1.6; }
+
   .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field.full { grid-column: 1 / -1; }
+  .field.conditional-field { display: none; }
+  .field.conditional-field.show { display: flex; }
   label { font-size: 12.5px; font-weight: 500; color: var(--text-muted); }
   label .req { color: var(--danger); margin-left: 2px; }
-  input[type="date"], input[type="text"], select, textarea {
+  label .hint { font-weight: 400; color: var(--text-hint); }
+  input[type="date"], input[type="text"], input[type="number"], input[type="email"], input[type="tel"], input[type="file"], select, textarea {
     width: 100%; padding: 9px 13px; font-size: 14px; font-family: 'DM Sans', sans-serif;
     background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
     color: var(--text); outline: none; appearance: none; -webkit-appearance: none;
     transition: border-color 0.18s, background 0.18s;
   }
-  input[type="date"]:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(43,76,63,0.1); }
+  input[type="file"] { padding: 7px 10px; font-size: 12.5px; }
+  input[type="date"]:focus, input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="tel"]:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(43,76,63,0.1); }
   input.invalid, select.invalid { border-color: var(--danger); background: var(--danger-bg); }
-  textarea { resize: vertical; min-height: 80px; line-height: 1.55; }
+  textarea { resize: vertical; min-height: 70px; line-height: 1.55; }
   select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6459' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
   .error-msg { font-size: 11.5px; color: var(--danger); display: none; }
   .error-msg.show { display: block; }
+
+  .unit-input-wrap { display: flex; align-items: stretch; }
+  .unit-input-wrap input { border-radius: var(--radius) 0 0 var(--radius); }
+  .unit-sfx { padding: 9px 12px; font-size: 12.5px; font-weight: 500; background: var(--surface-muted); border: 1px solid var(--border); border-left: none; border-radius: 0 var(--radius) var(--radius) 0; color: var(--text-muted); display: flex; align-items: center; white-space: nowrap; }
+
+  .checkbox-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .checkbox-row:last-of-type { border-bottom: none; }
+  .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+  .checkbox-row label { font-size: 13.5px; font-weight: 500; color: var(--text); cursor: pointer; line-height: 1.5; }
+  .checkbox-row .checkbox-desc { display: block; font-size: 12px; font-weight: 400; color: var(--text-hint); margin-top: 2px; }
 
   .grand-total-box { background: var(--accent); border-radius: var(--radius); padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
   .gtb-left { font-size: 13px; color: rgba(255,255,255,0.65); }
@@ -117,6 +160,8 @@
   .api-notice { background: var(--accent-light); border: 1px solid #b8d4c8; border-radius: var(--radius); padding: 10px 14px; font-size: 12.5px; color: var(--accent-text); display: none; gap: 8px; align-items: center; margin-bottom: 1.25rem; }
   .api-notice svg { width: 14px; height: 14px; flex-shrink: 0; stroke: var(--accent); }
   .api-notice.show { display: flex; }
+
+  .type-hint { background: var(--accent-light); border: 1px solid #b8d4c8; border-radius: var(--radius); padding: 10px 14px; font-size: 12.5px; color: var(--accent-text); margin-bottom: 1rem; }
 
   .error-screen { text-align: center; padding: 4rem 2rem; }
   .error-screen-icon { font-size: 48px; margin-bottom: 1rem; }
@@ -158,9 +203,12 @@
     .info-strip { gap: 7px; }
     .items-table thead { display: none; }
     .items-table td { display: block; padding: 6px 0; }
-    .items-table tbody tr { display: block; border-bottom: 1px solid var(--border); padding: 14px 0; }
+    .items-table tbody tr.item-row { display: block; border-bottom: 1px solid var(--border); padding: 14px 0; }
+    .item-detail-panel { padding: 1rem; }
     .field-grid { grid-template-columns: 1fr; }
     .field.full { grid-column: 1; }
+    .page-tabs { padding: 3px; }
+    .page-tab-btn { font-size: 12px; padding: 9px 8px; }
     #toast { left: 16px; right: 16px; bottom: 16px; }
   }
 </style>
@@ -210,7 +258,7 @@
 
     <div class="notice">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Fields marked with <strong>*</strong> are required. Enter a unit price and lead time for <strong>each item</strong>. Your quotation will be submitted directly as a Supplier Quotation in ERPNext.</span>
+      <span>Fields marked with <strong>*</strong> are required. Choose a <strong>Purchase Type</strong> in the "Purchase Details" tab first — it determines which extra fields appear for each item. Your quotation will be submitted directly as a Supplier Quotation in ERPNext.</span>
     </div>
 
     <!-- Shown only when items were loaded via API fallback -->
@@ -219,73 +267,257 @@
       <span>Item details loaded securely from server for <strong id="api-notice-rfq"></strong>.</span>
     </div>
 
-    <!-- Items + Pricing card -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
-        </div>
-        <div>
-          <div class="card-title">Items &amp; Pricing</div>
-          <div class="card-subtitle" id="item-count-label">Loading items…</div>
-        </div>
-      </div>
+    <!-- ═══════════ PAGE-LEVEL TABS ═══════════ -->
+    <div class="page-tabs" id="page-tabs">
+      <button type="button" class="page-tab-btn active" data-page-tab="items">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+        Items &amp; Pricing
+      </button>
+      <button type="button" class="page-tab-btn" data-page-tab="purchase">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 9V7a5 5 0 00-10 0v2"/><rect x="3" y="9" width="18" height="12" rx="2"/></svg>
+        Purchase Details
+      </button>
+      <button type="button" class="page-tab-btn" data-page-tab="terms">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Terms
+      </button>
+      <button type="button" class="page-tab-btn" data-page-tab="contact">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Contact &amp; Sign-off
+      </button>
+    </div>
 
-      <table class="items-table" id="items-table">
-        <thead>
-          <tr>
-            <th style="width:36px">#</th>
-            <th>Item</th>
-            <th style="width:90px">Qty</th>
-            <th style="width:160px">Unit price <span style="color:var(--danger)">*</span></th>
-            <th style="width:110px">Lead time <span style="color:var(--danger)">*</span></th>
-            <th class="right" style="width:120px">Line total</th>
-          </tr>
-        </thead>
-        <tbody id="items-tbody"></tbody>
-      </table>
-
-      <div class="grand-total-box">
-        <div class="gtb-left">
-          <strong>Grand Total</strong>
-          <span id="grand-breakdown">Enter prices above to calculate</span>
+    <!-- ═══════════ TAB: ITEMS & PRICING ═══════════ -->
+    <div class="page-tab-panel active" data-page-tab="items">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Items &amp; Pricing</div>
+            <div class="card-subtitle" id="item-count-label">Loading items…</div>
+          </div>
         </div>
-        <div class="grand-amount" id="grand-total">—</div>
+
+        <table class="items-table" id="items-table">
+          <thead>
+            <tr>
+              <th style="width:36px">#</th>
+              <th>Item</th>
+              <th style="width:90px">Qty</th>
+              <th style="width:150px">Unit price <span style="color:var(--danger)">*</span></th>
+              <th style="width:100px">Lead time <span style="color:var(--danger)">*</span></th>
+              <th class="right" style="width:110px">Line total</th>
+              <th style="width:110px"></th>
+            </tr>
+          </thead>
+          <tbody id="items-tbody"></tbody>
+        </table>
+
+        <div class="grand-total-box">
+          <div class="gtb-left">
+            <strong>Grand Total</strong>
+            <span id="grand-breakdown">Enter prices above to calculate</span>
+          </div>
+          <div class="grand-amount" id="grand-total">—</div>
+        </div>
       </div>
     </div>
 
-    <!-- Terms card -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <!-- ═══════════ TAB: PURCHASE & PAYMENT DETAILS ═══════════ -->
+    <div class="page-tab-panel" data-page-tab="purchase">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 9V7a5 5 0 00-10 0v2"/><rect x="3" y="9" width="18" height="12" rx="2"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Purchase &amp; Payment Details</div>
+            <div class="card-subtitle">Type of purchase, price validity and commercial terms</div>
+          </div>
         </div>
-        <div>
-          <div class="card-title">Terms &amp; Conditions</div>
-          <div class="card-subtitle">Validity, payment terms and remarks</div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Purchase type <span class="req">*</span></label>
+            <select id="purchase-type">
+              <option value="">— Select —</option>
+              <option value="Product / Material">Product / Material</option>
+              <option value="Service">Service</option>
+              <option value="Rate Contract">Rate Contract</option>
+              <option value="Subcontracting">Subcontracting</option>
+              <option value="Asset Purchase">Asset Purchase</option>
+              <option value="One-time Purchase">One-time Purchase</option>
+              <option value="Other">Other</option>
+            </select>
+            <span class="error-msg" id="err-purchase-type">Please select a purchase type — it determines the item detail fields.</span>
+          </div>
+          <div class="field conditional-field" id="wrap-other-purchase-type">
+            <label>Please specify purchase type</label>
+            <input type="text" id="other-purchase-type" placeholder="Describe purchase type" />
+          </div>
+          <div class="field">
+            <label>RFQ nature</label>
+            <select id="rfq-nature">
+              <option value="">— Select —</option>
+              <option value="One-time">One-time</option>
+              <option value="Rate Contract">Rate Contract</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Price validity <span class="req">*</span></label>
+            <div class="unit-input-wrap">
+              <input type="number" id="price-validity" min="0" step="1" placeholder="e.g. 30" />
+              <span class="unit-sfx">days</span>
+            </div>
+            <span class="error-msg" id="err-price-validity">Please enter price validity in days.</span>
+          </div>
+          <div class="field conditional-field" id="wrap-warranty">
+            <label>Warranty / guarantee</label>
+            <input type="text" id="warranty" placeholder="e.g. 12 months from delivery" />
+          </div>
+          <div class="field">
+            <label>Payment terms</label>
+            <select id="payment-terms-type">
+              <option value="">— Select —</option>
+              <option value="Advance">Advance</option>
+              <option value="Against Delivery">Against Delivery</option>
+              <option value="Credit Days">Credit Days</option>
+              <option value="Milestone">Milestone</option>
+            </select>
+          </div>
+          <div class="field conditional-field" id="wrap-credit-days">
+            <label>Credit days</label>
+            <input type="text" id="credit-days" placeholder="e.g. 30 days" />
+          </div>
+          <div class="field conditional-field" id="wrap-advance-required">
+            <label>Advance required (%)</label>
+            <input type="number" id="advance-required" min="0" max="100" step="0.01" placeholder="e.g. 50" />
+          </div>
+          <div class="field conditional-field" id="wrap-advance-required-amount">
+            <label>Advance required amount</label>
+            <input type="text" id="advance-required-amount" placeholder="e.g. ₹50,000" />
+          </div>
+          <div class="field conditional-field full" id="wrap-payment-milestone">
+            <label>Payment milestone</label>
+            <input type="text" id="payment-milestone" placeholder="Describe payment milestones" />
+          </div>
+          <div class="field">
+            <label>Retention / security deposit (%)</label>
+            <input type="number" id="retention-percent" min="0" max="100" step="0.01" placeholder="e.g. 5" />
+          </div>
+          <div class="field">
+            <label>Retention / security deposit amount</label>
+            <input type="number" id="retention-amount" min="0" step="0.01" placeholder="Amount, if applicable" />
+          </div>
         </div>
       </div>
-      <div class="field-grid">
-        <div class="field">
-          <label>Valid until <span class="req">*</span></label>
-          <input type="date" id="valid-till" />
-          <span class="error-msg" id="err-valid">Please enter a validity date.</span>
+    </div>
+
+    <!-- ═══════════ TAB: TERMS ═══════════ -->
+    <div class="page-tab-panel" data-page-tab="terms">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Terms &amp; Conditions</div>
+            <div class="card-subtitle">Validity, payment terms and remarks</div>
+          </div>
         </div>
-        <div class="field">
-          <label>Payment terms</label>
-          <select id="payment-terms">
-            <option value="">— Select terms —</option>
-            <option value="Net 30">Net 30</option>
-            <option value="Net 45">Net 45</option>
-            <option value="Net 60">Net 60</option>
-            <option value="Advance 50%">Advance 50%</option>
-            <option value="Full advance">Full advance</option>
-            <option value="Cash on delivery">Cash on delivery</option>
-          </select>
+        <div class="field-grid">
+          <div class="field">
+            <label>Valid until <span class="req">*</span></label>
+            <input type="date" id="valid-till" />
+            <span class="error-msg" id="err-valid">Please enter a validity date.</span>
+          </div>
+          <div class="field">
+            <label>Payment terms template</label>
+            <select id="payment-terms">
+              <option value="">— Select terms —</option>
+              <option value="Net 30">Net 30</option>
+              <option value="Net 45">Net 45</option>
+              <option value="Net 60">Net 60</option>
+              <option value="Advance 50%">Advance 50%</option>
+              <option value="Full advance">Full advance</option>
+              <option value="Cash on delivery">Cash on delivery</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label>Remarks / conditions</label>
+            <textarea id="notes" placeholder="Any special terms, packaging details, warranty, or additional conditions…"></textarea>
+          </div>
         </div>
-        <div class="field full">
-          <label>Remarks / conditions</label>
-          <textarea id="notes" placeholder="Any special terms, packaging details, warranty, or additional conditions…"></textarea>
+      </div>
+    </div>
+
+    <!-- ═══════════ TAB: CONTACT & SIGN-OFF ═══════════ -->
+    <div class="page-tab-panel" data-page-tab="contact">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Your Contact Details</div>
+            <div class="card-subtitle">Who should we reach out to about this quotation?</div>
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Contact person</label>
+            <input type="text" id="supplier-contact-person" placeholder="Full name" />
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="supplier-contact-email" placeholder="name@company.com" />
+          </div>
+          <div class="field">
+            <label>Mobile</label>
+            <input type="tel" id="supplier-contact-mobile" placeholder="+91 " />
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Declarations &amp; Authorization</div>
+            <div class="card-subtitle">Please confirm the following before submitting</div>
+          </div>
+        </div>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="general-terms-acceptance" />
+          <label for="general-terms-acceptance">We agree to NMTG RFQ terms and conditions</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="no-hidden-charges-declaration" />
+          <label for="no-hidden-charges-declaration">No additional charges except mentioned above</label>
+        </div>
+        <div class="checkbox-row">
+          <input type="checkbox" id="quotation-correctness-declaration" />
+          <label for="quotation-correctness-declaration">Prices, GST, freight and charges are correct</label>
+        </div>
+
+        <div class="field-grid" style="margin-top:1.25rem">
+          <div class="field">
+            <label>Authorized person name <span class="req">*</span></label>
+            <input type="text" id="authorized-person-name" placeholder="Full name" />
+            <span class="error-msg" id="err-authorized-person">Please enter the authorized person's name.</span>
+          </div>
+          <div class="field">
+            <label>Designation</label>
+            <input type="text" id="designation" placeholder="e.g. Sales Manager" />
+          </div>
+          <div class="field">
+            <label>Contact number</label>
+            <input type="tel" id="authorized-contact-number" placeholder="+91 " />
+          </div>
         </div>
       </div>
     </div>
@@ -322,11 +554,10 @@
 
 <script>
 /* ================================================================
-   SUPPLIER WEB PAGE — RFQ Quotation Form
+   SUPPLIER WEB PAGE — RFQ Quotation Form (multi-tab, full child-table fields)
    Data loading priority:
      1. items[] in URL params  → render immediately (original flow)
-     2. rfq param only         → fetch from Frappe REST API (fix for
-                                  truncated/forwarded email links)
+     2. rfq param only         → fetch from Frappe REST API
      3. Nothing usable         → show error screen
    ================================================================ */
 
@@ -334,6 +565,241 @@ const RFQ = {
   name: "", company: "", transaction_date: "",
   schedule_date: "", supplier: "", supplier_email: "", items: []
 };
+
+/* ================================================================
+   STEP 1 — Field configuration for the Supplier Quotation Item
+   child table, mirrored from the Customize Form JSON. Each section
+   below corresponds 1:1 to a depends_on:"eval:parent.custom_purchase_type
+   === '...'" section in that JSON. "common" fields have no such gate
+   and always show for every item, regardless of purchase type.
+   ================================================================ */
+const ITEM_FIELD_SECTIONS = {
+  common: {
+    label: "Common",
+    fields: [
+      { name: 'custom_price_basis', label: 'Price Basis', type: 'select',
+        options: ['Unit Rate', 'Lump Sum', 'Per Day', 'Per Hour', 'Per Month', 'Rate Contract'] },
+      { name: 'custom_dispatc_location', label: 'Dispatch Location', type: 'text' },
+      { name: 'custom_partial_delivery_allowed', label: 'Partial Delivery Allowed', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_technical_datasheet__catalogue', label: 'Technical Datasheet / Catalogue', type: 'file' },
+      { name: 'custom_quality_certificate_commitment', label: 'Quality Certificate Commitment', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_supplier_remarks', label: 'Supplier Remarks', type: 'textarea', full: true },
+      { name: 'expected_delivery_date', label: 'Expected Delivery Date', type: 'date' },
+      { name: 'custom_supplier_deviation', label: 'Supplier Deviation', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_deviation_remark', label: 'Deviation Remark', type: 'textarea', full: true,
+        dependsOn: { field: 'custom_supplier_deviation', value: 'Yes' } },
+      { name: 'custom_minimum_order_quantity', label: 'Minimum Order Quantity', type: 'number' },
+      { name: 'custom_minimum_billing_value', label: 'Minimum Billing Value', type: 'number' }
+    ]
+  },
+  "Product / Material": {
+    dependsOnPurchaseType: "Product / Material",
+    fields: [
+      { name: 'custom_offered_make__brand', label: 'Offered Make / Brand', type: 'text' },
+      { name: 'custom_hsn_code', label: 'HSN Code', type: 'text' },
+      { name: 'custom_standard_packing_qty', label: 'Standard Packing Qty', type: 'number' },
+      { name: 'custom_shelf_life__expiry', label: 'Shelf Life / Expiry', description: 'In months', type: 'text' },
+      { name: 'custom_certificate_commitment', label: 'Certificate Commitment', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_certificate_commitment_attachment', label: 'Certificate Commitment Attachment', type: 'file',
+        dependsOn: { field: 'custom_certificate_commitment', value: 'Yes' } },
+      { name: 'custom_replacement_terms', label: 'Replacement Terms', type: 'textarea', full: true },
+      { name: 'custom_moq_value', label: 'MOQ', type: 'text' },
+      { name: 'custom_product_warranty', label: 'Product Warranty', description: 'Duration', type: 'text' }
+    ]
+  },
+  "Service": {
+    dependsOnPurchaseType: "Service",
+    fields: [
+      { name: 'custom_service_type', label: 'Service Type', type: 'select',
+        options: ['Repair', 'Calibration', 'AMC', 'Consultancy', 'Testing', 'Labour', 'Other'] },
+      { name: 'custom_service_duration', label: 'Service Duration', type: 'select', options: ['Hours', 'Days', 'Months', 'Yearly'] },
+      { name: 'custom_manpower_requirement', label: 'Manpower Requirement', type: 'text' },
+      { name: 'custom_deliverables', label: 'Deliverables', description: 'Report / Certificate / Job completion / Support', type: 'file' },
+      { name: 'custom_service_location', label: 'Service Location', type: 'select',
+        options: ['NMTG', 'Supplier Site', 'Customer Site', 'Online'] },
+      { name: 'custom_service_rate_basis', label: 'Service Rate Basis', type: 'select',
+        options: ['Per visit', 'Per day', 'Per hour', 'Per month', 'Lump sum'] },
+      { name: 'custom_travel__boarding__lodging', label: 'Travel / Boarding / Lodging', type: 'select',
+        options: ['Included', 'Actual', 'Extra', 'NA'] },
+      { name: 'custom_scope_excluded', label: 'Scope Excluded', type: 'textarea', full: true }
+    ]
+  },
+  "Subcontracting": {
+    dependsOnPurchaseType: "Subcontracting",
+    fields: [
+      { name: 'custom_job_work__process_name', label: 'Job Work / Process Name', type: 'select',
+        options: ['Machining', 'Grinding', 'Coating', 'Heat Treatment'] },
+      { name: 'custom_material_responsibility', label: 'Material Responsibility', type: 'select',
+        options: ['NMTG Supplied', 'Supplier Supplied'] },
+      { name: 'custom_input_material__wip_return', label: 'Input Material / WIP Return', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_job_work_rate_basis', label: 'Job Work Rate Basis', type: 'select',
+        options: ['Per Qty', 'Per Kg', 'Per Operation', 'Lump Sum'] },
+      { name: 'custom_scrap__rejection_responsibility', label: 'Scrap / Rejection Responsibility', type: 'select',
+        options: ['Supplier', 'NMTG', 'As Per Agreement'] },
+      { name: 'custom_fixture__tooling_responsibility', label: 'Fixture / Tooling Responsibility', type: 'select',
+        options: ['Supplier', 'NMTG', 'Shared', 'NA'] },
+      { name: 'custom_inspection_report_required', label: 'Inspection Report Required', type: 'select', options: ['Yes', 'No', 'NA'] },
+      { name: 'custom_return_lead_time', label: 'Return Lead Time', type: 'text' }
+    ]
+  },
+  "Asset Purchase": {
+    dependsOnPurchaseType: "Asset Purchase",
+    fields: [
+      { name: 'custom_asset_type', label: 'Asset Type', type: 'select',
+        options: ['Machine', 'Equipment', 'Instrument', 'Software', 'Hardware', 'Other'] },
+      { name: 'custom_installation_required', label: 'Installation Required', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_commissioning_required', label: 'Commissioning Required', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_training_required', label: 'Training Required', type: 'select', options: ['Yes', 'No', 'Included', 'Extra'] },
+      { name: 'custom_warranty_period', label: 'Warranty Period Unit', type: 'select', options: ['Months', 'Years'] },
+      { name: 'custom_amc__service_support', label: 'AMC / Service Support', type: 'select',
+        options: ['Available', 'Not Available', 'Optional'] },
+      { name: 'custom_spare_parts_availability', label: 'Spare Parts Availability', type: 'select', options: ['Years', 'NA'] },
+      { name: 'custom_installation_timeline', label: 'Installation Timeline', type: 'text' },
+      { name: 'custom_site_readiness_requirement', label: 'Site Readiness Requirement', type: 'textarea', full: true }
+    ]
+  },
+  "Rate Contract": {
+    dependsOnPurchaseType: "Rate Contract",
+    fields: [
+      { name: 'custom_contract_period_start_date', label: 'Contract Period Start Date', type: 'date' },
+      { name: 'custom_contract_period_end_date', label: 'Contract Period End Date', type: 'date' },
+      { name: 'custom_rate_validity', label: 'Rate Validity', type: 'select',
+        options: ['Fixed Full Period', 'Monthly Review', 'Quarterly Review'] },
+      { name: 'custom_rate_basis', label: 'Rate Basis', type: 'select',
+        options: ['Per Qty', 'Per Kg', 'Per Hour', 'Per Day', 'Per Month', 'Per Job'] },
+      { name: 'custom_estimated_monthly_qty', label: 'Estimated Monthly Qty', type: 'number' },
+      { name: 'custom_estimated_monthly_value', label: 'Estimated Monthly Value', type: 'number' },
+      { name: 'custom_order_release_method', label: 'Order Release Method', type: 'select',
+        options: ['As Per PO', 'Monthly Schedule', 'Call-Off'] },
+      { name: 'custom_minimum_commitment_qty', label: 'Minimum Commitment Qty', type: 'number' },
+      { name: 'custom_minimum_commitment_value', label: 'Minimum Commitment Value', type: 'number' },
+      { name: 'custom_termination_notice_period', label: 'Termination Notice Period', type: 'text' },
+      { name: 'custom_price_escalation_clause', label: 'Price Escalation Clause', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_price_escalation_clause_detailils', label: 'Price Escalation Clause Details', type: 'textarea', full: true,
+        dependsOn: { field: 'custom_price_escalation_clause', value: 'Yes' } }
+    ]
+  },
+  "One-time Purchase": {
+    dependsOnPurchaseType: "One-time Purchase",
+    fields: [
+      { name: 'custom_onetime_requirement_confirmation', label: 'One-time Requirement Confirmation', type: 'text' },
+      { name: 'custom_future_rate_commitment', label: 'Future Rate Commitment', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_repeat_order_validity', label: 'Repeat Order Validity', description: 'Days', type: 'number' },
+      { name: 'custom__special_onetime_charges', label: 'Special One-time Charges', description: 'Amount', type: 'number' }
+    ]
+  },
+  "Other": {
+    dependsOnPurchaseType: "Other",
+    fields: [
+      { name: 'custom_supplier_clarification_required', label: 'Supplier Clarification Required', type: 'select', options: ['Yes', 'No'] },
+      { name: 'custom_other_rfq_description', label: 'Other RFQ Description', type: 'textarea', full: true },
+      { name: 'custom_special_terms', label: 'Special Terms', type: 'textarea', full: true }
+    ]
+  }
+};
+
+/* Returns the section object matching the current global Purchase Type, or null */
+function getActiveTypeSection() {
+  var purchaseType = document.getElementById('purchase-type').value;
+  var key = Object.keys(ITEM_FIELD_SECTIONS).find(function(k) {
+    return ITEM_FIELD_SECTIONS[k].dependsOnPurchaseType === purchaseType;
+  });
+  return key ? { key: key, section: ITEM_FIELD_SECTIONS[key] } : null;
+}
+
+/* ================================================================
+   STEP 2 — Generic field renderer. Avoids hand-writing ~70 near-
+   identical input blocks; switches on field.type.
+   ================================================================ */
+function renderField(f, idx) {
+  var id = f.name + '-' + idx;
+  var wrapClasses = 'field' + (f.full ? ' full' : '') + (f.dependsOn ? ' conditional-field' : '');
+  var wrapIdAttr = f.dependsOn ? ' id="wrap-' + id + '"' : '';
+  var labelHtml = '<label for="' + id + '">' + f.label +
+    (f.description ? ' <span class="hint">(' + f.description + ')</span>' : '') + '</label>';
+  var inputHtml = '';
+
+  switch (f.type) {
+    case 'select':
+      inputHtml = '<select id="' + id + '" data-fname="' + f.name + '" data-idx="' + idx + '">' +
+        '<option value="">— Select —</option>' +
+        f.options.map(function(o) { return '<option value="' + o + '">' + o + '</option>'; }).join('') +
+        '</select>';
+      break;
+    case 'textarea':
+      inputHtml = '<textarea id="' + id + '" data-fname="' + f.name + '" data-idx="' + idx + '"></textarea>';
+      break;
+    case 'date':
+      inputHtml = '<input type="date" id="' + id + '" data-fname="' + f.name + '" data-idx="' + idx + '" />';
+      break;
+    case 'number':
+      inputHtml = '<input type="number" step="0.01" id="' + id + '" data-fname="' + f.name + '" data-idx="' + idx + '" />';
+      break;
+    case 'file':
+      /* NOTE: guest-page file uploads need a separate call to
+         /api/method/upload_file before submit; the collected value
+         here is a placeholder file name only. See collectItemCustomFields(). */
+      inputHtml = '<input type="file" id="' + id + '" data-fname="' + f.name + '" data-idx="' + idx + '" />';
+      break;
+    default:
+      inputHtml = '<input type="text" id="' + id + '" data-fname="' + f.name + '" data-idx="' + idx + '" />';
+  }
+
+  return '<div class="' + wrapClasses + '"' + wrapIdAttr + '>' + labelHtml + inputHtml + '</div>';
+}
+
+/* ================================================================
+   STEP 3 — Per-item detail panel: 2 tabs (Common / Type-specific),
+   generated from ITEM_FIELD_SECTIONS for a given item index.
+   ================================================================ */
+function renderItemDetailPanel(idx) {
+  var active = getActiveTypeSection();
+  var commonFieldsHtml = ITEM_FIELD_SECTIONS.common.fields.map(function(f) { return renderField(f, idx); }).join('');
+  var typeTabLabel = active ? active.key : 'Type Details';
+  var typeFieldsHtml = active
+    ? active.section.fields.map(function(f) { return renderField(f, idx); }).join('')
+    : '<p class="item-tab-empty">Select a <strong>Purchase Type</strong> in the "Purchase Details" tab to see fields specific to that type for this item.</p>';
+
+  return '' +
+  '<div class="item-tabs">' +
+    '<button type="button" class="item-tab-btn active" data-item-idx="' + idx + '" data-item-tab="common">Common</button>' +
+    '<button type="button" class="item-tab-btn" data-item-idx="' + idx + '" data-item-tab="type">' + typeTabLabel + '</button>' +
+  '</div>' +
+  '<div class="item-tab-panel active" data-item-idx="' + idx + '" data-item-tab="common">' +
+    '<div class="field-grid">' + commonFieldsHtml + '</div>' +
+  '</div>' +
+  '<div class="item-tab-panel" data-item-idx="' + idx + '" data-item-tab="type">' +
+    '<div class="field-grid">' + typeFieldsHtml + '</div>' +
+  '</div>';
+}
+
+/* Wire up: item-tab switching, conditional sub-fields, per-item panel toggle */
+function wireItemDetailPanel(idx) {
+  var panel = document.getElementById('item-panel-' + idx);
+  if (!panel) return;
+
+  /* Tab switching within this item's panel */
+  panel.querySelectorAll('.item-tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      panel.querySelectorAll('.item-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      panel.querySelectorAll('.item-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      panel.querySelector('.item-tab-panel[data-item-tab="' + btn.dataset.itemTab + '"]').classList.add('active');
+    });
+  });
+
+  /* Conditional sub-fields (e.g. Deviation Remark shows only if Deviation = Yes) */
+  var active = getActiveTypeSection();
+  var allFields = ITEM_FIELD_SECTIONS.common.fields.concat(active ? active.section.fields : []);
+  allFields.filter(function(f) { return f.dependsOn; }).forEach(function(f) {
+    var controller = document.getElementById(f.dependsOn.field + '-' + idx);
+    var wrap = document.getElementById('wrap-' + f.name + '-' + idx);
+    if (!controller || !wrap) return;
+    var sync = function() { wrap.classList.toggle('show', controller.value === f.dependsOn.value); };
+    controller.addEventListener('change', sync);
+    sync();
+  });
+}
 
 /* ── Fill info-strip chips from RFQ state ── */
 function fillInfoStrip() {
@@ -355,7 +821,6 @@ function loadFromParams() {
   if (p.get('email'))    RFQ.supplier_email   = p.get('email');
   fillInfoStrip();
 
-  /* Multi-item params: items[0][item_code] etc. */
   const fromParams = [];
   let i = 0;
   while (p.get(`items[${i}][item_code]`)) {
@@ -376,7 +841,6 @@ function loadFromParams() {
   }
   if (fromParams.length > 0) { RFQ.items = fromParams; return true; }
 
-  /* Legacy single-item params (backward compat) */
   if (p.get('item_code')) {
     RFQ.items = [{
       idx: 1,
@@ -394,7 +858,7 @@ function loadFromParams() {
     return true;
   }
 
-  return false; /* no items in URL */
+  return false;
 }
 
 /* ── Map a Frappe items child-table row to our shape ── */
@@ -427,20 +891,16 @@ function showError(title, detail) {
     </div>`;
 }
 
-/* ── Fetch RFQ from Frappe REST API ─────────────────────────────
-   Called when items[] are missing from the URL.
-   Tries the standard /api/resource endpoint first;
-   falls back to a custom whitelisted server method.
-   ──────────────────────────────────────────────────────────── */
+/* ── Fetch RFQ from Frappe REST API ── */
 async function fetchRFQFromAPI(rfqName) {
   document.getElementById('form-wrap').style.display = 'none';
   document.getElementById('loading-screen').style.display = 'block';
   document.getElementById('loading-sub').textContent = 'Fetching ' + rfqName + ' from server…';
 
-  /* ── Attempt 1: standard Frappe REST resource endpoint ── */
   try {
     const fields = [
       'name','company','transaction_date','schedule_date','supplier','supplier_name',
+      'custom_purchase_type','custom_rfq_nature',
       'items.item_code','items.item_name','items.item_group','items.qty','items.uom',
       'items.warehouse','items.material_request','items.material_request_item',
       'items.custom_tds_attachment','items.image'
@@ -462,40 +922,13 @@ async function fetchRFQFromAPI(rfqName) {
         RFQ.supplier         = doc.supplier_name    || doc.supplier || RFQ.supplier;
         RFQ.items            = doc.items.map(mapFrappeItem);
         fillInfoStrip();
+        prefillPurchaseDetails(doc);
         showApiNotice();
         return true;
       }
     }
   } catch (_) { /* fall through to method attempt */ }
 
-  /* ── Attempt 2: custom whitelisted server method ─────────────
-     You need this Python method on the Frappe server:
-
-     @frappe.whitelist(allow_guest=True)
-     def get_rfq_for_supplier(rfq, supplier):
-         doc = frappe.get_doc("Request for Quotation", rfq)
-         # optional: verify supplier matches
-         return {
-             "rfq": {
-                 "name": doc.name,
-                 "company": doc.company,
-                 "transaction_date": str(doc.transaction_date),
-                 "schedule_date": str(doc.schedule_date),
-                 "supplier_name": supplier
-             },
-             "items": [
-                 {
-                     "idx": it.idx, "item_code": it.item_code,
-                     "item_name": it.item_name, "item_group": it.item_group,
-                     "qty": it.qty, "uom": it.uom, "warehouse": it.warehouse,
-                     "material_request": it.material_request,
-                     "material_request_item": it.material_request_item,
-                     "custom_tds_attachment": it.custom_tds_attachment,
-                     "image": it.image
-                 } for it in doc.items
-             ]
-         }
-     ──────────────────────────────────────────────────────── */
   document.getElementById('loading-sub').textContent = 'Trying authenticated endpoint…';
   try {
     const supplier = encodeURIComponent(RFQ.supplier || new URLSearchParams(window.location.search).get('supplier') || '');
@@ -517,6 +950,7 @@ async function fetchRFQFromAPI(rfqName) {
         }
         RFQ.items = msg.items.map(mapFrappeItem);
         fillInfoStrip();
+        prefillPurchaseDetails(msg.rfq || {});
         showApiNotice();
         return true;
       }
@@ -543,7 +977,19 @@ function showApiNotice() {
   el.classList.add('show');
 }
 
-/* ── Set validity date defaults ── */
+function prefillPurchaseDetails(doc) {
+  if (!doc) return;
+  if (doc.custom_purchase_type) {
+    const pt = document.getElementById('purchase-type');
+    pt.value = doc.custom_purchase_type;
+    toggleConditionalFields();
+    refreshAllItemPanels();
+  }
+  if (doc.custom_rfq_nature) {
+    document.getElementById('rfq-nature').value = doc.custom_rfq_nature;
+  }
+}
+
 function initValidityDate() {
   const validEl = document.getElementById('valid-till');
   const min = new Date();
@@ -552,7 +998,10 @@ function initValidityDate() {
   if (RFQ.schedule_date) validEl.value = RFQ.schedule_date;
 }
 
-/* ── Render item rows ── */
+/* ================================================================
+   STEP 4 — Render item rows with an expandable "Details" panel
+   appended as a second table row underneath each item row.
+   ================================================================ */
 function renderItems() {
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('form-wrap').style.display = 'block';
@@ -564,6 +1013,7 @@ function renderItems() {
 
   RFQ.items.forEach(function(item, idx) {
     const tr = document.createElement('tr');
+    tr.className = 'item-row';
     tr.innerHTML =
       '<td><div class="item-num">' + item.idx + '</div></td>' +
       '<td><div class="item-cell">' +
@@ -588,8 +1038,18 @@ function renderItems() {
         '<input type="number" class="lead-input" id="lead-' + idx + '" placeholder="days" min="1" step="1" data-idx="' + idx + '" />' +
         '<div class="err-inline" id="err-lead-' + idx + '">Required</div>' +
       '</td>' +
-      '<td><div class="line-total muted" id="line-total-' + idx + '">—</div></td>';
+      '<td><div class="line-total muted" id="line-total-' + idx + '">—</div></td>' +
+      '<td><button type="button" class="details-toggle-btn" id="toggle-btn-' + idx + '" onclick="toggleItemPanel(' + idx + ')">' +
+        'Details <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>' +
+      '</button></td>';
     tbody.appendChild(tr);
+
+    const panelTr = document.createElement('tr');
+    panelTr.className = 'item-panel-row';
+    panelTr.id = 'item-panel-row-' + idx;
+    panelTr.style.display = 'none';
+    panelTr.innerHTML = '<td colspan="7"><div class="item-detail-panel" id="item-panel-' + idx + '"></div></td>';
+    tbody.appendChild(panelTr);
   });
 
   RFQ.items.forEach(function(_, idx) {
@@ -606,7 +1066,39 @@ function renderItems() {
   initValidityDate();
 }
 
-/* ── Format currency — use real ₹ char, NOT HTML entity (textContent doesn't parse entities) ── */
+/* Toggle a single item's detail panel open/closed; render its fields lazily on first open */
+function toggleItemPanel(idx) {
+  const row = document.getElementById('item-panel-row-' + idx);
+  const btn = document.getElementById('toggle-btn-' + idx);
+  const isOpen = row.style.display !== 'none';
+  if (isOpen) {
+    row.style.display = 'none';
+    btn.classList.remove('open');
+  } else {
+    const panel = document.getElementById('item-panel-' + idx);
+    if (!panel.dataset.rendered) {
+      panel.innerHTML = renderItemDetailPanel(idx);
+      wireItemDetailPanel(idx);
+      panel.dataset.rendered = '1';
+    }
+    row.style.display = 'table-row';
+    btn.classList.add('open');
+  }
+}
+
+/* Re-render every already-opened item panel (called when global Purchase Type changes,
+   since the "type" tab content depends on it) */
+function refreshAllItemPanels() {
+  RFQ.items.forEach(function(_, idx) {
+    const panel = document.getElementById('item-panel-' + idx);
+    if (panel && panel.dataset.rendered) {
+      panel.innerHTML = renderItemDetailPanel(idx);
+      wireItemDetailPanel(idx);
+    }
+  });
+}
+
+/* ── Format currency ── */
 function inr(amount) {
   return '\u20B9' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -639,33 +1131,104 @@ function calcGrandTotal() {
   }
 }
 
+/* ── Conditional field visibility (header-level fields) ── */
+function setConditional(id, shouldShow) {
+  var wrap = document.getElementById('wrap-' + id);
+  if (!wrap) return;
+  wrap.classList.toggle('show', !!shouldShow);
+}
+
+function toggleConditionalFields() {
+  var purchaseType     = document.getElementById('purchase-type').value;
+  var paymentTermsType = document.getElementById('payment-terms-type').value;
+
+  setConditional('other-purchase-type', purchaseType === 'Other');
+  setConditional('warranty', ['Product / Material', 'Service', 'Asset Purchase'].indexOf(purchaseType) !== -1);
+  setConditional('payment-milestone', ['Rate Contract', 'Service', 'Asset Purchase'].indexOf(purchaseType) !== -1);
+  setConditional('credit-days', paymentTermsType === 'Credit Days');
+  setConditional('advance-required', paymentTermsType === 'Advance');
+  setConditional('advance-required-amount', paymentTermsType === 'Advance');
+}
+
+/* ================================================================
+   STEP 5 — Page-level tab switching
+   ================================================================ */
+function switchPageTab(tabName) {
+  document.querySelectorAll('.page-tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.pageTab === tabName); });
+  document.querySelectorAll('.page-tab-panel').forEach(function(p) { p.classList.toggle('active', p.dataset.pageTab === tabName); });
+}
+
+function initPageTabs() {
+  document.querySelectorAll('.page-tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { switchPageTab(btn.dataset.pageTab); });
+  });
+}
+
 /* ── Validation ── */
 function validate() {
   var valid = true;
+  var firstInvalidTab = null;
+
   RFQ.items.forEach(function(_, idx) {
     var priceEl = document.getElementById('price-' + idx);
     var leadEl  = document.getElementById('lead-' + idx);
     if (!priceEl.value || parseFloat(priceEl.value) <= 0) {
       priceEl.classList.add('invalid');
       document.getElementById('err-price-' + idx).classList.add('show');
-      valid = false;
+      valid = false; firstInvalidTab = firstInvalidTab || 'items';
     }
     if (!leadEl.value || parseInt(leadEl.value) <= 0) {
       leadEl.classList.add('invalid');
       document.getElementById('err-lead-' + idx).classList.add('show');
-      valid = false;
+      valid = false; firstInvalidTab = firstInvalidTab || 'items';
     }
   });
+
+  var purchaseTypeEl = document.getElementById('purchase-type');
+  var errPurchaseType = document.getElementById('err-purchase-type');
+  if (!purchaseTypeEl.value) {
+    purchaseTypeEl.classList.add('invalid');
+    errPurchaseType.classList.add('show');
+    valid = false; firstInvalidTab = firstInvalidTab || 'purchase';
+  } else {
+    purchaseTypeEl.classList.remove('invalid');
+    errPurchaseType.classList.remove('show');
+  }
+
+  var priceValidityEl  = document.getElementById('price-validity');
+  var errPriceValidity = document.getElementById('err-price-validity');
+  if (!priceValidityEl.value || parseFloat(priceValidityEl.value) < 0) {
+    priceValidityEl.classList.add('invalid');
+    errPriceValidity.classList.add('show');
+    valid = false; firstInvalidTab = firstInvalidTab || 'purchase';
+  } else {
+    priceValidityEl.classList.remove('invalid');
+    errPriceValidity.classList.remove('show');
+  }
+
   var validTill = document.getElementById('valid-till');
   var errValid  = document.getElementById('err-valid');
   if (!validTill.value) {
     validTill.classList.add('invalid');
     errValid.classList.add('show');
-    valid = false;
+    valid = false; firstInvalidTab = firstInvalidTab || 'terms';
   } else {
     validTill.classList.remove('invalid');
     errValid.classList.remove('show');
   }
+
+  var authorizedNameEl  = document.getElementById('authorized-person-name');
+  var errAuthorizedName = document.getElementById('err-authorized-person');
+  if (!authorizedNameEl.value.trim()) {
+    authorizedNameEl.classList.add('invalid');
+    errAuthorizedName.classList.add('show');
+    valid = false; firstInvalidTab = firstInvalidTab || 'contact';
+  } else {
+    authorizedNameEl.classList.remove('invalid');
+    errAuthorizedName.classList.remove('show');
+  }
+
+  if (!valid && firstInvalidTab) switchPageTab(firstInvalidTab);
   return valid;
 }
 
@@ -687,19 +1250,39 @@ function showToast(msg, type, duration) {
   if (type !== 'loading') setTimeout(function() { t.className = 'toast'; }, duration);
 }
 
-/* ── Get Frappe CSRF token (required for POST from guest pages) ── */
+/* ── Get Frappe CSRF token ── */
 async function getFrappeCSRF() {
   try {
-    var res = await fetch('/api/method/frappe.auth.get_csrf_token', {
-      headers: { 'Accept': 'application/json' }
-    });
+    var res = await fetch('/api/method/frappe.auth.get_csrf_token', { headers: { 'Accept': 'application/json' } });
     if (res.ok) {
       var data = await res.json();
-      /* Frappe returns { message: "token_string" } */
       return (data.message && typeof data.message === 'string') ? data.message : 'fetch';
     }
   } catch (_) {}
-  return 'fetch'; /* fallback — works on some Frappe versions */
+  return 'fetch';
+}
+
+/* ================================================================
+   STEP 6 — Collect an item's custom fields (Common + active type
+   section) for the submit payload.
+   ================================================================ */
+function collectItemCustomFields(idx) {
+  var active = getActiveTypeSection();
+  var fields = ITEM_FIELD_SECTIONS.common.fields.concat(active ? active.section.fields : []);
+  var out = {};
+  fields.forEach(function(f) {
+    var el = document.getElementById(f.name + '-' + idx);
+    if (!el) return; /* panel never opened for this item — leave field unset */
+    if (f.type === 'file') {
+      /* File inputs on guest pages need a prior upload call; store the
+         chosen filename only as a placeholder unless you wire
+         /api/method/upload_file separately and store the returned URL. */
+      out[f.name] = el.files && el.files[0] ? el.files[0].name : '';
+    } else {
+      out[f.name] = el.value || '';
+    }
+  });
+  return out;
 }
 
 /* ── Submit ── */
@@ -710,7 +1293,7 @@ async function submitQuotation() {
   showToast('Submitting your quotation…', 'loading');
 
   var itemRows = RFQ.items.map(function(item, idx) {
-    return {
+    var base = {
       item_code:             item.item_code,
       qty:                   item.qty,
       uom:                   item.uom,
@@ -720,6 +1303,8 @@ async function submitQuotation() {
       material_request:      item.material_request      || '',
       material_request_item: item.material_request_item || ''
     };
+    var customFields = collectItemCustomFields(idx);
+    return Object.assign(base, customFields);
   });
 
   var payload = {
@@ -729,17 +1314,38 @@ async function submitQuotation() {
     rfq:                    RFQ.name,
     items:                  itemRows,
     terms:                  document.getElementById('notes').value || '',
-    payment_terms_template: document.getElementById('payment-terms').value || ''
+    payment_terms_template: document.getElementById('payment-terms').value || '',
+
+    custom_purchase_type:                         document.getElementById('purchase-type').value || '',
+    custom_other_purchase_type:                   document.getElementById('other-purchase-type').value || '',
+    custom_rfq_nature:                             document.getElementById('rfq-nature').value || '',
+    custom_price_validity:                         parseFloat(document.getElementById('price-validity').value) || 0,
+    custom_warranty__guarantee:                    document.getElementById('warranty').value || '',
+    custom_payment_terms:                          document.getElementById('payment-terms-type').value || '',
+    custom_credit_days:                            document.getElementById('credit-days').value || '',
+    custom_advance_required:                       parseFloat(document.getElementById('advance-required').value) || 0,
+    custom_advance_required_amount:                document.getElementById('advance-required-amount').value || '',
+    custom_payment_milestone:                      document.getElementById('payment-milestone').value || '',
+    custom_retention__security_deposit_:           parseFloat(document.getElementById('retention-percent').value) || 0,
+    custom_retention__security_deposit_amount:     parseFloat(document.getElementById('retention-amount').value) || 0,
+
+    custom_supplier_contact_person: document.getElementById('supplier-contact-person').value || '',
+    custom_supplier_email:          document.getElementById('supplier-contact-email').value || '',
+    custom_supplier_mobile:         document.getElementById('supplier-contact-mobile').value || '',
+
+    custom_general_terms_acceptance:           document.getElementById('general-terms-acceptance').checked ? 1 : 0,
+    custom_no_hidden_charges_declaration:      document.getElementById('no-hidden-charges-declaration').checked ? 1 : 0,
+    custom_quotation_correctness_declaration:  document.getElementById('quotation-correctness-declaration').checked ? 1 : 0,
+    custom_authorized_person_name:             document.getElementById('authorized-person-name').value || '',
+    custom_designation:                        document.getElementById('designation').value || '',
+    custom__contact_number:                    document.getElementById('authorized-contact-number').value || ''
   };
 
   try {
     var csrfToken = await getFrappeCSRF();
     var res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
       method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Frappe-CSRF-Token': csrfToken
-      },
+      headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
       body: JSON.stringify({ data: JSON.stringify(payload) })
     });
     var data = await res.json();
@@ -757,11 +1363,21 @@ async function submitQuotation() {
   }
 }
 
-/* ── Init ──────────────────────────────────────────────────────
-   Priority: URL items → API fetch → error
-   ──────────────────────────────────────────────────────────── */
+/* ── Wire up conditional-field + purchase-type listeners ── */
+function initConditionalFieldListeners() {
+  document.getElementById('purchase-type').addEventListener('change', function() {
+    toggleConditionalFields();
+    refreshAllItemPanels(); /* item detail tabs depend on this value */
+  });
+  document.getElementById('payment-terms-type').addEventListener('change', toggleConditionalFields);
+  toggleConditionalFields();
+}
+
+/* ── Init ── */
 (async function init() {
   var hasItems = loadFromParams();
+  initPageTabs();
+  initConditionalFieldListeners();
 
   if (hasItems) {
     renderItems();

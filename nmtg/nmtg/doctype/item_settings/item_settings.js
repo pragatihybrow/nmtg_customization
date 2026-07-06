@@ -35,7 +35,8 @@ function render_required_fields_multiselect(frm, cdt, cdn) {
         "custom_drawing",
         "custom_tds_attachment",
         "custom_formula_for_conversion",
-        "custom_only_internal_qc"
+        "custom_only_internal_qc",
+        "custom_create_nmtg_code"
     ];
 
     frappe.call({
