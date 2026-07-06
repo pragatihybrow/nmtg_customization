@@ -132,7 +132,9 @@
     transition: border-color 0.18s, background 0.18s;
   }
   input[type="file"] { padding: 7px 10px; font-size: 12.5px; }
+  input[type="text"][readonly] { background: var(--surface-muted); color: var(--text-muted); cursor: default; }
   input[type="date"]:focus, input[type="text"]:focus, input[type="number"]:focus, input[type="email"]:focus, input[type="tel"]:focus, select:focus, textarea:focus { border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(43,76,63,0.1); }
+  input[type="text"][readonly]:focus { background: var(--surface-muted); box-shadow: none; }
   input.invalid, select.invalid { border-color: var(--danger); background: var(--danger-bg); }
   textarea { resize: vertical; min-height: 70px; line-height: 1.55; }
   select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6459' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
@@ -146,6 +148,7 @@
   .checkbox-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
   .checkbox-row:last-of-type { border-bottom: none; }
   .checkbox-row input[type="checkbox"] { width: 18px; height: 18px; margin-top: 1px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+  .checkbox-row input[type="checkbox"].invalid { outline: 2px solid var(--danger); outline-offset: 2px; border-radius: 3px; }
   .checkbox-row label { font-size: 13.5px; font-weight: 500; color: var(--text); cursor: pointer; line-height: 1.5; }
   .checkbox-row .checkbox-desc { display: block; font-size: 12px; font-weight: 400; color: var(--text-hint); margin-top: 2px; }
 
@@ -192,6 +195,14 @@
   .spinner { width: 16px; height: 16px; border: 2px solid var(--border-strong); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
 
   footer { text-align: center; padding: 2rem 1rem 1rem; font-size: 12px; color: var(--text-hint); border-top: 1px solid var(--border); margin-top: 3rem; }
+
+  /* ── Tax rows ── */
+  .tax-row-card { border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 1rem; background: var(--surface-muted); }
+  .tax-row-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.9rem; }
+  .tax-row-card-header strong { font-size: 13px; color: var(--text); }
+  .tax-remove-btn { color: var(--danger); border-color: #F5B7B1; }
+  .tax-remove-btn:hover { background: var(--danger-bg); color: var(--danger); }
+  .tax-amount-badge { font-weight: 600; }
 
   @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -258,7 +269,7 @@
 
     <div class="notice">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>Fields marked with <strong>*</strong> are required. Choose a <strong>Purchase Type</strong> in the "Purchase Details" tab first — it determines which extra fields appear for each item. Your quotation will be submitted directly as a Supplier Quotation in ERPNext.</span>
+      <span>Fields marked with <strong>*</strong> are required. Choose a <strong>Purchase Type</strong> in the "Purchase Details" tab first — it determines which extra fields appear for each item. Select a <strong>Taxes and Charges Template</strong> in the "Taxes &amp; Charges" tab to auto-fill applicable GST rows. Your quotation will be submitted directly as a Supplier Quotation in ERPNext.</span>
     </div>
 
     <!-- Shown only when items were loaded via API fallback -->
@@ -276,6 +287,10 @@
       <button type="button" class="page-tab-btn" data-page-tab="purchase">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 9V7a5 5 0 00-10 0v2"/><rect x="3" y="9" width="18" height="12" rx="2"/></svg>
         Purchase Details
+      </button>
+      <button type="button" class="page-tab-btn" data-page-tab="taxes">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Taxes &amp; Charges
       </button>
       <button type="button" class="page-tab-btn" data-page-tab="terms">
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -317,10 +332,10 @@
 
         <div class="grand-total-box">
           <div class="gtb-left">
-            <strong>Grand Total</strong>
-            <span id="grand-breakdown">Enter prices above to calculate</span>
+            <strong>Items Subtotal</strong>
+            <span id="items-subtotal-note">Enter prices above to calculate</span>
           </div>
-          <div class="grand-amount" id="grand-total">—</div>
+          <div class="grand-amount" id="items-subtotal">—</div>
         </div>
       </div>
     </div>
@@ -414,6 +429,63 @@
       </div>
     </div>
 
+    <!-- ═══════════ TAB: TAXES & CHARGES ═══════════ -->
+    <div class="page-tab-panel" data-page-tab="taxes">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Tax Settings</div>
+            <div class="card-subtitle">Select a template — its tax category and rows will load automatically below</div>
+          </div>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Tax Category <span class="hint">(auto-filled from template)</span></label>
+            <input type="text" id="tax-category" placeholder="Auto-filled after selecting a template" readonly />
+          </div>
+          <div class="field">
+            <label>Taxes and Charges Template <span class="hint">(select to auto-load rows below)</span></label>
+            <input type="text" id="taxes-and-charges-template" list="taxes-template-list" autocomplete="off" placeholder="Start typing to search…" />
+            <datalist id="taxes-template-list"></datalist>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Tax / Charge Rows</div>
+            <div class="card-subtitle">Auto-filled from the template above — add or edit rows if GST or other charges apply</div>
+          </div>
+        </div>
+
+        <div id="taxes-rows-container"></div>
+        <p class="item-tab-empty" id="taxes-empty-note">No tax rows added yet. Select a template above, or click "+ Add Tax Row" to add one manually.</p>
+        <button type="button" class="details-toggle-btn" onclick="addTaxRow()">
+          + Add Tax Row
+        </button>
+
+        <div class="grand-total-box" style="flex-direction:column; align-items:stretch; gap:10px;">
+          <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.8);font-size:13px;">
+            <span>Items Subtotal</span><span id="summary-subtotal">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:rgba(255,255,255,0.8);font-size:13px;">
+            <span>Total Tax / Charges</span><span id="summary-tax">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid rgba(255,255,255,0.2);padding-top:10px;">
+            <div class="gtb-left"><strong>Grand Total</strong></div>
+            <div class="grand-amount" id="grand-total">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══════════ TAB: TERMS ═══════════ -->
     <div class="page-tab-panel" data-page-tab="terms">
       <div class="card">
@@ -433,15 +505,13 @@
             <span class="error-msg" id="err-valid">Please enter a validity date.</span>
           </div>
           <div class="field">
-            <label>Payment terms template</label>
+            <label>Payment Terms</label>
             <select id="payment-terms">
               <option value="">— Select terms —</option>
-              <option value="Net 30">Net 30</option>
-              <option value="Net 45">Net 45</option>
-              <option value="Net 60">Net 60</option>
-              <option value="Advance 50%">Advance 50%</option>
-              <option value="Full advance">Full advance</option>
-              <option value="Cash on delivery">Cash on delivery</option>
+              <option value="Advance">Advance</option>
+              <option value="Against Delivery">Against Delivery</option>
+              <option value="Credit Days">Credit Days</option>
+              <option value="Milestone">Milestone</option>
             </select>
           </div>
           <div class="field full">
@@ -493,16 +563,17 @@
 
         <div class="checkbox-row">
           <input type="checkbox" id="general-terms-acceptance" />
-          <label for="general-terms-acceptance">We agree to NMTG RFQ terms and conditions</label>
+          <label for="general-terms-acceptance">We agree to NMTG RFQ terms and conditions <span class="req">*</span></label>
         </div>
         <div class="checkbox-row">
           <input type="checkbox" id="no-hidden-charges-declaration" />
-          <label for="no-hidden-charges-declaration">No additional charges except mentioned above</label>
+          <label for="no-hidden-charges-declaration">No additional charges except mentioned above <span class="req">*</span></label>
         </div>
         <div class="checkbox-row">
           <input type="checkbox" id="quotation-correctness-declaration" />
-          <label for="quotation-correctness-declaration">Prices, GST, freight and charges are correct</label>
+          <label for="quotation-correctness-declaration">Prices, GST, freight and charges are correct <span class="req">*</span></label>
         </div>
+        <span class="error-msg" id="err-declarations">Please accept all three declarations above before submitting.</span>
 
         <div class="field-grid" style="margin-top:1.25rem">
           <div class="field">
@@ -544,7 +615,7 @@
     <div class="success-doc" id="success-doc-id">Processing…</div>
   </div>
 
-</div><!-- /layout -->
+</div>
 
 <footer>
   &copy; 2026 NMTG Mechtrans Techniques Private Limited &nbsp;·&nbsp; Powered by ERPNext
@@ -553,26 +624,14 @@
 <div id="toast" role="alert" aria-live="assertive"></div>
 
 <script>
-/* ================================================================
-   SUPPLIER WEB PAGE — RFQ Quotation Form (multi-tab, full child-table fields)
-   Data loading priority:
-     1. items[] in URL params  → render immediately (original flow)
-     2. rfq param only         → fetch from Frappe REST API
-     3. Nothing usable         → show error screen
-   ================================================================ */
 
 const RFQ = {
   name: "", company: "", transaction_date: "",
-  schedule_date: "", supplier: "", supplier_email: "", items: []
+  schedule_date: "", supplier: "", supplier_email: "",
+  set_warehouse: "",
+  items: []
 };
 
-/* ================================================================
-   STEP 1 — Field configuration for the Supplier Quotation Item
-   child table, mirrored from the Customize Form JSON. Each section
-   below corresponds 1:1 to a depends_on:"eval:parent.custom_purchase_type
-   === '...'" section in that JSON. "common" fields have no such gate
-   and always show for every item, regardless of purchase type.
-   ================================================================ */
 const ITEM_FIELD_SECTIONS = {
   common: {
     label: "Common",
@@ -813,12 +872,13 @@ function fillInfoStrip() {
 /* ── Parse URL params; returns true if items were found ── */
 function loadFromParams() {
   const p = new URLSearchParams(window.location.search);
-  if (p.get('rfq'))      RFQ.name             = p.get('rfq');
-  if (p.get('company'))  RFQ.company          = p.get('company');
-  if (p.get('date'))     RFQ.transaction_date = p.get('date');
-  if (p.get('due'))      RFQ.schedule_date    = p.get('due');
-  if (p.get('supplier')) RFQ.supplier         = p.get('supplier');
-  if (p.get('email'))    RFQ.supplier_email   = p.get('email');
+  if (p.get('rfq'))           RFQ.name             = p.get('rfq');
+  if (p.get('company'))       RFQ.company          = p.get('company');
+  if (p.get('date'))          RFQ.transaction_date = p.get('date');
+  if (p.get('due'))           RFQ.schedule_date    = p.get('due');
+  if (p.get('supplier'))      RFQ.supplier         = p.get('supplier');
+  if (p.get('email'))         RFQ.supplier_email   = p.get('email');
+  if (p.get('set_warehouse')) RFQ.set_warehouse    = p.get('set_warehouse');
   fillInfoStrip();
 
   const fromParams = [];
@@ -879,10 +939,15 @@ function mapFrappeItem(it, index) {
   };
 }
 
-/* ── Show persistent error screen ── */
+/* ── Show persistent error screen ──
+   FIX: previously left #form-wrap hidden (display:none) if
+   fetchRFQFromAPI() had already hidden it before the fetch attempts,
+   so this message never actually became visible to the supplier. */
 function showError(title, detail) {
   document.getElementById('loading-screen').style.display = 'none';
-  document.getElementById('form-wrap').innerHTML = `
+  const formWrap = document.getElementById('form-wrap');
+  formWrap.style.display = 'block';
+  formWrap.innerHTML = `
     <div class="error-screen">
       <div class="error-screen-icon">&#9888;&#65039;</div>
       <h2>${title}</h2>
@@ -900,6 +965,7 @@ async function fetchRFQFromAPI(rfqName) {
   try {
     const fields = [
       'name','company','transaction_date','schedule_date','supplier','supplier_name',
+      'set_warehouse',
       'custom_purchase_type','custom_rfq_nature',
       'items.item_code','items.item_name','items.item_group','items.qty','items.uom',
       'items.warehouse','items.material_request','items.material_request_item',
@@ -920,6 +986,7 @@ async function fetchRFQFromAPI(rfqName) {
         RFQ.transaction_date = doc.transaction_date || RFQ.transaction_date;
         RFQ.schedule_date    = doc.schedule_date    || RFQ.schedule_date;
         RFQ.supplier         = doc.supplier_name    || doc.supplier || RFQ.supplier;
+        RFQ.set_warehouse    = doc.set_warehouse    || RFQ.set_warehouse;
         RFQ.items            = doc.items.map(mapFrappeItem);
         fillInfoStrip();
         prefillPurchaseDetails(doc);
@@ -947,19 +1014,33 @@ async function fetchRFQFromAPI(rfqName) {
           RFQ.transaction_date = msg.rfq.transaction_date || RFQ.transaction_date;
           RFQ.schedule_date    = msg.rfq.schedule_date    || RFQ.schedule_date;
           RFQ.supplier         = msg.rfq.supplier_name    || RFQ.supplier;
+          RFQ.set_warehouse    = msg.rfq.set_warehouse    || RFQ.set_warehouse;
         }
         RFQ.items = msg.items.map(mapFrappeItem);
         fillInfoStrip();
         prefillPurchaseDetails(msg.rfq || {});
         showApiNotice();
         return true;
+      } else {
+        /* Server responded successfully but with no items — surface the
+           real reason instead of a generic message where possible. */
+        showError(
+          'Could not load RFQ items',
+          'The server returned no items for ' + rfqName +
+          '. This usually means the supplier name in the link doesn\'t match a row on this RFQ\'s Supplier table, or the RFQ has no items. Please contact NMTG procurement.'
+        );
+        return false;
       }
     }
 
-    showError(
-      'Could not load RFQ items',
-      'The server returned no items for ' + rfqName + '. Please contact NMTG procurement.'
-    );
+    /* res2 was not ok (non-2xx) — try to read the body for a real error message */
+    let detail = 'The authenticated endpoint returned status ' + res2.status + '.';
+    try {
+      const errBody = await res2.json();
+      detail = extractFrappeErrorMessage(errBody);
+    } catch (_) { /* body wasn't JSON, keep generic detail */ }
+
+    showError('Could not load RFQ items', detail);
     return false;
 
   } catch (err) {
@@ -1030,7 +1111,7 @@ function renderItems() {
       '<td>' +
         '<div class="price-input-wrap">' +
           '<span class="price-pfx">\u20B9</span>' +
-          '<input type="number" id="price-' + idx + '" placeholder="0.00" min="0.01" step="0.01" oninput="calcGrandTotal()" data-idx="' + idx + '" />' +
+          '<input type="number" id="price-' + idx + '" placeholder="0.00" min="0.01" step="0.01" oninput="updateTotals()" data-idx="' + idx + '" />' +
         '</div>' +
         '<div class="err-inline" id="err-price-' + idx + '">Required</div>' +
       '</td>' +
@@ -1064,6 +1145,7 @@ function renderItems() {
   });
 
   initValidityDate();
+  updateTotals();
 }
 
 /* Toggle a single item's detail panel open/closed; render its fields lazily on first open */
@@ -1100,12 +1182,250 @@ function refreshAllItemPanels() {
 
 /* ── Format currency ── */
 function inr(amount) {
-  return '\u20B9' + amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  var sign = amount < 0 ? '-' : '';
+  return sign + '\u20B9' + Math.abs(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-/* ── Grand total calc ── */
-function calcGrandTotal() {
-  var grand = 0, allFilled = true;
+/* ================================================================
+   STEP 5 — Taxes & Charges (mirrors the "Purchase Taxes and Charges"
+   child table: category, add_deduct_tax, charge_type, row_id,
+   account_head, description, rate, tax_amount).
+   ================================================================ */
+var taxRowCounter = 0;
+const TAX_CHARGE_TYPES = ['Actual', 'On Net Total', 'On Previous Row Amount', 'On Previous Row Total', 'On Item Quantity'];
+
+function taxValueLabel(chargeType) {
+  if (chargeType === 'Actual') return 'Amount (\u20B9)';
+  if (chargeType === 'On Item Quantity') return 'Rate per Unit (\u20B9)';
+  return 'Rate (%)';
+}
+
+function addTaxRow() {
+  taxRowCounter++;
+  var idx = taxRowCounter;
+  var container = document.getElementById('taxes-rows-container');
+
+  var wrap = document.createElement('div');
+  wrap.className = 'tax-row-card';
+  wrap.id = 'tax-row-' + idx;
+  wrap.dataset.idx = idx;
+  wrap.innerHTML =
+    '<div class="tax-row-card-header">' +
+      '<strong>Tax Row #' + idx + '</strong>' +
+      '<button type="button" class="details-toggle-btn tax-remove-btn" onclick="removeTaxRow(' + idx + ')">Remove</button>' +
+    '</div>' +
+    '<div class="field-grid">' +
+      '<div class="field">' +
+        '<label>Category</label>' +
+        '<select id="tax-row-category-' + idx + '">' +
+          '<option value="Total" selected>Total</option>' +
+          '<option value="Valuation">Valuation</option>' +
+          '<option value="Valuation and Total">Valuation and Total</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Add / Deduct</label>' +
+        '<select id="tax-add-deduct-' + idx + '" onchange="updateTotals()">' +
+          '<option value="Add" selected>Add</option>' +
+          '<option value="Deduct">Deduct</option>' +
+        '</select>' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Type <span class="req">*</span></label>' +
+        '<select id="tax-charge-type-' + idx + '" onchange="onTaxTypeChange(' + idx + ')">' +
+          TAX_CHARGE_TYPES.map(function(t) {
+            return '<option value="' + t + '"' + (t === 'On Net Total' ? ' selected' : '') + '>' + t + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+      '<div class="field conditional-field" id="wrap-tax-row-id-' + idx + '">' +
+        '<label>Reference Row # <span class="hint">(blank = previous row)</span></label>' +
+        '<input type="number" id="tax-row-id-' + idx + '" min="1" step="1" oninput="updateTotals()" />' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Account Head <span class="req">*</span></label>' +
+        '<input type="text" id="tax-account-' + idx + '" placeholder="e.g. CGST / SGST / IGST / Freight" />' +
+      '</div>' +
+      '<div class="field full">' +
+        '<label>Description <span class="req">*</span></label>' +
+        '<input type="text" id="tax-desc-' + idx + '" placeholder="e.g. CGST @ 9%" />' +
+      '</div>' +
+      '<div class="field">' +
+        '<label id="tax-value-label-' + idx + '">Rate (%)</label>' +
+        '<input type="number" id="tax-value-' + idx + '" step="0.01" placeholder="0.00" oninput="updateTotals()" />' +
+      '</div>' +
+      '<div class="field">' +
+        '<label>Computed Amount</label>' +
+        '<span class="qty-badge tax-amount-badge" id="tax-amount-display-' + idx + '" data-raw="0">\u20B90.00</span>' +
+      '</div>' +
+    '</div>';
+  container.appendChild(wrap);
+
+  document.getElementById('taxes-empty-note').style.display = 'none';
+  updateTotals();
+}
+
+function removeTaxRow(idx) {
+  var el = document.getElementById('tax-row-' + idx);
+  if (el) el.remove();
+  if (document.getElementById('taxes-rows-container').children.length === 0) {
+    document.getElementById('taxes-empty-note').style.display = 'block';
+  }
+  updateTotals();
+}
+
+function onTaxTypeChange(idx) {
+  var type = document.getElementById('tax-charge-type-' + idx).value;
+  var refWrap = document.getElementById('wrap-tax-row-id-' + idx);
+  var valueLabel = document.getElementById('tax-value-label-' + idx);
+  var showRef = (type === 'On Previous Row Amount' || type === 'On Previous Row Total');
+  if (refWrap) refWrap.classList.toggle('show', showRef);
+  if (valueLabel) valueLabel.textContent = taxValueLabel(type);
+  updateTotals();
+}
+
+/* Computes each tax row's amount in document order, mirroring ERPNext's
+   Purchase Taxes and Charges engine (cumulative running total, with
+   optional Reference Row # for the "Previous Row" charge types). */
+function calcTaxTable(netTotal, totalQty) {
+  var rows = Array.from(document.querySelectorAll('.tax-row-card'));
+  var runningTotal = netTotal;
+  var totalTaxSigned = 0;
+  var computed = [];
+
+  rows.forEach(function(rowEl, i) {
+    var idx = rowEl.dataset.idx;
+    var chargeType = document.getElementById('tax-charge-type-' + idx).value;
+    var addDeduct  = document.getElementById('tax-add-deduct-' + idx).value || 'Add';
+    var value      = parseFloat(document.getElementById('tax-value-' + idx).value) || 0;
+    var rowIdField = document.getElementById('tax-row-id-' + idx);
+    var refRow     = rowIdField && rowIdField.value ? parseInt(rowIdField.value, 10) : null;
+
+    var taxAmount = 0;
+    if (chargeType === 'Actual') {
+      taxAmount = value;
+    } else if (chargeType === 'On Net Total') {
+      taxAmount = netTotal * value / 100;
+    } else if (chargeType === 'On Item Quantity') {
+      taxAmount = totalQty * value;
+    } else if (chargeType === 'On Previous Row Amount') {
+      var refIdxA = (refRow && computed[refRow - 1]) ? refRow - 1 : i - 1;
+      var refAmount = computed[refIdxA] ? computed[refIdxA].taxAmount : 0;
+      taxAmount = refAmount * value / 100;
+    } else if (chargeType === 'On Previous Row Total') {
+      var refIdxT = (refRow && computed[refRow - 1]) ? refRow - 1 : i - 1;
+      var refTotal = computed[refIdxT] ? computed[refIdxT].runningTotalAfter : netTotal;
+      taxAmount = refTotal * value / 100;
+    }
+
+    var signedAmount = addDeduct === 'Deduct' ? -taxAmount : taxAmount;
+    runningTotal += signedAmount;
+    totalTaxSigned += signedAmount;
+    computed.push({ idx: idx, taxAmount: taxAmount, signedAmount: signedAmount, runningTotalAfter: runningTotal });
+
+    var dispEl = document.getElementById('tax-amount-display-' + idx);
+    if (dispEl) {
+      dispEl.textContent = inr(taxAmount) + (addDeduct === 'Deduct' ? ' (deducted)' : '');
+      dispEl.dataset.raw = taxAmount.toFixed(2);
+    }
+  });
+
+  return { totalTaxSigned: totalTaxSigned, grandTotal: netTotal + totalTaxSigned, computed: computed };
+}
+
+/* Collects tax rows into the Purchase Taxes and Charges shape for submission */
+function collectTaxRows() {
+  var rows = Array.from(document.querySelectorAll('.tax-row-card'));
+  return rows.map(function(rowEl, i) {
+    var idx = rowEl.dataset.idx;
+    var chargeType = document.getElementById('tax-charge-type-' + idx).value;
+    var rowIdField = document.getElementById('tax-row-id-' + idx);
+    var valueInput = parseFloat(document.getElementById('tax-value-' + idx).value) || 0;
+    var dispEl = document.getElementById('tax-amount-display-' + idx);
+    var computedAmount = dispEl ? parseFloat(dispEl.dataset.raw || '0') : 0;
+
+    return {
+      idx: i + 1,
+      category:        document.getElementById('tax-row-category-' + idx).value || 'Total',
+      add_deduct_tax:  document.getElementById('tax-add-deduct-' + idx).value || 'Add',
+      charge_type:     chargeType,
+      row_id:          rowIdField && rowIdField.value ? rowIdField.value : '',
+      account_head:    document.getElementById('tax-account-' + idx).value || '',
+      description:     document.getElementById('tax-desc-' + idx).value || '',
+      rate:            chargeType === 'Actual' ? 0 : valueInput,
+      tax_amount:      chargeType === 'Actual' ? valueInput : computedAmount
+    };
+  });
+}
+
+/* ================================================================
+   STEP 5b — Taxes and Charges Template autocomplete + auto-fill.
+   Populates a <datalist> of available templates, and when the
+   supplier picks one (exact match), fetches its tax_category and
+   tax rows and rebuilds the Tax Row cards from them.
+   ================================================================ */
+var TAXES_TEMPLATES = [];
+
+async function loadTaxesTemplates() {
+  try {
+    var qs = RFQ.company ? ('?company=' + encodeURIComponent(RFQ.company)) : '';
+    var res = await fetch('/api/method/nmtg.override.api.get_purchase_taxes_templates' + qs, { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      var data = await res.json();
+      TAXES_TEMPLATES = data.message || [];
+      document.getElementById('taxes-template-list').innerHTML = TAXES_TEMPLATES.map(function(t) {
+        return '<option value="' + t.name + '">' + t.name + (t.tax_category ? ' — ' + t.tax_category : '') + '</option>';
+      }).join('');
+    }
+  } catch (_) { /* field still works as free text if this fails */ }
+}
+
+async function onTaxesTemplateChange() {
+  var val = document.getElementById('taxes-and-charges-template').value.trim();
+  var match = TAXES_TEMPLATES.find(function(t) { return t.name === val; });
+  if (!match) return; /* not an exact selection from the list yet */
+
+  showToast('Loading tax template…', 'loading');
+  try {
+    var res = await fetch('/api/method/nmtg.override.api.get_taxes_template_details?template=' + encodeURIComponent(val), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) { showToast('Could not load tax template.', 'error'); return; }
+    var data = await res.json();
+    var msg = data.message;
+    if (!msg) { showToast('Tax template returned no data.', 'error'); return; }
+
+    /* Rebuild the tax row cards from the template's rows */
+    document.getElementById('taxes-rows-container').innerHTML = '';
+    taxRowCounter = 0;
+    (msg.taxes || []).forEach(function(row) {
+      addTaxRow();
+      var idx = taxRowCounter;
+      document.getElementById('tax-row-category-' + idx).value = row.category || 'Total';
+      document.getElementById('tax-add-deduct-' + idx).value = row.add_deduct_tax || 'Add';
+      document.getElementById('tax-charge-type-' + idx).value = row.charge_type || 'On Net Total';
+      document.getElementById('tax-account-' + idx).value = row.account_head || '';
+      document.getElementById('tax-desc-' + idx).value = row.description || '';
+      document.getElementById('tax-value-' + idx).value = row.rate || 0;
+      onTaxTypeChange(idx);
+    });
+    if (document.querySelectorAll('.tax-row-card').length === 0) {
+      document.getElementById('taxes-empty-note').style.display = 'block';
+    }
+    if (msg.tax_category) document.getElementById('tax-category').value = msg.tax_category;
+
+    showToast('Tax template loaded — review the rows below.', 'success');
+    updateTotals();
+  } catch (err) {
+    showToast('Error loading tax template: ' + err.message, 'error', 8000);
+  }
+}
+
+/* ================================================================
+   STEP 6 — Master totals: item line totals → items subtotal →
+   tax rows → grand total. Called on every relevant input change.
+   ================================================================ */
+function updateTotals() {
+  var subtotal = 0, allFilled = true, totalQty = 0;
+
   RFQ.items.forEach(function(item, idx) {
     var price = parseFloat(document.getElementById('price-' + idx).value) || 0;
     var line  = price * item.qty;
@@ -1113,22 +1433,25 @@ function calcGrandTotal() {
     if (price > 0) {
       ltEl.textContent = inr(line);
       ltEl.classList.remove('muted');
-      grand += line;
+      subtotal += line;
     } else {
       ltEl.textContent = '—';
       ltEl.classList.add('muted');
       allFilled = false;
     }
+    totalQty += item.qty;
   });
-  var gtEl = document.getElementById('grand-total');
-  var gbEl = document.getElementById('grand-breakdown');
-  if (grand > 0) {
-    gtEl.textContent = inr(grand);
-    gbEl.textContent = allFilled ? 'Total for ' + RFQ.items.length + ' items' : 'Partial total (fill all prices)';
-  } else {
-    gtEl.textContent = '—';
-    gbEl.textContent = 'Enter prices above to calculate';
-  }
+
+  document.getElementById('items-subtotal').textContent = subtotal > 0 ? inr(subtotal) : '—';
+  document.getElementById('items-subtotal-note').textContent = subtotal > 0
+    ? (allFilled ? 'Subtotal for ' + RFQ.items.length + ' items' : 'Partial subtotal (fill all prices)')
+    : 'Enter prices above to calculate';
+
+  var taxResult = calcTaxTable(subtotal, totalQty);
+
+  document.getElementById('summary-subtotal').textContent = subtotal > 0 ? inr(subtotal) : '—';
+  document.getElementById('summary-tax').textContent = (subtotal > 0 || taxResult.totalTaxSigned !== 0) ? inr(taxResult.totalTaxSigned) : '—';
+  document.getElementById('grand-total').textContent = subtotal > 0 ? inr(taxResult.grandTotal) : '—';
 }
 
 /* ── Conditional field visibility (header-level fields) ── */
@@ -1151,7 +1474,7 @@ function toggleConditionalFields() {
 }
 
 /* ================================================================
-   STEP 5 — Page-level tab switching
+   STEP 7 — Page-level tab switching
    ================================================================ */
 function switchPageTab(tabName) {
   document.querySelectorAll('.page-tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.pageTab === tabName); });
@@ -1206,6 +1529,24 @@ function validate() {
     errPriceValidity.classList.remove('show');
   }
 
+  document.querySelectorAll('.tax-row-card').forEach(function(rowEl) {
+    var idx = rowEl.dataset.idx;
+    var accEl  = document.getElementById('tax-account-' + idx);
+    var descEl = document.getElementById('tax-desc-' + idx);
+    if (!accEl.value.trim()) {
+      accEl.classList.add('invalid');
+      valid = false; firstInvalidTab = firstInvalidTab || 'taxes';
+    } else {
+      accEl.classList.remove('invalid');
+    }
+    if (!descEl.value.trim()) {
+      descEl.classList.add('invalid');
+      valid = false; firstInvalidTab = firstInvalidTab || 'taxes';
+    } else {
+      descEl.classList.remove('invalid');
+    }
+  });
+
   var validTill = document.getElementById('valid-till');
   var errValid  = document.getElementById('err-valid');
   if (!validTill.value) {
@@ -1226,6 +1567,26 @@ function validate() {
   } else {
     authorizedNameEl.classList.remove('invalid');
     errAuthorizedName.classList.remove('show');
+  }
+
+  /* Mandatory declarations: all three checkboxes must be checked */
+  var declarationIds = ['general-terms-acceptance', 'no-hidden-charges-declaration', 'quotation-correctness-declaration'];
+  var errDeclarations = document.getElementById('err-declarations');
+  var declarationsOk = true;
+  declarationIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el.checked) {
+      el.classList.add('invalid');
+      declarationsOk = false;
+    } else {
+      el.classList.remove('invalid');
+    }
+  });
+  if (!declarationsOk) {
+    errDeclarations.classList.add('show');
+    valid = false; firstInvalidTab = firstInvalidTab || 'contact';
+  } else {
+    errDeclarations.classList.remove('show');
   }
 
   if (!valid && firstInvalidTab) switchPageTab(firstInvalidTab);
@@ -1263,7 +1624,7 @@ async function getFrappeCSRF() {
 }
 
 /* ================================================================
-   STEP 6 — Collect an item's custom fields (Common + active type
+   STEP 8 — Collect an item's custom fields (Common + active type
    section) for the submit payload.
    ================================================================ */
 function collectItemCustomFields(idx) {
@@ -1285,6 +1646,33 @@ function collectItemCustomFields(idx) {
   return out;
 }
 
+/* ── Extract a readable message from a Frappe error response ──
+   Frappe error JSON typically looks like:
+     { exc_type: "MandatoryError", exception: "...", _server_messages: "[...]" }
+   `_server_messages` is a JSON string containing a JSON-encoded array of
+   (sometimes further JSON-encoded) message objects — hence the nested parses. */
+function extractFrappeErrorMessage(data) {
+  if (!data) return 'Submission failed.';
+
+  if (data._server_messages) {
+    try {
+      var messages = JSON.parse(data._server_messages);
+      var parsedMsgs = messages.map(function(m) {
+        try {
+          var obj = JSON.parse(m);
+          return obj.message || m;
+        } catch (_) { return m; }
+      });
+      if (parsedMsgs.length) return parsedMsgs.join(' | ');
+    } catch (_) { /* fall through */ }
+  }
+
+  if (data.exception) return data.exception;
+  if (data.message && typeof data.message === 'string') return data.message;
+  if (data.exc_type) return data.exc_type;
+  return 'Submission failed.';
+}
+
 /* ── Submit ── */
 async function submitQuotation() {
   if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
@@ -1297,7 +1685,10 @@ async function submitQuotation() {
       item_code:             item.item_code,
       qty:                   item.qty,
       uom:                   item.uom,
-      warehouse:             item.warehouse,
+      /* Fall back to the RFQ's header-level "Set Warehouse" whenever the
+         individual item row has none of its own — many RFQs only set
+         warehouse at the header, and Supplier Quotation Item requires it. */
+      warehouse:             item.warehouse || RFQ.set_warehouse || '',
       rate:                  parseFloat(document.getElementById('price-' + idx).value),
       lead_time_days:        parseInt(document.getElementById('lead-' + idx).value),
       material_request:      item.material_request      || '',
@@ -1315,6 +1706,10 @@ async function submitQuotation() {
     items:                  itemRows,
     terms:                  document.getElementById('notes').value || '',
     payment_terms_template: document.getElementById('payment-terms').value || '',
+
+    tax_category:           document.getElementById('tax-category').value || '',
+    taxes_and_charges:      document.getElementById('taxes-and-charges-template').value || '',
+    taxes:                  collectTaxRows(),
 
     custom_purchase_type:                         document.getElementById('purchase-type').value || '',
     custom_other_purchase_type:                   document.getElementById('other-purchase-type').value || '',
@@ -1355,7 +1750,8 @@ async function submitQuotation() {
       document.getElementById('success-screen').classList.add('show');
       document.getElementById('success-doc-id').textContent = data.message.name;
     } else {
-      throw new Error(data.exc_type || data.message || 'Submission failed.');
+      console.error('Supplier Quotation submission failed. Full server response:', data);
+      throw new Error(extractFrappeErrorMessage(data));
     }
   } catch (err) {
     showToast('Error: ' + err.message, 'error', 8000);
@@ -1363,13 +1759,14 @@ async function submitQuotation() {
   }
 }
 
-/* ── Wire up conditional-field + purchase-type listeners ── */
+/* ── Wire up conditional-field + purchase-type + taxes-template listeners ── */
 function initConditionalFieldListeners() {
   document.getElementById('purchase-type').addEventListener('change', function() {
     toggleConditionalFields();
     refreshAllItemPanels(); /* item detail tabs depend on this value */
   });
   document.getElementById('payment-terms-type').addEventListener('change', toggleConditionalFields);
+  document.getElementById('taxes-and-charges-template').addEventListener('change', onTaxesTemplateChange);
   toggleConditionalFields();
 }
 
@@ -1381,12 +1778,14 @@ function initConditionalFieldListeners() {
 
   if (hasItems) {
     renderItems();
+    loadTaxesTemplates();
     return;
   }
 
   if (RFQ.name) {
     var fetched = await fetchRFQFromAPI(RFQ.name);
     if (fetched) renderItems();
+    loadTaxesTemplates();
     return;
   }
 
@@ -1395,6 +1794,7 @@ function initConditionalFieldListeners() {
     'No RFQ identifier found in the URL. Please use the link from your email.'
   );
 })();
+
 </script>
 </body>
 </html>

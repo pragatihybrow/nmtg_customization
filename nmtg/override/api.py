@@ -7,65 +7,121 @@ import re
 REMARKS_KEY = "__remarks__"
 
 
+STANDARD_ITEM_FIELDS = {
+    "item_code", "qty", "uom", "warehouse", "rate", "lead_time_days",
+    "material_request", "material_request_item"
+}
+
+HEADER_CUSTOM_FIELDS = [
+    "custom_purchase_type",
+    "custom_other_purchase_type",
+    "custom_rfq_nature",
+    "custom_price_validity",
+    "custom_warranty__guarantee",
+    "custom_payment_terms",
+    "custom_credit_days",
+    "custom_advance_required",
+    "custom_advance_required_amount",
+    "custom_payment_milestone",
+    "custom_retention__security_deposit_",
+    "custom_retention__security_deposit_amount",
+    "custom_supplier_contact_person",
+    "custom_certificate_commitment"
+    "custom_supplier_email",
+    "custom_supplier_mobile",
+    "custom_general_terms_acceptance",
+    "custom_no_hidden_charges_declaration",
+    "custom_quotation_correctness_declaration",
+    "custom_authorized_person_name",
+    "custom_designation",
+    "custom__contact_number",
+]
+
+
 @frappe.whitelist(allow_guest=True)
 def submit_supplier_quotation(data):
-    import json
-
-    # Parse if string
     if isinstance(data, str):
         data = json.loads(data)
 
-    # Basic validation
     required = ['supplier', 'company', 'valid_till', 'rfq', 'items']
     for field in required:
         if not data.get(field):
             frappe.throw(f"Missing required field: {field}")
 
-    # Verify RFQ exists and supplier is on it
     rfq = frappe.get_doc("Request for Quotation", data['rfq'])
     supplier_names = [s.supplier for s in rfq.suppliers]
     if data['supplier'] not in supplier_names:
         frappe.throw("Supplier not authorized for this RFQ")
 
-    # Check if quotation already submitted by this supplier
     existing = frappe.db.exists("Supplier Quotation", {
         "supplier": data['supplier'],
         "rfq": data['rfq']
     })
     if existing:
-        frappe.throw(f"A quotation from {data['supplier']} for {data['rfq']} already exists: {existing}")
+        frappe.throw(
+            f"A quotation from {data['supplier']} for {data['rfq']} already exists: {existing}"
+        )
 
     doc = frappe.new_doc("Supplier Quotation")
-    doc.supplier         = data['supplier']
-    doc.company          = data['company']
+    doc.supplier = data['supplier']
+    doc.company = data['company']
     doc.transaction_date = frappe.utils.today()
-    doc.valid_till       = data['valid_till']
-    doc.rfq              = data['rfq']
+    doc.custom_submission_date_and_time = frappe.utils.now_datetime()
+    doc.valid_till = data['valid_till']
+    doc.rfq = data['rfq']
 
     if data.get('terms'):
         doc.terms = data['terms']
     if data.get('payment_terms_template'):
         doc.payment_terms_template = data['payment_terms_template']
 
+    # ---- tax category / template ----
+    if data.get('tax_category'):
+        doc.tax_category = data['tax_category']
+    if data.get('taxes_and_charges'):
+        doc.taxes_and_charges = data['taxes_and_charges']
+
+    # ---- header-level custom fields ----
+    for fieldname in HEADER_CUSTOM_FIELDS:
+        if fieldname in data:
+            doc.set(fieldname, data[fieldname])
+
+    # ---- items, including per-purchase-type custom fields ----
     for item in data['items']:
-        doc.append("items", {
-            "item_code":              item['item_code'],
-            "qty":                    item['qty'],
-            "uom":                    item.get('uom', 'Nos'),
-            "stock_uom":              item.get('uom', 'Nos'),
-            "warehouse":              item.get('warehouse', ''),
-            "rate":                   item['rate'],
-            "lead_time_days":         item.get('lead_time_days', 0),
-            "material_request":       item.get('material_request', ''),
-            "material_request_item":  item.get('material_request_item', ''),
-            "request_for_quotation":  data['rfq']
+        row = {
+            "item_code": item['item_code'],
+            "qty": item['qty'],
+            "uom": item.get('uom', 'Nos'),
+            "stock_uom": item.get('uom', 'Nos'),
+            "warehouse": item.get('warehouse') or rfq.set_warehouse or '',
+            "rate": item['rate'],
+            "lead_time_days": item.get('lead_time_days', 0),
+            "material_request": item.get('material_request', ''),
+            "material_request_item": item.get('material_request_item', ''),
+            "request_for_quotation": data['rfq'],
+        }
+        for key, value in item.items():
+            if key not in STANDARD_ITEM_FIELDS:
+                row[key] = value
+
+        doc.append("items", row)
+
+    # ---- taxes and charges table ----
+    for tax in data.get('taxes', []):
+        doc.append("taxes", {
+            "category": tax.get('category', 'Total'),
+            "add_deduct_tax": tax.get('add_deduct_tax', 'Add'),
+            "charge_type": tax.get('charge_type', 'On Net Total'),
+            "row_id": tax.get('row_id', ''),
+            "account_head": tax.get('account_head', ''),
+            "description": tax.get('description', ''),
+            "rate": tax.get('rate', 0),
+            "tax_amount": tax.get('tax_amount', 0),
         })
 
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
-
     return {"name": doc.name, "status": "created"}
-
 
 
 @frappe.whitelist(allow_guest=True)
@@ -77,12 +133,19 @@ def get_rfq_for_supplier(rfq, supplier):
             "company": doc.company,
             "transaction_date": str(doc.transaction_date),
             "schedule_date": str(doc.schedule_date),
-            "supplier_name": supplier
+            "supplier_name": supplier,
+            # "set_warehouse": doc.set_warehouse,
+            "custom_purchase_type": getattr(doc, "custom_purchase_type", ""),
+            "custom_rfq_nature": getattr(doc, "custom_rfq_nature", ""),
         },
         "items": [{
-            "idx": it.idx, "item_code": it.item_code,
-            "item_name": it.item_name, "item_group": it.item_group,
-            "qty": it.qty, "uom": it.uom, "warehouse": it.warehouse,
+            "idx": it.idx,
+            "item_code": it.item_code,
+            "item_name": it.item_name,
+            "item_group": it.item_group,
+            "qty": it.qty,
+            "uom": it.uom,
+            "warehouse": it.warehouse,
             "material_request": it.material_request,
             "material_request_item": it.material_request_item,
             "custom_tds_attachment": it.custom_tds_attachment,
@@ -90,6 +153,43 @@ def get_rfq_for_supplier(rfq, supplier):
         } for it in doc.items]
     }
 
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_purchase_taxes_templates(company=None):
+    """Lightweight list for the guest-page autocomplete."""
+    filters = {}
+    if company:
+        filters["company"] = company
+    return frappe.get_all(
+        "Purchase Taxes and Charges Template",
+        filters=filters,
+        fields=["name", "tax_category", "is_default"],
+        order_by="is_default desc, name asc",
+        limit_page_length=0,
+    )
+
+
+@frappe.whitelist(allow_guest=True)
+def get_taxes_template_details(template):
+    """Returns the template's tax_category + its taxes rows, for populating the guest form."""
+    doc = frappe.get_doc("Purchase Taxes and Charges Template", template)
+    return {
+        "tax_category": doc.tax_category,
+        "taxes": [
+            {
+                "category": t.category,
+                "add_deduct_tax": t.add_deduct_tax,
+                "charge_type": t.charge_type,
+                "account_head": t.account_head,
+                "description": t.description,
+                "rate": t.rate,
+            }
+            for t in doc.taxes
+        ],
+    }
+    
 
 @frappe.whitelist()
 def create_heat_number(po, row_name):
@@ -301,17 +401,6 @@ def get_or_create_qc_series(qi_names):
     return next_val
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Quality Inspection row + parent status hooks
-# Registered under "validate" in hooks.py, in this exact order:
-#   1. compute_row_status      — recompute each reading row's status
-#   2. update_parent_status    — roll row statuses up into the parent
-#   3. validate_heat_range_vs_sample_size
-# "validate" (not before_save) ensures this runs identically on both
-# Save and Submit, after core's own doctype validate() has already run,
-# so our status always has the final word.
-# ─────────────────────────────────────────────────────────────────────────────
-
 def compute_row_status(doc, method=None):
 	for row in doc.get("readings", []):
 		if not row.custom_reading_details:
@@ -331,8 +420,6 @@ def _compute_row_status(row):
 	rejected = 0
 
 	for key, value in details.items():
-		# FIX: skip the reserved remarks blob — it is a dict, not a reading
-		# value, and must never be counted toward accepted/rejected totals.
 		if key == REMARKS_KEY:
 			continue
 
