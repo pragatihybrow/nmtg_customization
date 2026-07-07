@@ -8,47 +8,137 @@
  "field_order": [
   "section_break_5dbf",
   "supplier_type",
+  "request_type",
   "amended_from",
   "column_break_gzpc",
   "external_provider_name",
   "organization_information_section",
   "types_of_business",
   "other",
+  "ownership",
+  "plant_ownership",
+  "parent_company",
+  "ultimate_holding_company",
   "no_of_technical_employees",
-  "international_organization_for_standards",
-  "if_yes_which_standards",
   "details_of_associatessister_concerns",
   "column_break_ytqs",
   "types_of_organization",
   "no_of_non_technical_employees",
-  "if_others_pl_specify",
-  "certifying_body",
-  "date_of_registration",
-  "scope_of_registration",
-  "date_of_expiry",
   "name_materials",
   "attach",
+  "work_force_unionized",
+  "union_name",
+  "contract_expiry_date",
+  "professional_body_association",
   "section_break_talp",
   "department_info",
   "competency_years_of_experience",
-  "legal_information_tab",
-  "shop_establishment_reg_no",
-  "arn_no",
-  "gst_no",
-  "pan_no",
-  "msme_no",
+  "section_break_tlve",
+  "major_customers",
+  "major_suppliers",
   "address_contact_tab",
   "telephone",
   "email_id",
   "office_address",
   "detail_office_address",
+  "city",
+  "postal__zip_code",
+  "manufacturing_country",
+  "company_registration_number",
+  "duns_number",
   "column_break_qzqj",
   "fax_no",
   "website",
   "factory_address",
   "detail_factory_address",
+  "state__province",
+  "country",
+  "year_established",
+  "business_registration_authority",
   "section_break_lpbe",
-  "contact_details"
+  "contact_details",
+  "certification_compliance_tab",
+  "test",
+  "certified_by_iso__international_standards",
+  "iatf_16949",
+  "iso_9001",
+  "attach_certificate",
+  "certifying_body",
+  "scope_of_registration",
+  "rohs__reach__conflict_minerals",
+  "business_continuity_plan",
+  "column_break_nwco",
+  "iso_14001",
+  "iso_45001",
+  "other_standard",
+  "other_standards",
+  "date_of_registration",
+  "date_of_expiry",
+  "esg__sustainability__ghg_reporting",
+  "financial_information_section",
+  "banker_name_and_address",
+  "profitability",
+  "net_worth",
+  "credit_rating",
+  "total_investment_in_plant_machinery",
+  "bank_guarantee_willingness",
+  "column_break_npld",
+  "annual_turnover_last_fy",
+  "turnover_year_1",
+  "turnover_year_2",
+  "turnover_year_3",
+  "working_capital",
+  "insurance_coverage",
+  "attach_policy",
+  "bank_guarantee_value",
+  "legal_information_tab",
+  "gst_no",
+  "pan_no",
+  "msme_no",
+  "central_excise_registration_no",
+  "central_excise_registration_date",
+  "column_break_rlaw",
+  "vat__tin_no",
+  "area_code",
+  "cst_no",
+  "cst_date",
+  "section_break_zczr",
+  "domestic_supplier_document_checklist",
+  "import_details_tab",
+  "taxpayer_identification_no__vat_id__ein",
+  "import_export_code__export_license_no",
+  "main_export_countries",
+  "nearest_seaport",
+  "nearest_airport",
+  "transportation_mode",
+  "export_experience",
+  "packaging_capability",
+  "_manufacturing__service_capability_tab",
+  "top_product",
+  "capability",
+  "dealer__distributor__trader_details_tab",
+  "brand__principal_products_handled",
+  "dealership_certificate_available",
+  "attach_dealership_certificate",
+  "principal_brochures__product_catalogue",
+  "internal_use_by_purchase__quality__management_tab",
+  "supplier_risk_assessment_matrix",
+  "rating_image",
+  "common_mandatory_documents_for_risk_approval",
+  "section_break_xsda",
+  "overall_risk_score",
+  "risk_level",
+  "supplier_classification",
+  "initial_audit_required",
+  "prepared_by__date",
+  "purchase_review__date",
+  "column_break_gztc",
+  "ppap_level",
+  "trial_order_required",
+  "final_decision",
+  "approval_valid_until",
+  "quality_review__date",
+  "management_approval__date"
  ],
  "fields": [
   {
@@ -78,17 +168,7 @@
   {
    "fieldname": "legal_information_tab",
    "fieldtype": "Tab Break",
-   "label": "Legal Information"
-  },
-  {
-   "fieldname": "shop_establishment_reg_no",
-   "fieldtype": "Data",
-   "label": "Shop & Establishment Reg. No"
-  },
-  {
-   "fieldname": "arn_no",
-   "fieldtype": "Data",
-   "label": "ARN. No"
+   "label": "Domestic Supplier Statutory Details"
   },
   {
    "fieldname": "gst_no",
@@ -103,7 +183,7 @@
   {
    "fieldname": "msme_no",
    "fieldtype": "Data",
-   "label": "MSME No"
+   "label": "MSME Registration No."
   },
   {
    "fieldname": "supplier_type",
@@ -207,58 +287,34 @@
    "options": "Department Info CT"
   },
   {
-   "fieldname": "no_of_technical_employees",
-   "fieldtype": "Int",
-   "label": "No Of Technical Employees"
-  },
-  {
+   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
    "fieldname": "no_of_non_technical_employees",
    "fieldtype": "Int",
    "label": "No Of Non-Technical Employees"
   },
   {
-   "fieldname": "international_organization_for_standards",
-   "fieldtype": "Select",
-   "label": "Are you certified by the International Organization for Standards? ",
-   "options": "\nYes\nNo"
-  },
-  {
-   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
-   "fieldname": "if_yes_which_standards",
-   "fieldtype": "Table",
-   "label": " If yes, which standard(s)? ",
-   "options": "International Organization Standards CT"
-  },
-  {
-   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
-   "fieldname": "if_others_pl_specify",
-   "fieldtype": "Data",
-   "label": "If Others, pl Specify   ",
-   "options": "International Organization Standards CT"
-  },
-  {
-   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
    "fieldname": "certifying_body",
    "fieldtype": "Data",
    "label": " Certifying Body               ",
    "options": "International Organization Standards CT"
   },
   {
-   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
    "fieldname": "date_of_registration",
    "fieldtype": "Date",
    "label": "Date of Registration  ",
    "options": "International Organization Standards CT"
   },
   {
-   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
    "fieldname": "scope_of_registration",
    "fieldtype": "Data",
    "label": "Scope of Registration",
    "options": "International Organization Standards CT"
   },
   {
-   "depends_on": "eval:doc.international_organization_for_standards ===\"Yes\"",
+   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
    "fieldname": "date_of_expiry",
    "fieldtype": "Date",
    "label": "Date of Expiry   ",
@@ -292,13 +348,539 @@
    "fieldname": "attach",
    "fieldtype": "Attach",
    "label": "Attach"
+  },
+  {
+   "fieldname": "request_type",
+   "fieldtype": "Select",
+   "label": "Request Type",
+   "options": "\nNew Supplier\nExisting Supplier Update\nRe-Evaluation"
+  },
+  {
+   "fieldname": "city",
+   "fieldtype": "Data",
+   "label": "City"
+  },
+  {
+   "fieldname": "postal__zip_code",
+   "fieldtype": "Data",
+   "label": "Postal / ZIP Code"
+  },
+  {
+   "fieldname": "state__province",
+   "fieldtype": "Data",
+   "label": "State / Province"
+  },
+  {
+   "fieldname": "country",
+   "fieldtype": "Link",
+   "label": "Country",
+   "options": "Country"
+  },
+  {
+   "fieldname": "manufacturing_country",
+   "fieldtype": "Link",
+   "label": "Manufacturing Country",
+   "options": "Country"
+  },
+  {
+   "fieldname": "year_established",
+   "fieldtype": "Data",
+   "label": "Year Established"
+  },
+  {
+   "fieldname": "company_registration_number",
+   "fieldtype": "Data",
+   "label": "Company Registration Number"
+  },
+  {
+   "fieldname": "duns_number",
+   "fieldtype": "Select",
+   "label": "D-U-N-S Number",
+   "options": "\nInternational\nOptional"
+  },
+  {
+   "fieldname": "business_registration_authority",
+   "fieldtype": "Data",
+   "label": "Business Registration Authority"
+  },
+  {
+   "fieldname": "ownership",
+   "fieldtype": "Select",
+   "label": "Ownership",
+   "options": "\nIndian\nForeign\nJoint Venture\nGroup Company"
+  },
+  {
+   "fieldname": "parent_company",
+   "fieldtype": "Data",
+   "label": "Parent Company"
+  },
+  {
+   "fieldname": "ultimate_holding_company",
+   "fieldtype": "Data",
+   "label": "Ultimate Holding Company"
+  },
+  {
+   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
+   "fieldname": "plant_ownership",
+   "fieldtype": "Select",
+   "label": "Plant Ownership",
+   "options": "\nOwned\nLeased\nShared\nNot Applicable"
+  },
+  {
+   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
+   "fieldname": "no_of_technical_employees",
+   "fieldtype": "Int",
+   "label": "No Of Technical Employees"
+  },
+  {
+   "fieldname": "work_force_unionized",
+   "fieldtype": "Select",
+   "label": "Work Force Unionized?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.work_force_unionized === \"Yes\"",
+   "fieldname": "union_name",
+   "fieldtype": "Data",
+   "label": "Union Name"
+  },
+  {
+   "depends_on": "eval:doc.work_force_unionized === \"Yes\"",
+   "fieldname": "contract_expiry_date",
+   "fieldtype": "Data",
+   "label": "Contract Expiry Date"
+  },
+  {
+   "fieldname": "professional_body_association",
+   "fieldtype": "Data",
+   "label": "Professional Body Association"
+  },
+  {
+   "fieldname": "certified_by_iso__international_standards",
+   "fieldtype": "Select",
+   "label": "Certified by ISO / International Standards?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certified_by_iso__international_standards===\"Yes\"",
+   "fieldname": "iatf_16949",
+   "fieldtype": "Check",
+   "label": "IATF 16949"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certified_by_iso__international_standards===\"Yes\"",
+   "fieldname": "iso_9001",
+   "fieldtype": "Check",
+   "label": "ISO 9001"
+  },
+  {
+   "fieldname": "column_break_nwco",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certified_by_iso__international_standards===\"Yes\"",
+   "fieldname": "iso_14001",
+   "fieldtype": "Check",
+   "label": "ISO 14001"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certified_by_iso__international_standards===\"Yes\"",
+   "fieldname": "iso_45001",
+   "fieldtype": "Check",
+   "label": "ISO 45001"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certified_by_iso__international_standards===\"Yes\"",
+   "fieldname": "other_standard",
+   "fieldtype": "Check",
+   "label": "Other Standard"
+  },
+  {
+   "depends_on": "eval:doc.other_standard",
+   "fieldname": "other_standards",
+   "fieldtype": "Data",
+   "label": "Other Standard"
+  },
+  {
+   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
+   "fieldname": "attach_certificate",
+   "fieldtype": "Attach",
+   "label": "Attach Certificate"
+  },
+  {
+   "fieldname": "test",
+   "fieldtype": "Section Break",
+   "label": "Certification & Compliance"
+  },
+  {
+   "fieldname": "certification_compliance_tab",
+   "fieldtype": "Tab Break",
+   "label": "Certification Compliance"
+  },
+  {
+   "fieldname": "rohs__reach__conflict_minerals",
+   "fieldtype": "Select",
+   "label": "RoHS / REACH / Conflict Minerals",
+   "options": "\nApplicable\nNot Applicable\nComplied"
+  },
+  {
+   "fieldname": "business_continuity_plan",
+   "fieldtype": "Select",
+   "label": "Business Continuity Plan",
+   "options": "\nAvailable\nNot Available"
+  },
+  {
+   "fieldname": "esg__sustainability__ghg_reporting",
+   "fieldtype": "Select",
+   "label": "ESG / Sustainability / GHG Reporting",
+   "options": "\nYes\nNo\nNot Applicable"
+  },
+  {
+   "fieldname": "financial_information_section",
+   "fieldtype": "Section Break",
+   "label": "Financial Information"
+  },
+  {
+   "fieldname": "banker_name_and_address",
+   "fieldtype": "Small Text",
+   "label": "Banker Name and Address"
+  },
+  {
+   "fieldname": "annual_turnover_last_fy",
+   "fieldtype": "Data",
+   "label": "Annual Turnover Last FY"
+  },
+  {
+   "fieldname": "turnover_year_1",
+   "fieldtype": "Data",
+   "label": "Turnover Year 1"
+  },
+  {
+   "fieldname": "turnover_year_2",
+   "fieldtype": "Data",
+   "label": "Turnover Year 2"
+  },
+  {
+   "fieldname": "turnover_year_3",
+   "fieldtype": "Data",
+   "label": "Turnover Year 3"
+  },
+  {
+   "fieldname": "profitability",
+   "fieldtype": "Data",
+   "label": "Profitability"
+  },
+  {
+   "fieldname": "net_worth",
+   "fieldtype": "Float",
+   "label": "Net Worth"
+  },
+  {
+   "fieldname": "working_capital",
+   "fieldtype": "Data",
+   "label": "Working Capital"
+  },
+  {
+   "fieldname": "credit_rating",
+   "fieldtype": "Rating",
+   "label": "Credit Rating"
+  },
+  {
+   "fieldname": "insurance_coverage",
+   "fieldtype": "Select",
+   "label": "Insurance Coverage",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.supplier_type ===\"Domestic\"",
+   "fieldname": "total_investment_in_plant_machinery",
+   "fieldtype": "Float",
+   "label": "Total Investment in Plant Machinery"
+  },
+  {
+   "depends_on": "eval:doc.insurance_coverage === \"Yes\"",
+   "fieldname": "attach_policy",
+   "fieldtype": "Attach",
+   "label": "Attach Policy"
+  },
+  {
+   "depends_on": "eval:doc.supplier_type ===\"Domestic\"",
+   "fieldname": "bank_guarantee_willingness",
+   "fieldtype": "Select",
+   "label": "Bank Guarantee Willingness",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.bank_guarantee_willingness === \"Yes\"",
+   "fieldname": "bank_guarantee_value",
+   "fieldtype": "Data",
+   "label": "Bank Guarantee Value"
+  },
+  {
+   "fieldname": "column_break_npld",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "central_excise_registration_no",
+   "fieldtype": "Data",
+   "label": "Central Excise Registration No"
+  },
+  {
+   "fieldname": "central_excise_registration_date",
+   "fieldtype": "Date",
+   "label": "Central Excise Registration Date"
+  },
+  {
+   "fieldname": "area_code",
+   "fieldtype": "Data",
+   "label": "Area Code"
+  },
+  {
+   "fieldname": "vat__tin_no",
+   "fieldtype": "Data",
+   "label": "VAT / TIN No."
+  },
+  {
+   "fieldname": "cst_no",
+   "fieldtype": "Data",
+   "label": "CST No"
+  },
+  {
+   "fieldname": "cst_date",
+   "fieldtype": "Date",
+   "label": "CST Date"
+  },
+  {
+   "fieldname": "column_break_rlaw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.supplier_type ===\"Domestic\"",
+   "fieldname": "section_break_zczr",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "domestic_supplier_document_checklist",
+   "fieldtype": "Table",
+   "label": "Domestic Supplier Document Checklist",
+   "options": "Domestic Supplier Document Checklist CT"
+  },
+  {
+   "depends_on": "eval:doc.supplier_type ===\"International\"",
+   "fieldname": "import_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Import Details"
+  },
+  {
+   "fieldname": "taxpayer_identification_no__vat_id__ein",
+   "fieldtype": "Data",
+   "label": "Taxpayer Identification No. / VAT ID / EIN",
+   "mandatory_depends_on": "eval:doc.supplier_type ===\"International\""
+  },
+  {
+   "fieldname": "import_export_code__export_license_no",
+   "fieldtype": "Data",
+   "label": "Import Export Code / Export License No."
+  },
+  {
+   "fieldname": "main_export_countries",
+   "fieldtype": "Link",
+   "label": "Main Export Countries",
+   "options": "Country"
+  },
+  {
+   "fieldname": "nearest_seaport",
+   "fieldtype": "Data",
+   "label": "Nearest Seaport"
+  },
+  {
+   "fieldname": "nearest_airport",
+   "fieldtype": "Data",
+   "label": "Nearest Airport"
+  },
+  {
+   "fieldname": "transportation_mode",
+   "fieldtype": "Select",
+   "label": "Transportation Mode",
+   "options": "\nSea\nAir\nRoad\nCourier\nOther"
+  },
+  {
+   "fieldname": "packaging_capability",
+   "fieldtype": "Small Text",
+   "label": "Packaging Capability"
+  },
+  {
+   "fieldname": "export_experience",
+   "fieldtype": "Select",
+   "label": "Export Experience",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "_manufacturing__service_capability_tab",
+   "fieldtype": "Tab Break",
+   "label": ". Manufacturing / Service Capability"
+  },
+  {
+   "fieldname": "top_product",
+   "fieldtype": "Table",
+   "label": "Top Product",
+   "options": "Top Product CT"
+  },
+  {
+   "fieldname": "capability",
+   "fieldtype": "Table",
+   "label": "Capability",
+   "options": "Manufacturing Service Capability CT"
+  },
+  {
+   "depends_on": "eval:doc.types_of_business==\"Trader\" || doc.types_of_business==\"Dealer/Distributor\"",
+   "fieldname": "dealer__distributor__trader_details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Dealer / Distributor / Trader Details"
+  },
+  {
+   "fieldname": "brand__principal_products_handled",
+   "fieldtype": "Data",
+   "label": "Brand / Principal Products Handled"
+  },
+  {
+   "fieldname": "dealership_certificate_available",
+   "fieldtype": "Select",
+   "label": "Dealership Certificate Available?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.dealership_certificate_available===\"Yes\"",
+   "fieldname": "attach_dealership_certificate",
+   "fieldtype": "Attach",
+   "label": "Attach Dealership Certificate"
+  },
+  {
+   "fieldname": "principal_brochures__product_catalogue",
+   "fieldtype": "Attach",
+   "label": "Principal Brochures / Product Catalogue"
+  },
+  {
+   "fieldname": "section_break_tlve",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "major_customers",
+   "fieldtype": "Table",
+   "label": "Major Customers",
+   "options": "Major Customers"
+  },
+  {
+   "fieldname": "major_suppliers",
+   "fieldtype": "Table",
+   "label": "Major Suppliers",
+   "options": "Major Suppliers CT"
+  },
+  {
+   "fieldname": "rating_image",
+   "fieldtype": "HTML",
+   "label": "Rating"
+  },
+  {
+   "fieldname": "internal_use_by_purchase__quality__management_tab",
+   "fieldtype": "Tab Break",
+   "label": "Internal use by Purchase / Quality / Management"
+  },
+  {
+   "fieldname": "supplier_risk_assessment_matrix",
+   "fieldtype": "Table",
+   "label": "Supplier Risk Assessment Matrix",
+   "options": "Supplier Risk Assessment Matrix CT"
+  },
+  {
+   "fieldname": "common_mandatory_documents_for_risk_approval",
+   "fieldtype": "Table",
+   "label": "Common Mandatory Documents for Risk Approval",
+   "options": "Documents for Risk Approval CT"
+  },
+  {
+   "fieldname": "section_break_xsda",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "overall_risk_score",
+   "fieldtype": "Data",
+   "label": "Overall Risk Score"
+  },
+  {
+   "fieldname": "risk_level",
+   "fieldtype": "Data",
+   "label": "Risk Level"
+  },
+  {
+   "fieldname": "supplier_classification",
+   "fieldtype": "Data",
+   "label": "Supplier Classification"
+  },
+  {
+   "fieldname": "initial_audit_required",
+   "fieldtype": "Select",
+   "label": "Initial Audit Required",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "column_break_gztc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "ppap_level",
+   "fieldtype": "Select",
+   "label": "PPAP Level",
+   "options": "\nNA\nLevel 1\nLevel 2\nLevel 3\nLevel 4\nLevel 5"
+  },
+  {
+   "fieldname": "trial_order_required",
+   "fieldtype": "Select",
+   "label": "Trial Order Required",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "final_decision",
+   "fieldtype": "Select",
+   "label": "Final Decision",
+   "options": "\nApproved\nApproved with Improvement Plan\nConditional Approval\nRejected"
+  },
+  {
+   "fieldname": "prepared_by__date",
+   "fieldtype": "Date",
+   "label": "Prepared By / Date"
+  },
+  {
+   "fieldname": "purchase_review__date",
+   "fieldtype": "Date",
+   "label": "Purchase Review / Date"
+  },
+  {
+   "fieldname": "approval_valid_until",
+   "fieldtype": "Date",
+   "label": "Approval Valid Until"
+  },
+  {
+   "fieldname": "quality_review__date",
+   "fieldtype": "Date",
+   "label": "Quality Review / Date"
+  },
+  {
+   "fieldname": "management_approval__date",
+   "fieldtype": "Date",
+   "label": "Management Approval / Date"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-06-29 12:49:49.743262",
+ "modified": "2026-07-07 14:53:17.402873",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

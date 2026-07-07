@@ -2,58 +2,50 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "creation": "2026-06-29 12:07:32.198648",
+ "creation": "2026-07-07 14:21:12.861752",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "name1",
-  "department",
-  "section_head_name",
-  "qualification",
-  "contact_no"
+  "company_name",
+  "product__sales",
+  "period_of_association",
+  "reference_person__phone_no"
  ],
  "fields": [
   {
-   "fieldname": "department",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Department",
-   "options": "Department"
-  },
-  {
-   "fieldname": "section_head_name",
+   "fieldname": "company_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Section Head Name"
+   "label": "Company Name"
   },
   {
-   "fieldname": "qualification",
+   "fieldname": "product__sales",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Qualification"
+   "label": "Product / Sales"
   },
   {
-   "fieldname": "contact_no",
+   "fieldname": "period_of_association",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Contact No."
+   "label": "Period of Association"
   },
   {
-   "fieldname": "name1",
-   "fieldtype": "Data",
+   "fieldname": "reference_person__phone_no",
+   "fieldtype": "Small Text",
    "in_list_view": 1,
-   "label": "Name"
+   "label": "Reference Person & Phone No"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-07 11:37:37.277468",
+ "modified": "2026-07-07 14:23:06.989710",
  "modified_by": "Administrator",
  "module": "NMTG",
- "name": "Department Info CT",
+ "name": "Major Customers",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

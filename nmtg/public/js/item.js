@@ -311,7 +311,8 @@ function apply_item_settings_fields(frm) {
         "custom_tds_attachment",
         "custom_formula_for_conversion",
         "custom_only_internal_qc",
-        "custom_create_nmtg_code"
+        "custom_create_nmtg_code",
+        "custom_legacy_item_name"
     ];
 
     // Hide only dynamic custom fields

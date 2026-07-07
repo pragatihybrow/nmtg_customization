@@ -1,0 +1,192 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-07 14:03:08.978779",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "products__components_supplied",
+  "commodity_group",
+  "product_family",
+  "hsn__hs_code",
+  "manufacturing_processes",
+  "core_technology",
+  "special_processes",
+  "critical_characteristics__product_safety_items",
+  "monthly_capacity",
+  "current_capacity_utilization_",
+  "available_capacity_",
+  "lead_time",
+  "minimum_order_quantity",
+  "automation_level",
+  "testing_laboratory",
+  "rd_facility",
+  "business_continuity__backup_plant",
+  "plant__office_covered_under_insurance",
+  "plant__branch_office_location_1",
+  "plant__branch_office_location_2",
+  "electricity_capacity_eb_sanctioned",
+  "electricity_capacity_generator"
+ ],
+ "fields": [
+  {
+   "fieldname": "products__components_supplied",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Products / Components Supplied"
+  },
+  {
+   "fieldname": "commodity_group",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Commodity Group"
+  },
+  {
+   "fieldname": "product_family",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Product Family"
+  },
+  {
+   "fieldname": "hsn__hs_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "HSN / HS Code"
+  },
+  {
+   "fieldname": "manufacturing_processes",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Manufacturing Processes",
+   "options": "\nManufacturer\nSubcontractor"
+  },
+  {
+   "fieldname": "core_technology",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Core Technology",
+   "options": "\nManufacturer\nService Provider"
+  },
+  {
+   "fieldname": "special_processes",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Special Processes",
+   "options": "\nManufacturer\nService Provider"
+  },
+  {
+   "fieldname": "critical_characteristics__product_safety_items",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Critical Characteristics / Product Safety Items",
+   "options": "\nManufacturer\nService Provider"
+  },
+  {
+   "fieldname": "monthly_capacity",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Monthly Capacity",
+   "options": "\nManufacturer\nService Provider"
+  },
+  {
+   "fieldname": "current_capacity_utilization_",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Current Capacity Utilization (%)"
+  },
+  {
+   "fieldname": "available_capacity_",
+   "fieldtype": "Percent",
+   "in_list_view": 1,
+   "label": "Available Capacity (%)"
+  },
+  {
+   "fieldname": "lead_time",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Lead Time"
+  },
+  {
+   "fieldname": "minimum_order_quantity",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Minimum Order Quantity"
+  },
+  {
+   "fieldname": "automation_level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Automation Level",
+   "options": "\nManual\nSemi-Automatic\nAutomatic"
+  },
+  {
+   "fieldname": "testing_laboratory",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Testing Laboratory",
+   "options": "\nIn-house\nExternal\nNot Available"
+  },
+  {
+   "fieldname": "rd_facility",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "R&D Facility",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "business_continuity__backup_plant",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Business Continuity / Backup Plant",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "plant__branch_office_location_1",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Plant / Branch Office Location 1",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "plant__branch_office_location_2",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Plant / Branch Office Location 2",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "plant__office_covered_under_insurance",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Plant / Office Covered Under Insurance",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "electricity_capacity_eb_sanctioned",
+   "fieldtype": "Data",
+   "label": "Electricity Capacity EB Sanctioned"
+  },
+  {
+   "fieldname": "electricity_capacity_generator",
+   "fieldtype": "Data",
+   "label": "Electricity Capacity Generator"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-07 14:14:26.426030",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Manufacturing Service Capability CT",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

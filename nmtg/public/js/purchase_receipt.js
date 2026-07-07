@@ -2,40 +2,6 @@ frappe.ui.form.on('Purchase Receipt Item', {
     form_render: function(frm, cdt, cdn) {
         render_qc_supplier_table(frm, cdt, cdn);
     },
-//     custom_create_heat_number(frm, cdt, cdn) {
-//     let row = locals[cdt][cdn];
-
-//     if (!row.custom_qty_in_no || row.custom_qty_in_no <= 0) {  // ✅ was row.qty
-//         frappe.msgprint("Please set a valid Qty In No before generating Heat Number.");
-//         return;
-//     }
-
-//     frappe.call({
-//         method: "nmtg.override.api.create_heat_number",
-//         args: {
-//             po: frm.doc.name,
-//             row_name: row.name
-//         },
-//         callback(r) {
-//             if (r.message) {
-//                 locals[cdt][cdn].custom_nmtg_heat_number = r.message;
-//                 frm.refresh_field("items");
-
-//                 (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
-//                     if (qc.item === row.item_code) {
-//                         frappe.model.set_value(
-//                             "Supplier Selection For QC",
-//                             qc.name,
-//                             "nmtg_heat_number",
-//                             r.message
-//                         );
-//                     }
-//                 });
-//                 frm.refresh_field("custom_supplier_selection_for_qc");
-//             }
-//         }
-//     });
-// }
 
 custom_create_heat_number(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
