@@ -16,7 +16,7 @@
  "fields": [
   {
    "fieldname": "department",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Department",
    "options": "Department"
@@ -50,7 +50,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-07 11:37:37.277468",
+ "modified": "2026-07-09 13:40:47.179764",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Department Info CT",

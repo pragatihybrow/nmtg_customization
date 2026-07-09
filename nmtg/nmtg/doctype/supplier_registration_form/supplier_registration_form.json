@@ -17,13 +17,17 @@
   "other",
   "ownership",
   "plant_ownership",
+  "no_of_manufacturing_plants",
   "parent_company",
   "ultimate_holding_company",
+  "no_of_non_technical_employees",
   "no_of_technical_employees",
+  "no_of_employees",
   "details_of_associatessister_concerns",
   "column_break_ytqs",
   "types_of_organization",
-  "no_of_non_technical_employees",
+  "partnership",
+  "proprietorship",
   "name_materials",
   "attach",
   "work_force_unionized",
@@ -63,10 +67,15 @@
   "iatf_16949",
   "iso_9001",
   "attach_certificate",
+  "attach_certificate_iatf_16949",
+  "attach_certificate_iso_9001",
+  "attach_certificate_iso_14001",
+  "attach_certificate_iso_45001",
   "certifying_body",
   "scope_of_registration",
   "rohs__reach__conflict_minerals",
   "business_continuity_plan",
+  "business_continuity_plan_attachment",
   "column_break_nwco",
   "iso_14001",
   "iso_45001",
@@ -74,6 +83,14 @@
   "other_standards",
   "date_of_registration",
   "date_of_expiry",
+  "date_of_registration__iso_16949",
+  "date_of_expiry___iso_16949",
+  "date_of_registration_iso_9001",
+  "date_of_expiry_iso_9001",
+  "date_of_registration__iso_45001",
+  "date_of_expiry_iso_45001",
+  "date_of_registration_iso_14001",
+  "date_of_expiry_iso_14001",
   "esg__sustainability__ghg_reporting",
   "financial_information_section",
   "banker_name_and_address",
@@ -111,8 +128,11 @@
   "nearest_seaport",
   "nearest_airport",
   "transportation_mode",
+  "other_transportation_mode",
   "export_experience",
   "packaging_capability",
+  "section_break_chfg",
+  "international_supplier_document_checklist",
   "_manufacturing__service_capability_tab",
   "top_product",
   "capability",
@@ -166,6 +186,7 @@
    "label": "Email ID"
   },
   {
+   "depends_on": "eval:doc.supplier_type===\"Domestic\"",
    "fieldname": "legal_information_tab",
    "fieldtype": "Tab Break",
    "label": "Domestic Supplier Statutory Details"
@@ -173,7 +194,8 @@
   {
    "fieldname": "gst_no",
    "fieldtype": "Data",
-   "label": "GST No"
+   "label": "GST No",
+   "mandatory_depends_on": "eval:doc.supplier_type===\"Domestic\""
   },
   {
    "fieldname": "pan_no",
@@ -300,10 +322,10 @@
    "options": "International Organization Standards CT"
   },
   {
-   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
+   "depends_on": "eval:doc.other_standard ",
    "fieldname": "date_of_registration",
    "fieldtype": "Date",
-   "label": "Date of Registration  ",
+   "label": "Date of Registration Other Standard",
    "options": "International Organization Standards CT"
   },
   {
@@ -314,11 +336,10 @@
    "options": "International Organization Standards CT"
   },
   {
-   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
+   "depends_on": "eval:doc.other_standard ",
    "fieldname": "date_of_expiry",
    "fieldtype": "Date",
-   "label": "Date of Expiry   ",
-   "options": "International Organization Standards CT"
+   "label": "Date of Expiry Other Standard"
   },
   {
    "depends_on": "eval:doc.types_of_business !== \"Trader\" && doc.types_of_business !== \"Dealer/Distributor\"",
@@ -507,10 +528,10 @@
    "label": "Other Standard"
   },
   {
-   "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
+   "depends_on": "eval:doc.other_standard ",
    "fieldname": "attach_certificate",
    "fieldtype": "Attach",
-   "label": "Attach Certificate"
+   "label": "Attach Certificate Other Standard"
   },
   {
    "fieldname": "test",
@@ -689,9 +710,9 @@
   },
   {
    "fieldname": "main_export_countries",
-   "fieldtype": "Link",
+   "fieldtype": "Table MultiSelect",
    "label": "Main Export Countries",
-   "options": "Country"
+   "options": "Country CT"
   },
   {
    "fieldname": "nearest_seaport",
@@ -723,7 +744,7 @@
   {
    "fieldname": "_manufacturing__service_capability_tab",
    "fieldtype": "Tab Break",
-   "label": ". Manufacturing / Service Capability"
+   "label": "Manufacturing / Service Capability"
   },
   {
    "fieldname": "top_product",
@@ -874,13 +895,136 @@
    "fieldname": "management_approval__date",
    "fieldtype": "Date",
    "label": "Management Approval / Date"
+  },
+  {
+   "depends_on": "eval:doc.types_of_organization ===\"Partnership\"",
+   "fieldname": "partnership",
+   "fieldtype": "Data",
+   "label": "Partnership     ",
+   "options": "\nPrivate ltd\nPublic ltd\nPartnership                            Proprietorship"
+  },
+  {
+   "depends_on": "eval:doc.types_of_organization ===\"Proprietorship\"",
+   "fieldname": "proprietorship",
+   "fieldtype": "Data",
+   "label": "Proprietorship",
+   "options": "\nPrivate ltd\nPublic ltd\nPartnership                            Proprietorship"
+  },
+  {
+   "fieldname": "no_of_manufacturing_plants",
+   "fieldtype": "Data",
+   "label": "No. of Manufacturing Plants"
+  },
+  {
+   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
+   "fieldname": "no_of_employees",
+   "fieldtype": "Int",
+   "label": "No. of Employees"
+  },
+  {
+   "depends_on": "eval:doc.iatf_16949",
+   "fieldname": "attach_certificate_iatf_16949",
+   "fieldtype": "Attach",
+   "label": "Attach Certificate IATF 16949"
+  },
+  {
+   "depends_on": "eval:doc.iso_9001",
+   "fieldname": "attach_certificate_iso_9001",
+   "fieldtype": "Attach",
+   "label": "Attach Certificate ISO 9001"
+  },
+  {
+   "depends_on": "eval:doc.iso_14001",
+   "fieldname": "attach_certificate_iso_14001",
+   "fieldtype": "Attach",
+   "label": "Attach Certificate ISO 14001"
+  },
+  {
+   "depends_on": "eval:doc.iso_45001",
+   "fieldname": "attach_certificate_iso_45001",
+   "fieldtype": "Attach",
+   "label": "Attach Certificate ISO 45001"
+  },
+  {
+   "depends_on": "eval:doc.iatf_16949",
+   "fieldname": "date_of_registration__iso_16949",
+   "fieldtype": "Date",
+   "label": "Date of Registration  ISO 16949",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.iso_9001",
+   "fieldname": "date_of_registration_iso_9001",
+   "fieldtype": "Date",
+   "label": "Date of Registration ISO 9001",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.iso_45001",
+   "fieldname": "date_of_registration__iso_45001",
+   "fieldtype": "Date",
+   "label": "Date of Registration  ISO 45001"
+  },
+  {
+   "depends_on": "eval:doc.iso_14001",
+   "fieldname": "date_of_registration_iso_14001",
+   "fieldtype": "Date",
+   "label": "Date of Registration ISO 14001"
+  },
+  {
+   "depends_on": "eval:doc.iso_14001",
+   "fieldname": "date_of_expiry_iso_14001",
+   "fieldtype": "Date",
+   "label": "Date of Expiry ISO 14001"
+  },
+  {
+   "depends_on": "eval:doc.iatf_16949",
+   "fieldname": "date_of_expiry___iso_16949",
+   "fieldtype": "Date",
+   "label": "Date of Expiry   ISO 16949",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.iso_45001",
+   "fieldname": "date_of_expiry_iso_45001",
+   "fieldtype": "Date",
+   "label": "Date of Expiry ISO 45001"
+  },
+  {
+   "depends_on": "eval:doc.iso_9001",
+   "fieldname": "date_of_expiry_iso_9001",
+   "fieldtype": "Date",
+   "label": "Date of Expiry ISO 9001",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.business_continuity_plan ===\"Available\"",
+   "fieldname": "business_continuity_plan_attachment",
+   "fieldtype": "Attach",
+   "label": "Business Continuity Plan Attachment"
+  },
+  {
+   "depends_on": "eval:doc.transportation_mode ===\"Other\"",
+   "fieldname": "other_transportation_mode",
+   "fieldtype": "Data",
+   "label": "Other Transportation Mode "
+  },
+  {
+   "fieldname": "section_break_chfg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "international_supplier_document_checklist",
+   "fieldtype": "Table",
+   "label": "International Supplier Document Checklist",
+   "options": "International Supplier Document Checklist CT"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-07 14:53:17.402873",
+ "modified": "2026-07-09 14:28:29.933922",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",
