@@ -1,5 +1,8 @@
+let item_settings_cache = null;
+
 frappe.ui.form.on("Item", {
     onload: function(frm) { 
+        item_settings_cache = null; // fresh fetch on load
         toggle_models_field(frm);
         apply_item_settings_fields(frm);
         set_models_filter(frm);
@@ -53,6 +56,7 @@ frappe.ui.form.on("Item", {
     custom_tl: function(frm) {
         set_actual_size(frm);
     },
+
     custom_material_type(frm) {
 
         frm.set_value("custom_material_sub_type", "");
@@ -83,6 +87,8 @@ frappe.ui.form.on("Item", {
             }
         });
 
+        // Re-evaluate visible fields now that material type changed
+        apply_item_settings_fields(frm);
     }
 
 });
@@ -134,31 +140,6 @@ function set_models_filter(frm) {
         });
 }
 
-
-
-
-function generate_item_code(frm) {
-    if (!frm.doc.item_group || !frm.doc.custom_product_group || 
-        !frm.doc.custom_sub_product_group || !frm.doc.custom_product_code) return;
-
-    frappe.call({
-        method: "nmtg.api.item.get_item_code",
-        args: {
-            item_group: frm.doc.item_group,
-            custom_product_group: frm.doc.custom_product_group,
-            custom_sub_product_group: frm.doc.custom_sub_product_group,
-            doc: frm.doc
-        },
-        callback: function(r) {
-            if (r.message) {
-                frm.set_value("item_code", r.message.item_code);
-                frm.set_value("item_name", r.message.item_name);
-            }
-        }
-    });
-}
-
-
 function generate_item_name(frm) {
 
     let item_group = frm.doc.item_group || "";
@@ -175,41 +156,41 @@ function generate_item_name(frm) {
     let item_name = "";
 
     // Threaded Items
-  if (uom === "Inches" || uom === "MM") {
+    if (uom === "Inches" || uom === "MM") {
 
-    // Remove existing M/P if present
-    let diameter = thread_diameter.toString()
-        .replace(/M/gi, "")
-        .trim();
+        // Remove existing M/P if present
+        let diameter = thread_diameter.toString()
+            .replace(/M/gi, "")
+            .trim();
 
-    let pitchValue = pitch.toString()
-        .replace(/P/gi, "")
-        .trim();
+        let pitchValue = pitch.toString()
+            .replace(/P/gi, "")
+            .trim();
 
-    // Apply standard format
-    item_name = `${model} - M${diameter} x ${pitchValue}P`;
-}
+        // Apply standard format
+        item_name = `${model} - M${diameter} x ${pitchValue}P`;
+    }
 
     else {
 
         let formatted_size = actual_size;
-    if (actual_size) {
+        if (actual_size) {
 
-        // Support both X and x
-        let normalized_size = actual_size.replace(/x/g, "X");
+            // Support both X and x
+            let normalized_size = actual_size.replace(/x/g, "X");
 
-        let parts = normalized_size.split("X");
+            let parts = normalized_size.split("X");
 
-        if (parts.length >= 3) {
+            if (parts.length >= 3) {
 
-            let id = parts[0].trim();
-            let od = parts[1].trim();
-            let tl = parts[2].trim();
+                let id = parts[0].trim();
+                let od = parts[1].trim();
+                let tl = parts[2].trim();
 
-            formatted_size =
-                `ID ${id} mm x OD ${od} mm x TL ${tl} mm`;
+                formatted_size =
+                    `ID ${id} mm x OD ${od} mm x TL ${tl} mm`;
+            }
         }
-    }
 
         // Finished Goods
         if (item_group === "Finished Goods") {
@@ -229,7 +210,7 @@ function generate_item_name(frm) {
     frm.set_value("item_name", item_name.trim());
 }
 
-function  generate_item_code(frm) {
+function generate_item_code(frm) {
 
     const prefix = "N";
     const group_initials = frm.doc.custom_product_group_initials || "";
@@ -290,6 +271,26 @@ function set_actual_size(frm) {
     }
 }
 
+function get_item_settings(callback) {
+    if (item_settings_cache) {
+        callback(item_settings_cache);
+        return;
+    }
+    frappe.call({
+        method: "frappe.client.get",
+        args: {
+            doctype: "Item Settings",
+            name: "Item Settings"
+        },
+        callback: function(r) {
+            if (r.message) {
+                item_settings_cache = r.message;
+                callback(item_settings_cache);
+            }
+        }
+    });
+}
+
 function apply_item_settings_fields(frm) {
 
     // Fields always visible
@@ -312,47 +313,40 @@ function apply_item_settings_fields(frm) {
         "custom_formula_for_conversion",
         "custom_only_internal_qc",
         "custom_create_nmtg_code",
-        "custom_legacy_item_name"
+        "custom_legacy_item_name",
+        "custom_quality_category_required"
     ];
 
-    // Hide only dynamic custom fields
+    // Show always_visible fields, hide every other dynamic custom field
     frm.meta.fields.forEach(df => {
-        if (
-            df.fieldname &&
-            df.fieldname.startsWith("custom_") &&
-            !always_visible.includes(df.fieldname)
-        ) {
-            frm.set_df_property(df.fieldname, "hidden", 1);
+        if (df.fieldname && df.fieldname.startsWith("custom_")) {
+            if (always_visible.includes(df.fieldname)) {
+                frm.set_df_property(df.fieldname, "hidden", 0);
+            } else {
+                frm.set_df_property(df.fieldname, "hidden", 1);
+            }
         }
     });
 
-    frappe.call({
-        method: "frappe.client.get",
-        args: {
-            doctype: "Item Settings",
-            name: "Item Settings"
-        },
-        callback: function(r) {
-            if (!r.message) return;
+    get_item_settings(function(settings_doc) {
 
-            let settings = r.message.item_settings || [];
+        let settings = settings_doc.item_settings || [];
 
-            let matched_row = settings.find(row => {
-                return (
-                    row.item_group === frm.doc.item_group &&
-                    row.product_group === frm.doc.custom_product_group &&
-                    row.sub_product_group === frm.doc.custom_sub_product_group &&
-                    (!row.material_type || row.material_type === frm.doc.custom_material_type)
-                );
+        let matched_row = settings.find(row => {
+            return (
+                row.item_group === frm.doc.item_group &&
+                row.product_group === frm.doc.custom_product_group &&
+                row.sub_product_group === frm.doc.custom_sub_product_group &&
+                (!row.material_type || row.material_type === frm.doc.custom_material_type)
+            );
+        });
+
+        if (matched_row && matched_row.feilds) {
+            matched_row.feilds.split(",").forEach(field => {
+                frm.set_df_property(field.trim(), "hidden", 0);
             });
-
-            if (matched_row && matched_row.feilds) {
-                matched_row.feilds.split(",").forEach(field => {
-                    frm.set_df_property(field.trim(), "hidden", 0);
-                });
-            }
-
-            frm.refresh_fields();
         }
+
+        frm.refresh_fields();
     });
 }

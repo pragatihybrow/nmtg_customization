@@ -10,5 +10,18 @@ frappe.ui.form.on("Supplier Registration Form", {
                 >
             </div>
         `);
-    }
-});
+    },
+    no_of_non_technical_employees: function(frm) {
+            calculate_total_employees(frm);
+        },
+        no_of_technical_employees: function(frm) {
+            calculate_total_employees(frm);
+        }
+    });
+
+function calculate_total_employees(frm) {
+    let non_technical = flt(frm.doc.no_of_non_technical_employees);
+    let technical = flt(frm.doc.no_of_technical_employees);
+
+    frm.set_value('no_of_employees', non_technical + technical);
+}

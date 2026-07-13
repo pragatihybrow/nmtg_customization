@@ -282,6 +282,9 @@ doc_events = {
         ],
         # "on_cancel": "nmtg.override.quality_inspection.on_cancel",
     },
+    "Supplier Quotation": {
+        "before_submit": "nmtg.override.api.validate_quality_category_before_submit"
+    }
     # "Purchase Order": {
     #     "validate": "nmtg.override.purchase_order.calculate_qty_in_kg"
     # },

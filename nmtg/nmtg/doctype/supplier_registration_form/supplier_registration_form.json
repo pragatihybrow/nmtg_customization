@@ -2,38 +2,33 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "format:{external_provider_name}",
  "creation": "2026-06-16 14:20:16.424560",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_break_5dbf",
-  "supplier_type",
+  "supplier_scope",
   "request_type",
   "amended_from",
   "column_break_gzpc",
-  "external_provider_name",
+  "supplier_name",
   "organization_information_section",
   "types_of_business",
   "other",
   "ownership",
-  "plant_ownership",
   "no_of_manufacturing_plants",
   "parent_company",
-  "ultimate_holding_company",
-  "no_of_non_technical_employees",
-  "no_of_technical_employees",
   "no_of_employees",
   "details_of_associatessister_concerns",
   "column_break_ytqs",
   "types_of_organization",
   "partnership",
   "proprietorship",
-  "name_materials",
   "attach",
   "work_force_unionized",
   "union_name",
   "contract_expiry_date",
-  "professional_body_association",
   "section_break_talp",
   "department_info",
   "competency_years_of_experience",
@@ -43,24 +38,16 @@
   "address_contact_tab",
   "telephone",
   "email_id",
-  "office_address",
-  "detail_office_address",
+  "primary_address",
+  "detailed_primary_address",
   "city",
   "postal__zip_code",
-  "manufacturing_country",
-  "company_registration_number",
   "duns_number",
   "column_break_qzqj",
-  "fax_no",
   "website",
-  "factory_address",
-  "detail_factory_address",
   "state__province",
   "country",
   "year_established",
-  "business_registration_authority",
-  "section_break_lpbe",
-  "contact_details",
   "certification_compliance_tab",
   "test",
   "certified_by_iso__international_standards",
@@ -83,8 +70,8 @@
   "other_standards",
   "date_of_registration",
   "date_of_expiry",
-  "date_of_registration__iso_16949",
-  "date_of_expiry___iso_16949",
+  "date_of_registration_iatf_16949",
+  "date_of_expiry_iatf_16949",
   "date_of_registration_iso_9001",
   "date_of_expiry_iso_9001",
   "date_of_registration__iso_45001",
@@ -96,9 +83,8 @@
   "banker_name_and_address",
   "profitability",
   "net_worth",
-  "credit_rating",
-  "total_investment_in_plant_machinery",
   "bank_guarantee_willingness",
+  "bank_guarantee_value",
   "column_break_npld",
   "annual_turnover_last_fy",
   "turnover_year_1",
@@ -107,7 +93,6 @@
   "working_capital",
   "insurance_coverage",
   "attach_policy",
-  "bank_guarantee_value",
   "legal_information_tab",
   "gst_no",
   "pan_no",
@@ -143,6 +128,7 @@
   "principal_brochures__product_catalogue",
   "internal_use_by_purchase__quality__management_tab",
   "supplier_risk_assessment_matrix",
+  "total_score",
   "rating_image",
   "common_mandatory_documents_for_risk_approval",
   "section_break_xsda",
@@ -176,11 +162,6 @@
    "search_index": 1
   },
   {
-   "fieldname": "fax_no",
-   "fieldtype": "Data",
-   "label": "Fax No"
-  },
-  {
    "fieldname": "email_id",
    "fieldtype": "Data",
    "label": "Email ID"
@@ -208,17 +189,6 @@
    "label": "MSME Registration No."
   },
   {
-   "fieldname": "supplier_type",
-   "fieldtype": "Select",
-   "label": "Supplier Type",
-   "options": "\nDomestic\nInternational"
-  },
-  {
-   "fieldname": "external_provider_name",
-   "fieldtype": "Data",
-   "label": "External Provider Name "
-  },
-  {
    "fieldname": "address_contact_tab",
    "fieldtype": "Tab Break",
    "label": "Address & Contact"
@@ -236,40 +206,6 @@
   {
    "fieldname": "column_break_qzqj",
    "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "office_address",
-   "fieldtype": "Link",
-   "label": "Office Address",
-   "options": "Address"
-  },
-  {
-   "fieldname": "factory_address",
-   "fieldtype": "Link",
-   "label": "Factory Address",
-   "options": "Address"
-  },
-  {
-   "fieldname": "detail_office_address",
-   "fieldtype": "Small Text",
-   "label": "Detail Office Address",
-   "read_only": 1
-  },
-  {
-   "fieldname": "detail_factory_address",
-   "fieldtype": "Small Text",
-   "label": "Detail Factory Address",
-   "read_only": 1
-  },
-  {
-   "fieldname": "section_break_lpbe",
-   "fieldtype": "Section Break"
-  },
-  {
-   "fieldname": "contact_details",
-   "fieldtype": "Table",
-   "label": "Contact Details",
-   "options": "Contact Details CT"
   },
   {
    "fieldname": "organization_information_section",
@@ -291,8 +227,8 @@
   {
    "fieldname": "types_of_organization",
    "fieldtype": "Select",
-   "label": "Types Of Organization",
-   "options": "\nPrivate ltd\nPublic ltd\nPartnership                            Proprietorship"
+   "label": "Supplier Type",
+   "options": "\nPrivate ltd\nPublic ltd\nPartnership\nProprietorship"
   },
   {
    "fieldname": "column_break_ytqs",
@@ -307,12 +243,6 @@
    "fieldtype": "Table",
    "label": "Department Info",
    "options": "Department Info CT"
-  },
-  {
-   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
-   "fieldname": "no_of_non_technical_employees",
-   "fieldtype": "Int",
-   "label": "No Of Non-Technical Employees"
   },
   {
    "depends_on": "eval:doc.iatf_16949 || doc.iso_9001 || doc.iso_14001 || doc.iso_45001 || doc.other_standard ",
@@ -359,12 +289,6 @@
    "label": " Details of Associates/Sister concerns"
   },
   {
-   "fieldname": "name_materials",
-   "fieldtype": "Select",
-   "label": "Name materials that you are supplying to us through our approved External Providers",
-   "options": "\nYes\nNo"
-  },
-  {
    "depends_on": "eval:doc.name_materials ===\"Yes\"",
    "fieldname": "attach",
    "fieldtype": "Attach",
@@ -398,31 +322,14 @@
    "options": "Country"
   },
   {
-   "fieldname": "manufacturing_country",
-   "fieldtype": "Link",
-   "label": "Manufacturing Country",
-   "options": "Country"
-  },
-  {
    "fieldname": "year_established",
    "fieldtype": "Data",
    "label": "Year Established"
   },
   {
-   "fieldname": "company_registration_number",
-   "fieldtype": "Data",
-   "label": "Company Registration Number"
-  },
-  {
    "fieldname": "duns_number",
-   "fieldtype": "Select",
-   "label": "D-U-N-S Number",
-   "options": "\nInternational\nOptional"
-  },
-  {
-   "fieldname": "business_registration_authority",
    "fieldtype": "Data",
-   "label": "Business Registration Authority"
+   "label": "D-U-N-S Number"
   },
   {
    "fieldname": "ownership",
@@ -434,24 +341,6 @@
    "fieldname": "parent_company",
    "fieldtype": "Data",
    "label": "Parent Company"
-  },
-  {
-   "fieldname": "ultimate_holding_company",
-   "fieldtype": "Data",
-   "label": "Ultimate Holding Company"
-  },
-  {
-   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
-   "fieldname": "plant_ownership",
-   "fieldtype": "Select",
-   "label": "Plant Ownership",
-   "options": "\nOwned\nLeased\nShared\nNot Applicable"
-  },
-  {
-   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
-   "fieldname": "no_of_technical_employees",
-   "fieldtype": "Int",
-   "label": "No Of Technical Employees"
   },
   {
    "fieldname": "work_force_unionized",
@@ -470,11 +359,6 @@
    "fieldname": "contract_expiry_date",
    "fieldtype": "Data",
    "label": "Contract Expiry Date"
-  },
-  {
-   "fieldname": "professional_body_association",
-   "fieldtype": "Data",
-   "label": "Professional Body Association"
   },
   {
    "fieldname": "certified_by_iso__international_standards",
@@ -607,21 +491,10 @@
    "label": "Working Capital"
   },
   {
-   "fieldname": "credit_rating",
-   "fieldtype": "Rating",
-   "label": "Credit Rating"
-  },
-  {
    "fieldname": "insurance_coverage",
    "fieldtype": "Select",
    "label": "Insurance Coverage",
    "options": "\nYes\nNo"
-  },
-  {
-   "depends_on": "eval:doc.supplier_type ===\"Domestic\"",
-   "fieldname": "total_investment_in_plant_machinery",
-   "fieldtype": "Float",
-   "label": "Total Investment in Plant Machinery"
   },
   {
    "depends_on": "eval:doc.insurance_coverage === \"Yes\"",
@@ -919,7 +792,8 @@
    "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
    "fieldname": "no_of_employees",
    "fieldtype": "Int",
-   "label": "No. of Employees"
+   "label": "Total No. of Employees",
+   "read_only": 1
   },
   {
    "depends_on": "eval:doc.iatf_16949",
@@ -946,13 +820,6 @@
    "label": "Attach Certificate ISO 45001"
   },
   {
-   "depends_on": "eval:doc.iatf_16949",
-   "fieldname": "date_of_registration__iso_16949",
-   "fieldtype": "Date",
-   "label": "Date of Registration  ISO 16949",
-   "options": "International Organization Standards CT"
-  },
-  {
    "depends_on": "eval:doc.iso_9001",
    "fieldname": "date_of_registration_iso_9001",
    "fieldtype": "Date",
@@ -976,13 +843,6 @@
    "fieldname": "date_of_expiry_iso_14001",
    "fieldtype": "Date",
    "label": "Date of Expiry ISO 14001"
-  },
-  {
-   "depends_on": "eval:doc.iatf_16949",
-   "fieldname": "date_of_expiry___iso_16949",
-   "fieldtype": "Date",
-   "label": "Date of Expiry   ISO 16949",
-   "options": "International Organization Standards CT"
   },
   {
    "depends_on": "eval:doc.iso_45001",
@@ -1018,16 +878,61 @@
    "fieldtype": "Table",
    "label": "International Supplier Document Checklist",
    "options": "International Supplier Document Checklist CT"
+  },
+  {
+   "depends_on": "eval:doc.iatf_16949",
+   "fieldname": "date_of_registration_iatf_16949",
+   "fieldtype": "Date",
+   "label": "Date of Registration IATF 16949",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.iatf_16949",
+   "fieldname": "date_of_expiry_iatf_16949",
+   "fieldtype": "Date",
+   "label": "Date of Expiry IATF 16949",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "fieldname": "total_score",
+   "fieldtype": "Float",
+   "label": "Total Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "supplier_scope",
+   "fieldtype": "Select",
+   "label": "Supplier Scope",
+   "options": "\nDomestic\nInternational"
+  },
+  {
+   "fieldname": "supplier_name",
+   "fieldtype": "Link",
+   "label": "Supplier Name ",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "primary_address",
+   "fieldtype": "Link",
+   "label": "Primary Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "detailed_primary_address",
+   "fieldtype": "Small Text",
+   "label": "Detailed Primary Address",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-09 14:28:29.933922",
+ "modified": "2026-07-10 17:04:21.097229",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

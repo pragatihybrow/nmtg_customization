@@ -37,6 +37,7 @@
    "label": "No"
   },
   {
+   "depends_on": "eval:doc.yes",
    "fieldname": "attachment",
    "fieldtype": "Attach",
    "in_list_view": 1,
@@ -53,7 +54,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-07 13:13:57.532482",
+ "modified": "2026-07-10 12:21:30.473622",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "International Supplier Document Checklist CT",

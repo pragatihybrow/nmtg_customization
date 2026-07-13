@@ -1,6 +1,7 @@
 import frappe
 from frappe.model.naming import make_autoname
 from frappe.utils import today
+from frappe import _
 import json
 import re
 
@@ -524,3 +525,31 @@ def validate_heat_range_vs_sample_size(doc, method=None):
             f"{prefix}{start_num} - {prefix}{suggested_end}."
         )
 
+
+def validate_quality_category_before_submit(doc, method):
+    item_codes = list({d.item_code for d in doc.items if d.item_code})
+    if not item_codes:
+        return
+
+    quality_required_map = dict(
+        frappe.get_all(
+            "Item",
+            filters={"item_code": ["in", item_codes]},
+            fields=["item_code", "custom_quality_category_required"],
+            as_list=True,
+        )
+    )
+
+    flagged_items = [
+        row.item_code
+        for row in doc.items
+        if quality_required_map.get(row.item_code)
+    ]
+
+    if flagged_items and not doc.custom_quality_category:
+        frappe.throw(
+            _(
+                "Quality Category is mandatory before submission because the "
+                "following item(s) require it: {0}"
+            ).format(", ".join(sorted(set(flagged_items))))
+        )
