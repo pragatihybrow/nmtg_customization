@@ -94,6 +94,9 @@
   "net_worth",
   "bank_guarantee_willingness",
   "bank_guarantee_value",
+  "networth",
+  "working__capital",
+  "turnover",
   "column_break_npld",
   "annual_turnover_last_fy",
   "turnover_year_1",
@@ -101,6 +104,7 @@
   "turnover_year_3",
   "insurance_coverage",
   "attach_policy",
+  "ca_certificate",
   "legal_information_tab",
   "gst_no",
   "pan_no",
@@ -135,6 +139,7 @@
   "internal_use_by_purchase__quality__management_tab",
   "supplier_risk_assessment_matrix",
   "total_score",
+  "total_score_earn",
   "rating_image",
   "common_mandatory_documents_for_risk_approval",
   "section_break_xsda",
@@ -970,13 +975,39 @@
    "fieldname": "esg__sustainability_ghg_reporting",
    "fieldtype": "Attach",
    "label": "ESG / Sustainability / GHG Reporting"
+  },
+  {
+   "fieldname": "networth",
+   "fieldtype": "Float",
+   "label": "Networth"
+  },
+  {
+   "fieldname": "working__capital",
+   "fieldtype": "Float",
+   "label": "Working Capital"
+  },
+  {
+   "fieldname": "turnover",
+   "fieldtype": "Float",
+   "label": " Turnover"
+  },
+  {
+   "fieldname": "ca_certificate",
+   "fieldtype": "Attach",
+   "label": "CA Certificate"
+  },
+  {
+   "fieldname": "total_score_earn",
+   "fieldtype": "Float",
+   "label": "Total Score Earn",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-14 10:24:07.440552",
+ "modified": "2026-07-14 11:00:34.218859",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

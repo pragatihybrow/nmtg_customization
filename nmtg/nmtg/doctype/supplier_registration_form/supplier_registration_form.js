@@ -83,6 +83,12 @@ frappe.ui.form.on("Supplier Registration Form", {
     esg__sustainability_ghg_reporting: function(frm) {
         calculate_ghg_accounting_score(frm);
     },
+    working__capital: function(frm) {
+        calculate_financial_stability_score(frm);
+    },
+    turnover: function(frm) {
+        calculate_financial_stability_score(frm);
+    },
     onload: function(frm) {
         calculate_legal_registration_score(frm);
         calculate_years_in_business_score(frm);
@@ -96,6 +102,7 @@ frappe.ui.form.on("Supplier Registration Form", {
         calculate_checkbox_with_attachment_score(frm, "iso_45001", "attach_certificate_iso_45001", "ISO 45001");
         calculate_checkbox_with_attachment_score(frm, "iso_50001", "attach_certificate_iso_50001", "ISO 50001");
         calculate_ghg_accounting_score(frm);
+        calculate_financial_stability_score(frm);
     }
 });
 
@@ -196,6 +203,10 @@ function calculate_checkbox_with_attachment_score(frm, checkbox_fieldname, attac
     set_evaluation_score(frm, criteria_label, score);
 }
 
+// ESG / Sustainability / GHG Reporting:
+// esg__sustainability__ghg_reporting (Select: Yes/No/Not Applicable) = "Yes" -> 2
+// "Yes" + esg__sustainability_ghg_reporting (Attach) present -> 3
+// otherwise -> 0
 function calculate_ghg_accounting_score(frm) {
     let is_yes = frm.doc.esg__sustainability__ghg_reporting === "Yes";
     let attached = !!frm.doc.esg__sustainability_ghg_reporting;
@@ -206,6 +217,38 @@ function calculate_ghg_accounting_score(frm) {
     }
 
     set_evaluation_score(frm, "GHG Accounting", score);
+}
+
+// Financial Stability:
+// ratio = (Working Capital / Turnover) * 100
+// ratio < 0        -> score 0
+// 0 <= ratio <= 5   -> score 1
+// 5 < ratio <= 10   -> score 2
+// ratio > 10        -> score 3
+function calculate_financial_stability_score(frm) {
+    let working_capital = frm.doc.working__capital;
+    let turnover = frm.doc.turnover;
+
+    // Can't compute without a non-zero turnover
+    if (!turnover) {
+        set_evaluation_score(frm, "Financial Stability", 0);
+        return;
+    }
+
+    let ratio = (working_capital / turnover) * 100;
+
+    let score = 0;
+    if (ratio < 0) {
+        score = 0;
+    } else if (ratio <= 5) {
+        score = 1;
+    } else if (ratio <= 10) {
+        score = 2;
+    } else {
+        score = 3;
+    }
+
+    set_evaluation_score(frm, "Financial Stability", score);
 }
 
 function set_evaluation_score(frm, criteria_label, score) {
@@ -229,4 +272,45 @@ function set_evaluation_score(frm, criteria_label, score) {
     frappe.model.set_value(row.doctype, row.name, "weighted_score", weighted_score);
 
     frm.refresh_field("supplier_risk_assessment_matrix");
+}
+
+function set_evaluation_score(frm, criteria_label, score) {
+    let row = (frm.doc.supplier_risk_assessment_matrix || []).find(
+        r => r.evaluation_criteria === criteria_label
+    );
+
+    if (!row) {
+        row = frm.add_child("supplier_risk_assessment_matrix");
+        row.evaluation_criteria = criteria_label;
+    }
+
+    // Weight % = Score / 3 * 100
+    let weight = (score / 3) * 100;
+
+    // Weighted Score = Weight % × Score / 3
+    let weighted_score = (weight * score) / 3;
+
+    frappe.model.set_value(row.doctype, row.name, "score_15", score);
+    frappe.model.set_value(row.doctype, row.name, "weight_", weight);
+    frappe.model.set_value(row.doctype, row.name, "weighted_score", weighted_score);
+
+    frm.refresh_field("supplier_risk_assessment_matrix");
+
+    // Recalculate totals
+    calculate_totals(frm);
+}
+
+function calculate_totals(frm) {
+    let rows = frm.doc.supplier_risk_assessment_matrix || [];
+
+    // Sum of earned scores
+    let total_score = rows.reduce((sum, row) => {
+        return sum + (flt(row.score_15) || 0);
+    }, 0);
+
+    // Maximum possible score (3 per row)
+    let score_15 = rows.length * 3;
+
+    frm.set_value("total_score", total_score);
+    frm.set_value("score_15", score_15);
 }
