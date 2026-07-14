@@ -8,7 +8,7 @@
  "engine": "InnoDB",
  "field_order": [
   "section_break_5dbf",
-  "supplier_scope",
+  "supplier_type",
   "request_type",
   "amended_from",
   "column_break_gzpc",
@@ -16,8 +16,8 @@
   "organization_information_section",
   "types_of_business",
   "other",
-  "ownership",
   "no_of_manufacturing_plants",
+  "ownership",
   "parent_company",
   "no_of_employees",
   "details_of_associatessister_concerns",
@@ -63,15 +63,24 @@
   "rohs__reach__conflict_minerals",
   "business_continuity_plan",
   "business_continuity_plan_attachment",
+  "production_capacity_suitable_for_our_demand",
+  "production_capacity_details",
+  "inspection_testing_facility",
+  "calibration_system",
+  "traceability_system_erp",
+  "customer_complaint__capa_system",
   "column_break_nwco",
   "iso_14001",
   "iso_45001",
+  "iso_50001",
   "other_standard",
   "other_standards",
   "date_of_registration",
   "date_of_expiry",
   "date_of_registration_iatf_16949",
   "date_of_expiry_iatf_16949",
+  "date_of_registration_iso_50001",
+  "date_of_expiry_iso_50001",
   "date_of_registration_iso_9001",
   "date_of_expiry_iso_9001",
   "date_of_registration__iso_45001",
@@ -79,9 +88,9 @@
   "date_of_registration_iso_14001",
   "date_of_expiry_iso_14001",
   "esg__sustainability__ghg_reporting",
+  "esg__sustainability_ghg_reporting",
   "financial_information_section",
   "banker_name_and_address",
-  "profitability",
   "net_worth",
   "bank_guarantee_willingness",
   "bank_guarantee_value",
@@ -90,7 +99,6 @@
   "turnover_year_1",
   "turnover_year_2",
   "turnover_year_3",
-  "working_capital",
   "insurance_coverage",
   "attach_policy",
   "legal_information_tab",
@@ -112,20 +120,18 @@
   "main_export_countries",
   "nearest_seaport",
   "nearest_airport",
-  "transportation_mode",
+  "transport__mode",
   "other_transportation_mode",
-  "export_experience",
-  "packaging_capability",
   "section_break_chfg",
   "international_supplier_document_checklist",
   "_manufacturing__service_capability_tab",
   "top_product",
-  "capability",
   "dealer__distributor__trader_details_tab",
   "brand__principal_products_handled",
   "dealership_certificate_available",
   "attach_dealership_certificate",
   "principal_brochures__product_catalogue",
+  "dealership",
   "internal_use_by_purchase__quality__management_tab",
   "supplier_risk_assessment_matrix",
   "total_score",
@@ -220,8 +226,9 @@
   },
   {
    "depends_on": "eval:doc.types_of_business === \"Other\"",
+   "description": "Add Comma Seprated Values",
    "fieldname": "other",
-   "fieldtype": "Data",
+   "fieldtype": "Small Text",
    "label": "Other"
   },
   {
@@ -476,19 +483,9 @@
    "label": "Turnover Year 3"
   },
   {
-   "fieldname": "profitability",
-   "fieldtype": "Data",
-   "label": "Profitability"
-  },
-  {
    "fieldname": "net_worth",
    "fieldtype": "Float",
    "label": "Net Worth"
-  },
-  {
-   "fieldname": "working_capital",
-   "fieldtype": "Data",
-   "label": "Working Capital"
   },
   {
    "fieldname": "insurance_coverage",
@@ -598,23 +595,7 @@
    "label": "Nearest Airport"
   },
   {
-   "fieldname": "transportation_mode",
-   "fieldtype": "Select",
-   "label": "Transportation Mode",
-   "options": "\nSea\nAir\nRoad\nCourier\nOther"
-  },
-  {
-   "fieldname": "packaging_capability",
-   "fieldtype": "Small Text",
-   "label": "Packaging Capability"
-  },
-  {
-   "fieldname": "export_experience",
-   "fieldtype": "Select",
-   "label": "Export Experience",
-   "options": "\nYes\nNo"
-  },
-  {
+   "depends_on": "eval:doc.types_of_business ===\"Service Provider / Subcontractor\" ||  doc.types_of_business ===\"Manufacture\" ",
    "fieldname": "_manufacturing__service_capability_tab",
    "fieldtype": "Tab Break",
    "label": "Manufacturing / Service Capability"
@@ -624,12 +605,6 @@
    "fieldtype": "Table",
    "label": "Top Product",
    "options": "Top Product CT"
-  },
-  {
-   "fieldname": "capability",
-   "fieldtype": "Table",
-   "label": "Capability",
-   "options": "Manufacturing Service Capability CT"
   },
   {
    "depends_on": "eval:doc.types_of_business==\"Trader\" || doc.types_of_business==\"Dealer/Distributor\"",
@@ -792,8 +767,7 @@
    "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
    "fieldname": "no_of_employees",
    "fieldtype": "Int",
-   "label": "Total No. of Employees",
-   "read_only": 1
+   "label": "Total No. of Employees"
   },
   {
    "depends_on": "eval:doc.iatf_16949",
@@ -900,12 +874,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "supplier_scope",
-   "fieldtype": "Select",
-   "label": "Supplier Scope",
-   "options": "\nDomestic\nInternational"
-  },
-  {
    "fieldname": "supplier_name",
    "fieldtype": "Link",
    "label": "Supplier Name ",
@@ -922,13 +890,93 @@
    "fieldtype": "Small Text",
    "label": "Detailed Primary Address",
    "read_only": 1
+  },
+  {
+   "fieldname": "dealership",
+   "fieldtype": "Table",
+   "label": "Dealership",
+   "options": "Dealership CT"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.certified_by_iso__international_standards===\"Yes\"",
+   "fieldname": "iso_50001",
+   "fieldtype": "Check",
+   "label": "ISO 50001"
+  },
+  {
+   "depends_on": "eval:doc.iso_50001",
+   "fieldname": "date_of_registration_iso_50001",
+   "fieldtype": "Date",
+   "label": "Date of Registration ISO 50001",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "depends_on": "eval:doc.iso_50001",
+   "fieldname": "date_of_expiry_iso_50001",
+   "fieldtype": "Date",
+   "label": "Date of Expiry ISO 50001",
+   "options": "International Organization Standards CT"
+  },
+  {
+   "fieldname": "transport__mode",
+   "fieldtype": "Select",
+   "label": "Transport  Mode",
+   "options": "\nSea\nAir\nRoad\nCourier\nOther"
+  },
+  {
+   "fieldname": "supplier_type",
+   "fieldtype": "Select",
+   "label": "Supplier Scope",
+   "options": "\nDomestic\nInternational"
+  },
+  {
+   "default": "0",
+   "fieldname": "production_capacity_suitable_for_our_demand",
+   "fieldtype": "Check",
+   "label": "Production Capacity Suitable For Our Demand"
+  },
+  {
+   "depends_on": "eval:doc.production_capacity_suitable_for_our_demand",
+   "fieldname": "production_capacity_details",
+   "fieldtype": "Small Text",
+   "label": "Production Capacity Details"
+  },
+  {
+   "default": "0",
+   "fieldname": "inspection_testing_facility",
+   "fieldtype": "Check",
+   "label": "Inspection & Testing Facility"
+  },
+  {
+   "default": "0",
+   "fieldname": "calibration_system",
+   "fieldtype": "Check",
+   "label": "Calibration System"
+  },
+  {
+   "default": "0",
+   "fieldname": "traceability_system_erp",
+   "fieldtype": "Check",
+   "label": "Traceability System/ ERP"
+  },
+  {
+   "default": "0",
+   "fieldname": "customer_complaint__capa_system",
+   "fieldtype": "Check",
+   "label": "Customer Complaint / CAPA System"
+  },
+  {
+   "fieldname": "esg__sustainability_ghg_reporting",
+   "fieldtype": "Attach",
+   "label": "ESG / Sustainability / GHG Reporting"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-10 17:04:21.097229",
+ "modified": "2026-07-14 10:24:07.440552",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

@@ -1,0 +1,64 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-13 17:02:35.388983",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "product_name",
+  "brand__make",
+  "dealership_certificate",
+  "attach_dealership_certificate",
+  "brochuresproduct_catelouge"
+ ],
+ "fields": [
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Product Name"
+  },
+  {
+   "fieldname": "brand__make",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Brand / Make"
+  },
+  {
+   "fieldname": "dealership_certificate",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Dealership Certificate ",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.dealership_certificate===\"Yes\"",
+   "fieldname": "attach_dealership_certificate",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "label": "Attach Dealership Certificate"
+  },
+  {
+   "fieldname": "brochuresproduct_catelouge",
+   "fieldtype": "Attach",
+   "label": "Brochures/Product Catelouge "
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-13 17:04:36.499066",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Dealership CT",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

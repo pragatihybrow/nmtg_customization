@@ -8,7 +8,9 @@
  "engine": "InnoDB",
  "field_order": [
   "top_products__services",
-  "_of_sales"
+  "_of_sales",
+  "hsn_code",
+  "type_of_business"
  ],
  "fields": [
   {
@@ -22,13 +24,26 @@
    "fieldtype": "Percent",
    "in_list_view": 1,
    "label": "% of Sales"
+  },
+  {
+   "fieldname": "hsn_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "HSN Code "
+  },
+  {
+   "fieldname": "type_of_business",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Type of business",
+   "options": "\nManufacturing\nService\nSubcontract"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-07 14:00:56.661069",
+ "modified": "2026-07-13 16:59:17.686695",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Top Product CT",

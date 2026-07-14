@@ -19,7 +19,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Requirement / Document",
-   "options": "\nGST Certificate\nPAN Card\nCancelled Cheque Copy\nMSME Certificate\nList of Equipment with Make, Mfg. Date and Capacity\nList of Instruments with Make, Mfg. Date and Capacity\nList of Machinery with Make, Mfg. Date and Capacity\nOther Supporting Document"
+   "options": "\nGST Certificate\nPAN Card\nCancelled Cheque Copy\nMSME Certificate\nList of Equipment with Make, Mfg. Date and Capacity\nList of Instruments with Make, Mfg. Date and Capacity\nList of Machinery with Make, Mfg. Date and Capacity\nOther Supporting Document\nVAT / TIN No."
   },
   {
    "default": "0",
@@ -52,7 +52,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-07 12:59:19.008182",
+ "modified": "2026-07-14 10:01:38.891830",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Domestic Supplier Document Checklist CT",
