@@ -304,13 +304,13 @@ function calculate_totals(frm) {
     let rows = frm.doc.supplier_risk_assessment_matrix || [];
 
     // Sum of earned scores
-    let total_score = rows.reduce((sum, row) => {
+    let total_score_earn = rows.reduce((sum, row) => {
         return sum + (flt(row.score_15) || 0);
     }, 0);
 
     // Maximum possible score (3 per row)
-    let score_15 = rows.length * 3;
+    let total_score = rows.length * 3;
 
     frm.set_value("total_score", total_score);
-    frm.set_value("score_15", score_15);
+    frm.set_value("total_score_earn", total_score_earn);
 }

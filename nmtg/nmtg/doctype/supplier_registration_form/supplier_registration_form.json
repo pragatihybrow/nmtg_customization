@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "format:{external_provider_name}",
+ "autoname": "format:{supplier_name}",
  "creation": "2026-06-16 14:20:16.424560",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -881,8 +881,10 @@
   {
    "fieldname": "supplier_name",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Supplier Name ",
-   "options": "Supplier"
+   "options": "Supplier",
+   "reqd": 1
   },
   {
    "fieldname": "primary_address",
@@ -1007,7 +1009,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-14 11:00:34.218859",
+ "modified": "2026-07-14 14:27:34.360287",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",
