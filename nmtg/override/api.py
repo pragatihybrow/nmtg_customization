@@ -553,3 +553,9 @@ def validate_quality_category_before_submit(doc, method):
                 "following item(s) require it: {0}"
             ).format(", ".join(sorted(set(flagged_items))))
         )
+
+
+@frappe.whitelist()
+def custom_set_rejection_remark(name, remark):
+    frappe.db.set_value("Supplier", name, "custom_rejection_remark", remark)
+    frappe.db.commit()
