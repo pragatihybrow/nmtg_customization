@@ -1,0 +1,58 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-07-15 12:08:53.227085",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "audit_requirement",
+  "score",
+  "objective_evidence",
+  "remark"
+ ],
+ "fields": [
+  {
+   "fieldname": "audit_requirement",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Audit Requirement",
+   "options": "\nAudit Requirement\nOrganization structure defined\nRoles & responsibilities documented\nQuality objectives established and monitored\nManagement review conducted periodically\nBusiness continuity plan available\nISO 9001/ IATF 16949 certification available\nDocument control implemented\nRecord control implemented\nInternal audit conducted\nCorrective action (CAPA) system effective\nCustomer complaint management implemented\nCustomer requirements reviewed before acceptance\nCustomer-specific requirements identified\nEngineering changes controlled\nCustomer communication process established\nAPQP activities implemented\nPFMEA available and maintained\nControl Plan available\nPPAP available as applicable\nSpecial characteristics identified and controlled\nProcess flow available\nWork instructions available at workplace\nOperators trained and competent\nProcess parameters monitored\nReaction plan available for nonconformities\nProduct traceability maintained\nIncoming inspection implemented\nIn-process inspection implemented\nFinal inspection implemented\nMeasuring equipment calibrated\nMSA implemented\nSPC implemented\nProduction planning system effective\nPreventive maintenance implemented\nMachine breakdown monitored\nCapacity planning performed\n5S/ workplace organization maintained\nApproved supplier list maintained\nIncoming supplier evaluation performed\nSupplier performance monitored"
+  },
+  {
+   "fieldname": "score",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Score",
+   "options": "0\n1\n2\n3\nNA"
+  },
+  {
+   "fieldname": "objective_evidence",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Objective Evidence"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Remark"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-07-15 12:13:37.779854",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Supplier Audit CT",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

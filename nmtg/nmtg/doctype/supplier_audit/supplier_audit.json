@@ -2,13 +2,20 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "format:{supplier}",
  "creation": "2026-07-10 15:33:40.208504",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "section_break_er4d",
   "amended_from",
-  "supplier"
+  "supplier",
+  "supplier_audit_checksheet",
+  "criteria",
+  "maximum_score",
+  "achieved_score",
+  "score_",
+  "risk_level"
  ],
  "fields": [
   {
@@ -30,16 +37,49 @@
    "fieldtype": "Link",
    "label": "Supplier",
    "options": "Supplier"
+  },
+  {
+   "fieldname": "supplier_audit_checksheet",
+   "fieldtype": "Table",
+   "label": "Supplier Audit Checksheet",
+   "options": "Supplier Audit CT"
+  },
+  {
+   "fieldname": "criteria",
+   "fieldtype": "HTML",
+   "label": "Criteria"
+  },
+  {
+   "fieldname": "maximum_score",
+   "fieldtype": "Float",
+   "label": "Maximum Score"
+  },
+  {
+   "fieldname": "achieved_score",
+   "fieldtype": "Float",
+   "label": "Achieved Score"
+  },
+  {
+   "fieldname": "score_",
+   "fieldtype": "Percent",
+   "label": "Score %"
+  },
+  {
+   "fieldname": "risk_level",
+   "fieldtype": "Select",
+   "label": "Risk Level",
+   "options": "\nExcellent-Approved\nGood-Approved\nAcceptable-Approved with Improvement Plan\nHigh Risk\t-Conditional Approval\nVery High Risk-Re-Audit Required"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-10 15:33:59.303447",
+ "modified": "2026-07-15 12:17:56.814247",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Audit",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {
