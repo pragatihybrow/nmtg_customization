@@ -42,12 +42,14 @@
   "detailed_primary_address",
   "city",
   "postal__zip_code",
+  "duns",
   "duns_number",
   "column_break_qzqj",
   "website",
   "state__province",
   "country",
   "year_established",
+  "primary_contact_person",
   "certification_compliance_tab",
   "test",
   "certified_by_iso__international_standards",
@@ -99,9 +101,6 @@
   "turnover",
   "column_break_npld",
   "annual_turnover_last_fy",
-  "turnover_year_1",
-  "turnover_year_2",
-  "turnover_year_3",
   "insurance_coverage",
   "attach_policy",
   "ca_certificate",
@@ -131,10 +130,6 @@
   "_manufacturing__service_capability_tab",
   "top_product",
   "dealer__distributor__trader_details_tab",
-  "brand__principal_products_handled",
-  "dealership_certificate_available",
-  "attach_dealership_certificate",
-  "principal_brochures__product_catalogue",
   "dealership",
   "internal_use_by_purchase__quality__management_tab",
   "supplier_risk_assessment_matrix",
@@ -207,7 +202,7 @@
   {
    "fieldname": "telephone",
    "fieldtype": "Phone",
-   "label": "Telephone"
+   "label": "Primary Contact No"
   },
   {
    "fieldname": "website",
@@ -227,7 +222,7 @@
    "fieldname": "types_of_business",
    "fieldtype": "Select",
    "label": "Types Of Business",
-   "options": "\nManufacture\nTrader\nDealer/Distributor\nService Provider / Subcontractor\nOther"
+   "options": "\nManufacture\nTrader\nDealer/Distributor\nService Provider / Subcontractor\nOther / Multiple Business activity"
   },
   {
    "depends_on": "eval:doc.types_of_business === \"Other\"",
@@ -337,11 +332,6 @@
    "fieldname": "year_established",
    "fieldtype": "Data",
    "label": "Year Established"
-  },
-  {
-   "fieldname": "duns_number",
-   "fieldtype": "Data",
-   "label": "D-U-N-S Number"
   },
   {
    "fieldname": "ownership",
@@ -473,21 +463,6 @@
    "label": "Annual Turnover Last FY"
   },
   {
-   "fieldname": "turnover_year_1",
-   "fieldtype": "Data",
-   "label": "Turnover Year 1"
-  },
-  {
-   "fieldname": "turnover_year_2",
-   "fieldtype": "Data",
-   "label": "Turnover Year 2"
-  },
-  {
-   "fieldname": "turnover_year_3",
-   "fieldtype": "Data",
-   "label": "Turnover Year 3"
-  },
-  {
    "fieldname": "net_worth",
    "fieldtype": "Float",
    "label": "Net Worth"
@@ -616,28 +591,6 @@
    "fieldname": "dealer__distributor__trader_details_tab",
    "fieldtype": "Tab Break",
    "label": "Dealer / Distributor / Trader Details"
-  },
-  {
-   "fieldname": "brand__principal_products_handled",
-   "fieldtype": "Data",
-   "label": "Brand / Principal Products Handled"
-  },
-  {
-   "fieldname": "dealership_certificate_available",
-   "fieldtype": "Select",
-   "label": "Dealership Certificate Available?",
-   "options": "\nYes\nNo"
-  },
-  {
-   "depends_on": "eval:doc.dealership_certificate_available===\"Yes\"",
-   "fieldname": "attach_dealership_certificate",
-   "fieldtype": "Attach",
-   "label": "Attach Dealership Certificate"
-  },
-  {
-   "fieldname": "principal_brochures__product_catalogue",
-   "fieldtype": "Attach",
-   "label": "Principal Brochures / Product Catalogue"
   },
   {
    "fieldname": "section_break_tlve",
@@ -928,7 +881,7 @@
   {
    "fieldname": "transport__mode",
    "fieldtype": "Select",
-   "label": "Transport  Mode",
+   "label": "Preferble Transport  Mode",
    "options": "\nSea\nAir\nRoad\nCourier\nOther"
   },
   {
@@ -974,6 +927,7 @@
    "label": "Customer Complaint / CAPA System"
   },
   {
+   "depends_on": "eval:doc.esg__sustainability__ghg_reporting===\"Yes\"",
    "fieldname": "esg__sustainability_ghg_reporting",
    "fieldtype": "Attach",
    "label": "ESG / Sustainability / GHG Reporting"
@@ -1003,13 +957,31 @@
    "fieldtype": "Float",
    "label": "Total Score Earn",
    "read_only": 1
+  },
+  {
+   "fieldname": "duns",
+   "fieldtype": "Select",
+   "label": "D-U-N-S",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.duns===\"Yes\"",
+   "fieldname": "duns_number",
+   "fieldtype": "Data",
+   "label": "D-U-N-S Number",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "primary_contact_person",
+   "fieldtype": "Data",
+   "label": "Primary Contact Person"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-14 14:27:34.360287",
+ "modified": "2026-07-15 14:30:44.128207",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

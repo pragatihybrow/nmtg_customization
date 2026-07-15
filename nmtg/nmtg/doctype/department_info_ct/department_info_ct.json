@@ -16,10 +16,10 @@
  "fields": [
   {
    "fieldname": "department",
-   "fieldtype": "Data",
+   "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Department",
-   "options": "Department"
+   "options": "\nQuality\nPurchase\nAccount\nLogistic"
   },
   {
    "fieldname": "section_head_name",
@@ -50,7 +50,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-09 13:40:47.179764",
+ "modified": "2026-07-15 14:19:52.753221",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Department Info CT",
