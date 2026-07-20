@@ -256,7 +256,10 @@ doctype_js = {
     "Purchase Receipt": "public/js/purchase_receipt.js",
     "Quality Inspection": "public/js/quality_inspection.js",
     "Purchase Order": "public/js/purchase_order.js",
-    "Supplier":        "public/js/supplier.js"
+    "Supplier":        "public/js/supplier.js",
+    "Supplier Quotation":"public/js/supplier_quotation.js",
+    "Request for Quotation": "public/js/request_for_quotation.js"
+
 }
 
 override_doctype_class = {

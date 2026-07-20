@@ -38,16 +38,21 @@
   "address_contact_tab",
   "telephone",
   "email_id",
-  "primary_address",
-  "detailed_primary_address",
+  "office_and_factory_address_are_different",
+  "detailed_office_address",
   "city",
   "postal__zip_code",
+  "state__province",
+  "country",
   "duns",
   "duns_number",
   "column_break_qzqj",
   "website",
-  "state__province",
-  "country",
+  "detailed_factory_address",
+  "city_factory",
+  "postal__zip_code_factory",
+  "state__province_factory",
+  "country_factory",
   "year_established",
   "primary_contact_person",
   "certification_compliance_tab",
@@ -310,22 +315,22 @@
   {
    "fieldname": "city",
    "fieldtype": "Data",
-   "label": "City"
+   "label": "City (Office)"
   },
   {
    "fieldname": "postal__zip_code",
    "fieldtype": "Data",
-   "label": "Postal / ZIP Code"
+   "label": "Postal / ZIP Code (Office)"
   },
   {
    "fieldname": "state__province",
    "fieldtype": "Data",
-   "label": "State / Province"
+   "label": "State / Province (Office)"
   },
   {
    "fieldname": "country",
    "fieldtype": "Link",
-   "label": "Country",
+   "label": "Country (Office)",
    "options": "Country"
   },
   {
@@ -840,18 +845,6 @@
    "reqd": 1
   },
   {
-   "fieldname": "primary_address",
-   "fieldtype": "Link",
-   "label": "Primary Address",
-   "options": "Address"
-  },
-  {
-   "fieldname": "detailed_primary_address",
-   "fieldtype": "Small Text",
-   "label": "Detailed Primary Address",
-   "read_only": 1
-  },
-  {
    "fieldname": "dealership",
    "fieldtype": "Table",
    "label": "Dealership",
@@ -975,13 +968,55 @@
    "fieldname": "primary_contact_person",
    "fieldtype": "Data",
    "label": "Primary Contact Person"
+  },
+  {
+   "fieldname": "detailed_office_address",
+   "fieldtype": "Small Text",
+   "label": "Detailed Office Address"
+  },
+  {
+   "depends_on": "eval:doc.office_and_factory_address_are_different",
+   "fieldname": "detailed_factory_address",
+   "fieldtype": "Small Text",
+   "label": "Detailed Factory Address"
+  },
+  {
+   "default": "0",
+   "fieldname": "office_and_factory_address_are_different",
+   "fieldtype": "Check",
+   "label": "Different Office and Factory Addresses"
+  },
+  {
+   "depends_on": "eval:doc.office_and_factory_address_are_different",
+   "fieldname": "city_factory",
+   "fieldtype": "Data",
+   "label": "City (Factory)"
+  },
+  {
+   "depends_on": "eval:doc.office_and_factory_address_are_different",
+   "fieldname": "postal__zip_code_factory",
+   "fieldtype": "Data",
+   "label": "Postal / ZIP Code (Factory)"
+  },
+  {
+   "depends_on": "eval:doc.office_and_factory_address_are_different",
+   "fieldname": "country_factory",
+   "fieldtype": "Link",
+   "label": "Country (Factory)",
+   "options": "Country"
+  },
+  {
+   "depends_on": "eval:doc.office_and_factory_address_are_different",
+   "fieldname": "state__province_factory",
+   "fieldtype": "Data",
+   "label": "State / Province (Factory)"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-15 14:30:44.128207",
+ "modified": "2026-07-20 13:40:47.272137",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

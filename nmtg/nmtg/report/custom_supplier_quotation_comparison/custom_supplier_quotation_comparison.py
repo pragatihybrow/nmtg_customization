@@ -1,5 +1,6 @@
 # Copyright (c) 2026, Hybrowlabs and contributors
 # For license information, please see license.txt
+import re
 from collections import defaultdict
 
 import frappe
@@ -15,10 +16,14 @@ def execute(filters=None):
 
 	validate_filters(filters)
 
-	columns = get_columns(filters)
+	term_options = get_payment_term_options()
+	columns = get_columns(filters, term_options)
 	supplier_quotation_data = get_data(filters)
 
-	data, chart_data = prepare_data(supplier_quotation_data, filters)
+	quotations = list(set(d.get("parent") for d in supplier_quotation_data if d.get("parent")))
+	payment_terms_map = get_payment_terms_map(quotations)
+
+	data, chart_data = prepare_data(supplier_quotation_data, filters, payment_terms_map, term_options)
 	message = get_message()
 
 	return columns, data, message, chart_data
@@ -28,6 +33,21 @@ def validate_filters(filters):
 	if not filters.get("categorize_by") and filters.get("group_by"):
 		filters["categorize_by"] = filters["group_by"]
 		filters["categorize_by"] = filters["categorize_by"].replace("Group by", "Categorize by")
+
+
+def slugify(label):
+	"""Convert a term label like 'Against Proforma / Dispatch' into a safe
+	fieldname fragment like 'against_proforma_dispatch'."""
+	return re.sub(r"[^a-z0-9]+", "_", label.lower()).strip("_")
+
+
+def get_payment_term_options():
+	"""Read the Select options directly off the 'terms' field of
+	Supplier Payment Terms CT, so columns stay in sync if options change."""
+	meta = frappe.get_meta("Supplier Payment Terms CT")
+	field = meta.get_field("terms")
+	options = [opt.strip() for opt in (field.options or "").split("\n") if opt.strip()]
+	return options
 
 
 def get_data(filters):
@@ -54,7 +74,6 @@ def get_data(filters):
 			sq.supplier.as_("supplier_name"),
 			sq.valid_till,
 			sq.custom_quality_category,
-    		sq.custom_payment_terms,
 		)
 		.where(
 			(sq_item.parent == sq.name)
@@ -85,7 +104,71 @@ def get_data(filters):
 	return supplier_quotation_data
 
 
-def prepare_data(supplier_quotation_data, filters):
+def get_payment_terms_map(quotations):
+	"""Build {quotation: {term_label: {'percentage':.., 'amount':.., 'days':..}}}"""
+	if not quotations:
+		return {}
+
+	terms_table = frappe.qb.DocType("Supplier Payment Terms CT")
+
+	terms_data = (
+		frappe.qb.from_(terms_table)
+		.select(
+			terms_table.parent,
+			terms_table.terms,
+			terms_table.percentage,
+			terms_table.amount,
+			terms_table.days,
+		)
+		.where(terms_table.parent.isin(quotations))
+		.orderby(terms_table.parent, terms_table.idx)
+	).run(as_dict=True)
+
+	payment_terms_map = defaultdict(dict)
+	for row in terms_data:
+		if not row.terms:
+			continue
+		payment_terms_map[row.parent][row.terms] = {
+			"percentage": flt(row.percentage, 2),
+			"amount": flt(row.amount, 2),
+			"days": row.days,
+		}
+
+	return payment_terms_map
+
+
+def prepare_chart_data(suppliers, qty_list, supplier_qty_price_map):
+	data_points_map = {}
+	qty_list.sort()
+
+	# create qty wise values map of the form {'qty1':[value1, value2]}
+	for supplier in suppliers:
+		entry = supplier_qty_price_map[supplier]
+		for qty in qty_list:
+			if qty not in data_points_map:
+				data_points_map[qty] = []
+			if qty in entry:
+				data_points_map[qty].append(entry[qty])
+			else:
+				data_points_map[qty].append(None)
+
+	dataset = []
+	currency_symbol = frappe.db.get_value("Currency", frappe.db.get_default("currency"), "symbol")
+	for qty in qty_list:
+		datapoints = {
+			"name": currency_symbol + " (Qty " + str(qty) + " )",
+			"values": data_points_map[qty],
+		}
+		dataset.append(datapoints)
+
+	chart_data = {"data": {"labels": suppliers, "datasets": dataset}, "type": "bar"}
+
+	return chart_data
+
+def prepare_data(supplier_quotation_data, filters, payment_terms_map=None, term_options=None):
+	payment_terms_map = payment_terms_map or {}
+	term_options = term_options or []
+
 	out, groups, qty_list, suppliers, chart_data = [], [], [], [], []
 	group_wise_map = defaultdict(list)
 	supplier_qty_price_map = {}
@@ -116,8 +199,20 @@ def prepare_data(supplier_quotation_data, filters):
 			"valid_till": data.get("valid_till"),
 			"lead_time_days": data.get("lead_time_days"),
 			"custom_quality_category": data.get("custom_quality_category"),
-    		"custom_payment_terms": data.get("custom_payment_terms"),
 		}
+
+		# dynamically populate %, amount, and (for Against GRN) days per term
+		quotation_terms = payment_terms_map.get(data.get("parent"), {})
+		for term in term_options:
+			slug = slugify(term)
+			term_entry = quotation_terms.get(term)
+
+			row["term_%s" % slug] = term_entry.get("percentage") if term_entry else None
+			row["term_%s_amount" % slug] = term_entry.get("amount") if term_entry else None
+
+			if term == "Against GRN":
+				row["term_against_grn_days"] = term_entry.get("days") if term_entry else None
+
 		row["price_per_unit"] = flt(row["price"]) / (flt(data.get("stock_qty")) or 1)
 
 		# map for report view of form {'supplier1'/'item1':[{},{},...]}
@@ -161,36 +256,8 @@ def prepare_data(supplier_quotation_data, filters):
 	return out, chart_data
 
 
-def prepare_chart_data(suppliers, qty_list, supplier_qty_price_map):
-	data_points_map = {}
-	qty_list.sort()
-
-	# create qty wise values map of the form {'qty1':[value1, value2]}
-	for supplier in suppliers:
-		entry = supplier_qty_price_map[supplier]
-		for qty in qty_list:
-			if qty not in data_points_map:
-				data_points_map[qty] = []
-			if qty in entry:
-				data_points_map[qty].append(entry[qty])
-			else:
-				data_points_map[qty].append(None)
-
-	dataset = []
-	currency_symbol = frappe.db.get_value("Currency", frappe.db.get_default("currency"), "symbol")
-	for qty in qty_list:
-		datapoints = {
-			"name": currency_symbol + " (Qty " + str(qty) + " )",
-			"values": data_points_map[qty],
-		}
-		dataset.append(datapoints)
-
-	chart_data = {"data": {"labels": suppliers, "datasets": dataset}, "type": "bar"}
-
-	return chart_data
-
-
-def get_columns(filters):
+def get_columns(filters, term_options=None):
+	term_options = term_options or []
 	currency = frappe.get_cached_value("Company", filters.get("company"), "default_currency")
 
 	group_by_columns = [
@@ -282,13 +349,38 @@ def get_columns(filters):
 			"fieldtype": "Data",
 			"width": 150,
 		},
-		{
-			"fieldname": "custom_payment_terms",
-			"label": _("Payment Terms"),
-			"fieldtype": "Data",
-			"width": 150,
-		},
 	]
+
+	# per term: a % column, an Amount column, and (for Against GRN) a Days column
+	for term in term_options:
+		slug = slugify(term)
+
+		columns.append(
+			{
+				"fieldname": "term_%s" % slug,
+				"label": _("%s (%%)") % term,
+				"fieldtype": "Percent",
+				"width": 130,
+			}
+		)
+		columns.append(
+			{
+				"fieldname": "term_%s_amount" % slug,
+				"label": _("%s (Amount)") % term,
+				"fieldtype": "Currency",
+				"options": "currency",
+				"width": 130,
+			}
+		)
+		if term == "Against GRN":
+			columns.append(
+				{
+					"fieldname": "term_against_grn_days",
+					"label": _("Credit Days Aginst GRN"),
+					"fieldtype": "Data",
+					"width": 130,
+				}
+			)
 
 	if filters.get("categorize_by") == "Categorize by Item":
 		group_by_columns.reverse()
