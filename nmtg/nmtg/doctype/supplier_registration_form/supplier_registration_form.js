@@ -103,6 +103,16 @@ frappe.ui.form.on("Supplier Registration Form", {
         calculate_checkbox_with_attachment_score(frm, "iso_50001", "attach_certificate_iso_50001", "ISO 50001");
         calculate_ghg_accounting_score(frm);
         calculate_financial_stability_score(frm);
+    },
+    onload: function(frm) {
+        if (frm.is_new() && (!frm.doc.department_info || frm.doc.department_info.length === 0)) {
+            const departments = ['Quality', 'Purchase', 'Account', 'Logistic'];
+            departments.forEach(dept => {
+                let row = frm.add_child('department_info');
+                row.department = dept;
+            });
+            frm.refresh_field('department_info');
+        }
     }
 });
 

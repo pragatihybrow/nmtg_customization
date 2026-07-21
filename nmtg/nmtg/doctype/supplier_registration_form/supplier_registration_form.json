@@ -32,6 +32,7 @@
   "section_break_talp",
   "department_info",
   "competency_years_of_experience",
+  "common_mandatory_documents_for_risk_approval",
   "section_break_tlve",
   "major_customers",
   "major_suppliers",
@@ -98,14 +99,15 @@
   "esg__sustainability_ghg_reporting",
   "financial_information_section",
   "banker_name_and_address",
-  "net_worth",
   "bank_guarantee_willingness",
   "bank_guarantee_value",
   "networth",
   "working__capital",
   "turnover",
   "column_break_npld",
-  "annual_turnover_last_fy",
+  "turnover_last_1_year",
+  "turnover_last_2_year",
+  "turnover_last_3_year",
   "insurance_coverage",
   "attach_policy",
   "ca_certificate",
@@ -141,7 +143,6 @@
   "total_score",
   "total_score_earn",
   "rating_image",
-  "common_mandatory_documents_for_risk_approval",
   "section_break_xsda",
   "overall_risk_score",
   "risk_level",
@@ -461,16 +462,6 @@
    "fieldname": "banker_name_and_address",
    "fieldtype": "Small Text",
    "label": "Banker Name and Address"
-  },
-  {
-   "fieldname": "annual_turnover_last_fy",
-   "fieldtype": "Data",
-   "label": "Annual Turnover Last FY"
-  },
-  {
-   "fieldname": "net_worth",
-   "fieldtype": "Float",
-   "label": "Net Worth"
   },
   {
    "fieldname": "insurance_coverage",
@@ -1010,13 +1001,28 @@
    "fieldname": "state__province_factory",
    "fieldtype": "Data",
    "label": "State / Province (Factory)"
+  },
+  {
+   "fieldname": "turnover_last_1_year",
+   "fieldtype": "Data",
+   "label": "Turnover Last 1 Year"
+  },
+  {
+   "fieldname": "turnover_last_2_year",
+   "fieldtype": "Data",
+   "label": "Turnover Last 2 Year"
+  },
+  {
+   "fieldname": "turnover_last_3_year",
+   "fieldtype": "Data",
+   "label": "Turnover Last 3 Year"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-20 13:40:47.272137",
+ "modified": "2026-07-21 11:36:16.526610",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",
