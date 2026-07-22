@@ -27,7 +27,6 @@ frappe.ui.form.on('Material Request', {
 });
 
 
-
 frappe.ui.form.on("Material Request Item", {
 
     custom_quantity_in_mm: frappe.utils.debounce(
@@ -37,6 +36,14 @@ frappe.ui.form.on("Material Request Item", {
 
     item_code(frm, cdt, cdn) {
         calculate_formula(frm, cdt, cdn);
+    },
+
+    qty(frm, cdt, cdn) {
+        enforce_nos_rounding(frm, cdt, cdn);
+    },
+
+    conversion_factor(frm, cdt, cdn) {
+        enforce_nos_rounding(frm, cdt, cdn);
     }
 
 });
@@ -72,7 +79,7 @@ const FORMULA_FIELD_MAP = {
     "Value of Tooth Thickness": "custom_value_of_tooth_thickness",
     "Gap Between Spring And Coil": "custom_gap_between_spring_and_coil",
     "Value of Chain Pitch": "custom_value_of_chain_pitch",
-    "Length":"custom_length"
+    "Length": "custom_length"
 };
 
 
@@ -84,17 +91,43 @@ function calculate_formula(frm, cdt, cdn) {
         return;
     }
 
-
     get_item(row.item_code).then((item) => {
 
-        if (!item || !item.custom_formula_for_conversion) {
+        if (!item) {
             return;
         }
+
         const entered_qty = flt(row.custom_quantity_in_mm);
 
+        // Only run the weight-conversion formula when the item is
+        // purchased in Kg. For any other purchase UOM, qty is just
+        // whatever was entered — no formula, no conversion_factor games.
+        if (item.purchase_uom !== "Kg") {
+
+            const qty_value = item.purchase_uom === "Nos"
+                ? Math.round(entered_qty)
+                : entered_qty;
+
+            frappe.model.set_value(cdt, cdn, "qty", qty_value);
+
+            if (item.purchase_uom) {
+                frappe.model.set_value(cdt, cdn, "uom", item.purchase_uom);
+            }
+
+            return;
+        }
+
+        if (!item.custom_formula_for_conversion) {
+            return;
+        }
+
+        // If the Item master has no fixed Length, treat the entered value
+        // as the Length itself (e.g. bar stock cut to order), not as a
+        // piece-count multiplier.
+        const has_fixed_length = flt(item.custom_length) > 0;
+        const length_value = has_fixed_length ? item.custom_length : entered_qty;
 
         let formula = item.custom_formula_for_conversion;
-
 
         for (const [field_label, fieldname] of Object.entries(FORMULA_FIELD_MAP)) {
 
@@ -103,10 +136,11 @@ function calculate_formula(frm, cdt, cdn) {
                 "gi"
             );
 
-            formula = formula.replace(
-                regex,
-                item[fieldname] || 0
-            );
+            const value = field_label === "Length"
+                ? length_value
+                : (item[fieldname] || 0);
+
+            formula = formula.replace(regex, value);
 
         }
 
@@ -122,44 +156,69 @@ function calculate_formula(frm, cdt, cdn) {
             return;
         }
 
-
         try {
 
             /*
-             * Calculate weight of ONE item
-             *
-             * Example:
-             *
-             * 110 * 25 * 155 * 0.000007850
-             *
-             * = 3.3446875 Kg
+             * qty_per_unit:
+             * - If item has a fixed Length: weight of ONE piece, in Kg
+             * - If Length comes from the row: total weight for that
+             *   entered length, in Kg (already length-specific)
              */
             const qty_per_unit = Function(
                 `"use strict"; return (${formula});`
             )();
 
-
-            if (!isFinite(qty_per_unit)) {
+            if (!isFinite(qty_per_unit) || qty_per_unit <= 0) {
                 throw new Error("Invalid calculation");
             }
-            const final_qty = entered_qty * qty_per_unit;
-            frappe.model.set_value(
-                cdt,
-                cdn,
-                "qty",
-                final_qty
-            );
-            if (item.purchase_uom) {
 
-                frappe.model.set_value(
-                    cdt,
-                    cdn,
-                    "uom",
-                    item.purchase_uom
-                );
+            // Piece-count multiplier only applies when Length is fixed on
+            // the Item master; otherwise entered_qty was already consumed
+            // as the Length in the formula above.
+            const multiplier = has_fixed_length ? entered_qty : 1;
+            const final_qty = multiplier * qty_per_unit;
+
+            // qty is always in Kg here, never Nos, so no rounding needed.
+            frappe.model.set_value(cdt, cdn, "qty", final_qty);
+            frappe.model.set_value(cdt, cdn, "uom", item.purchase_uom);
+
+            if (item.purchase_uom !== item.stock_uom) {
+
+                // stock_qty is expressed in stock_uom, so round it when
+                // stock_uom is Nos (whole pieces only).
+                const stock_qty_value = item.stock_uom === "Nos"
+                    ? Math.round(entered_qty)
+                    : entered_qty;
+
+                // conversion_factor = stock_qty / qty, using the
+                // (possibly rounded) stock_qty to keep the two consistent.
+                const conversion_factor = stock_qty_value / final_qty;
+
+                setTimeout(() => {
+
+                    frappe.model.set_value(
+                        cdt,
+                        cdn,
+                        "conversion_factor",
+                        conversion_factor
+                    );
+
+                    frappe.model.set_value(
+                        cdt,
+                        cdn,
+                        "stock_qty",
+                        stock_qty_value
+                    );
+
+                    // Belt-and-braces: re-round after core's own
+                    // recalculation (triggered by the conversion_factor
+                    // set above) has had a chance to reintroduce drift
+                    // due to conversion_factor precision rounding.
+                    setTimeout(() => enforce_nos_rounding(frm, cdt, cdn), 0);
+
+                }, 0);
 
             }
-
 
         } catch (e) {
 
@@ -173,6 +232,25 @@ function calculate_formula(frm, cdt, cdn) {
         }
 
     });
+
+}
+
+
+function enforce_nos_rounding(frm, cdt, cdn) {
+
+    const row = locals[cdt][cdn];
+
+    // stock_uom is already present on the row itself (fetched from Item
+    // when item_code is set), no need to re-fetch the Item doc here.
+    if (row.stock_uom !== "Nos") {
+        return;
+    }
+
+    const rounded = Math.round(row.stock_qty);
+
+    if (row.stock_qty !== rounded) {
+        frappe.model.set_value(cdt, cdn, "stock_qty", rounded);
+    }
 
 }
 
@@ -204,96 +282,3 @@ function get_item(item_code) {
     });
 
 }
-
-
-// frappe.ui.form.on("Material Request Item", {
-//     custom_quantity_in_mm: frappe.utils.debounce((frm, cdt, cdn) => calculate_formula(frm, cdt, cdn), 400),
-//     item_code(frm, cdt, cdn) {
-//         calculate_formula(frm, cdt, cdn);
-//     }
-// });
-
-// // Cache fetched item docs so we don't hit the server on every recalculation
-// const item_cache = {};
-
-// // Maps formula placeholders -> Item fieldname. Extend this list if you add
-// // more custom dimension fields to the Item doctype.
-// const FORMULA_FIELD_MAP = {
-//     "Diameter(mm)": "custom_diameter",
-//     "Width(mm)": "custom_width",
-//     "Height(mm)": "custom_height",
-//     "Thickness(mm)": "custom_thickness",
-//     "OD(mm)": "custom_od",
-//     "Pipe Size(mm)": "custom_pipe_size",
-//     "Spigot Diameter(mm)": "custom_spigot_diameter",
-//     "Groove(mm)": "custom_groove",
-//     "Drill(mm)": "custom_drill_value",
-//     "Deep(mm)": "custom_deep_value",
-//     "ID(mm)": "custom_id",
-//     "TL(mm)": "custom_tl",
-//     "Step(mm)": "custom_step",
-//     "Wired Length(mm)": "custom_wired_length",
-//     "Wired Diameter(mm)": "custom_wired_diameter",
-//     "Frame Value(mm)": "custom_frame_value",
-//     "Thread Size(mm)": "custom_thread_size",
-//     "No of Teeth": "custom_no_of_teeth",
-//     "Cross Sectional Width(mm)": "custom_cross_sectional_width",
-//     "Cross Sectional Thickness(mm)": "custom_cross_sectional_thickness",
-//     "Value of Pitch Diameter(mm)": "custom_value_of_pitch_diameter",
-//     "Value of Tooth Thickness(mm)": "custom_value_of_tooth_thickness",
-//     "Gap Between Spring And Coil(mm)": "custom_gap_between_spring_and_coil",
-//     "Value of Chain Pitch(mm)": "custom_value_of_chain_pitch"
-// };
-
-// function calculate_formula(frm, cdt, cdn) {
-//     let row = locals[cdt][cdn];
-//     if (!row.item_code || !row.custom_quantity_in_mm) return;
-
-//     get_item(row.item_code).then((item) => {
-//         if (!item || !item.custom_formula_for_conversion) return;
-
-//         let formula = item.custom_formula_for_conversion;
-
-//         // Length comes from the row itself, not the Item master
-//         formula = replace_token(formula, "Length(mm)", row.custom_quantity_in_mm);
-
-//         for (const [token, fieldname] of Object.entries(FORMULA_FIELD_MAP)) {
-//             formula = replace_token(formula, token, item[fieldname] || 0);
-//         }
-
-//         // Safety check: after substitution only numbers/operators/whitespace
-//         // should remain. If anything else is left (e.g. an unmapped token),
-//         // bail out instead of eval-ing garbage.
-//         if (!/^[\d\s+\-*/().]*$/.test(formula)) {
-//             frappe.msgprint(
-//                 __("Formula for item {0} contains a term that couldn't be resolved: {1}",
-//                     [row.item_code, formula])
-//             );
-//             return;
-//         }
-
-//         try {
-//             // eslint-disable-next-line no-new-func
-//             let qty = Function(`"use strict"; return (${formula});`)();
-//             if (!isFinite(qty)) throw new Error("Non-finite result");
-//             frappe.model.set_value(cdt, cdn, "qty", qty);
-//         } catch (e) {
-//             frappe.msgprint(__("Invalid formula in Item master for {0}", [row.item_code]));
-//         }
-//     });
-// }
-
-// function replace_token(str, token, value) {
-//     const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-//     return str.replace(new RegExp(escaped, "g"), value);
-// }
-
-// function get_item(item_code) {
-//     if (item_cache[item_code]) {
-//         return Promise.resolve(item_cache[item_code]);
-//     }
-//     return frappe.db.get_doc("Item", item_code).then((item) => {
-//         item_cache[item_code] = item;
-//         return item;
-//     });
-// }
