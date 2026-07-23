@@ -99,10 +99,11 @@ function calculate_formula(frm, cdt, cdn) {
 
         const entered_qty = flt(row.custom_quantity_in_mm);
 
-        // Only run the weight-conversion formula when the item is
-        // purchased in Kg. For any other purchase UOM, qty is just
-        // whatever was entered — no formula, no conversion_factor games.
-        if (item.purchase_uom !== "Kg") {
+        // Only run the conversion formula when purchase_uom and stock_uom
+        // actually differ — that's the only case where a conversion_factor
+        // needs computing. If they're the same, qty is just whatever was
+        // entered — no formula, no conversion_factor games.
+        if (item.purchase_uom === item.stock_uom) {
 
             const qty_value = item.purchase_uom === "Nos"
                 ? Math.round(entered_qty)
@@ -160,9 +161,11 @@ function calculate_formula(frm, cdt, cdn) {
 
             /*
              * qty_per_unit:
-             * - If item has a fixed Length: weight of ONE piece, in Kg
-             * - If Length comes from the row: total weight for that
-             *   entered length, in Kg (already length-specific)
+             * - If item has a fixed Length: weight/quantity of ONE piece,
+             *   in purchase_uom
+             * - If Length comes from the row: total weight/quantity for
+             *   that entered length, in purchase_uom (already
+             *   length-specific)
              */
             const qty_per_unit = Function(
                 `"use strict"; return (${formula});`
@@ -178,47 +181,45 @@ function calculate_formula(frm, cdt, cdn) {
             const multiplier = has_fixed_length ? entered_qty : 1;
             const final_qty = multiplier * qty_per_unit;
 
-            // qty is always in Kg here, never Nos, so no rounding needed.
+            // qty is in purchase_uom here (never Nos, since we already
+            // returned above when purchase_uom === stock_uom), so no
+            // rounding needed at this point.
             frappe.model.set_value(cdt, cdn, "qty", final_qty);
             frappe.model.set_value(cdt, cdn, "uom", item.purchase_uom);
 
-            if (item.purchase_uom !== item.stock_uom) {
+            // stock_qty is expressed in stock_uom, so round it when
+            // stock_uom is Nos (whole pieces only).
+            const stock_qty_value = item.stock_uom === "Nos"
+                ? Math.round(entered_qty)
+                : entered_qty;
 
-                // stock_qty is expressed in stock_uom, so round it when
-                // stock_uom is Nos (whole pieces only).
-                const stock_qty_value = item.stock_uom === "Nos"
-                    ? Math.round(entered_qty)
-                    : entered_qty;
+            // conversion_factor = stock_qty / qty, using the
+            // (possibly rounded) stock_qty to keep the two consistent.
+            const conversion_factor = stock_qty_value / final_qty;
 
-                // conversion_factor = stock_qty / qty, using the
-                // (possibly rounded) stock_qty to keep the two consistent.
-                const conversion_factor = stock_qty_value / final_qty;
+            setTimeout(() => {
 
-                setTimeout(() => {
+                frappe.model.set_value(
+                    cdt,
+                    cdn,
+                    "conversion_factor",
+                    conversion_factor
+                );
 
-                    frappe.model.set_value(
-                        cdt,
-                        cdn,
-                        "conversion_factor",
-                        conversion_factor
-                    );
+                frappe.model.set_value(
+                    cdt,
+                    cdn,
+                    "stock_qty",
+                    stock_qty_value
+                );
 
-                    frappe.model.set_value(
-                        cdt,
-                        cdn,
-                        "stock_qty",
-                        stock_qty_value
-                    );
+                // Belt-and-braces: re-round after core's own
+                // recalculation (triggered by the conversion_factor
+                // set above) has had a chance to reintroduce drift
+                // due to conversion_factor precision rounding.
+                setTimeout(() => enforce_nos_rounding(frm, cdt, cdn), 0);
 
-                    // Belt-and-braces: re-round after core's own
-                    // recalculation (triggered by the conversion_factor
-                    // set above) has had a chance to reintroduce drift
-                    // due to conversion_factor precision rounding.
-                    setTimeout(() => enforce_nos_rounding(frm, cdt, cdn), 0);
-
-                }, 0);
-
-            }
+            }, 0);
 
         } catch (e) {
 
