@@ -241,7 +241,7 @@
    "fieldname": "types_of_organization",
    "fieldtype": "Select",
    "label": "Supplier Type",
-   "options": "\nPrivate ltd\nPublic ltd\nPartnership\nProprietorship"
+   "options": "\nPrivate ltd\nPublic ltd\nPartnership\nProprietorship\nCompany\nIndividual"
   },
   {
    "fieldname": "column_break_ytqs",
@@ -1022,7 +1022,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-21 11:36:16.526610",
+ "modified": "2026-07-24 11:52:14.337601",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",
