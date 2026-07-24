@@ -300,3 +300,14 @@ scheduler_events = {
         "nmtg.nmtg.doctype.supplier_performance_summary.supplier_performance_summary.create_monthly_supplier_performance"
     ]
 }
+
+fixtures = [
+    {
+        "dt": "Property Setter",
+        "filters": [
+            ["doc_type", "=", "Supplier"],
+            ["field_name", "=", "supplier_type"],
+            ["property", "=", "options"]
+        ]
+    }
+]
