@@ -13,9 +13,15 @@
   "amended_from",
   "column_break_gzpc",
   "supplier_name",
+  "section_break_gdwn",
+  "service_provider__subcontractor",
+  "dealerdistributor",
+  "trader",
+  "manufacture",
+  "other_mul",
+  "other_business",
   "organization_information_section",
-  "types_of_business",
-  "other",
+  "column_break_lgck",
   "no_of_manufacturing_plants",
   "ownership",
   "parent_company",
@@ -32,7 +38,6 @@
   "section_break_talp",
   "department_info",
   "competency_years_of_experience",
-  "common_mandatory_documents_for_risk_approval",
   "section_break_tlve",
   "major_customers",
   "major_suppliers",
@@ -208,7 +213,8 @@
   {
    "fieldname": "telephone",
    "fieldtype": "Phone",
-   "label": "Primary Contact No"
+   "label": "Primary Contact No",
+   "reqd": 1
   },
   {
    "fieldname": "website",
@@ -223,19 +229,6 @@
    "fieldname": "organization_information_section",
    "fieldtype": "Section Break",
    "label": "Organization Information"
-  },
-  {
-   "fieldname": "types_of_business",
-   "fieldtype": "Select",
-   "label": "Types Of Business",
-   "options": "\nManufacture\nTrader\nDealer/Distributor\nService Provider / Subcontractor\nOther / Multiple Business activity"
-  },
-  {
-   "depends_on": "eval:doc.types_of_business === \"Other\"",
-   "description": "Add Comma Seprated Values",
-   "fieldname": "other",
-   "fieldtype": "Small Text",
-   "label": "Other"
   },
   {
    "fieldname": "types_of_organization",
@@ -285,7 +278,7 @@
    "label": "Date of Expiry Other Standard"
   },
   {
-   "depends_on": "eval:doc.types_of_business !== \"Trader\" && doc.types_of_business !== \"Dealer/Distributor\"",
+   "depends_on": "eval:doc.trader == 1 || doc.dealerdistributor == 1",
    "fieldname": "competency_years_of_experience",
    "fieldtype": "Table",
    "label": "Competency & Years of Experience",
@@ -353,6 +346,7 @@
   {
    "fieldname": "work_force_unionized",
    "fieldtype": "Select",
+   "hidden": 1,
    "label": "Work Force Unionized?",
    "options": "\nYes\nNo"
   },
@@ -360,12 +354,14 @@
    "depends_on": "eval:doc.work_force_unionized === \"Yes\"",
    "fieldname": "union_name",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Union Name"
   },
   {
    "depends_on": "eval:doc.work_force_unionized === \"Yes\"",
    "fieldname": "contract_expiry_date",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Contract Expiry Date"
   },
   {
@@ -571,7 +567,7 @@
    "label": "Nearest Airport"
   },
   {
-   "depends_on": "eval:doc.types_of_business ===\"Service Provider / Subcontractor\" ||  doc.types_of_business ===\"Manufacture\" ",
+   "depends_on": "eval:doc.manufacture == 1 || doc.service_provider__subcontractor == 1",
    "fieldname": "_manufacturing__service_capability_tab",
    "fieldtype": "Tab Break",
    "label": "Manufacturing / Service Capability"
@@ -583,7 +579,7 @@
    "options": "Top Product CT"
   },
   {
-   "depends_on": "eval:doc.types_of_business==\"Trader\" || doc.types_of_business==\"Dealer/Distributor\"",
+   "depends_on": "eval:doc.trader == 1 || doc.dealerdistributor == 1",
    "fieldname": "dealer__distributor__trader_details_tab",
    "fieldtype": "Tab Break",
    "label": "Dealer / Distributor / Trader Details"
@@ -619,12 +615,6 @@
    "fieldtype": "Table",
    "label": "Supplier Risk Assessment Matrix",
    "options": "Supplier Risk Assessment Matrix CT"
-  },
-  {
-   "fieldname": "common_mandatory_documents_for_risk_approval",
-   "fieldtype": "Table",
-   "label": "Common Mandatory Documents for Risk Approval",
-   "options": "Documents for Risk Approval CT"
   },
   {
    "fieldname": "section_break_xsda",
@@ -718,7 +708,7 @@
    "label": "No. of Manufacturing Plants"
   },
   {
-   "depends_on": "eval:doc.types_of_business===\"Manufacture\"",
+   "depends_on": "eval:doc.manufacture",
    "fieldname": "no_of_employees",
    "fieldtype": "Int",
    "label": "Total No. of Employees"
@@ -1016,13 +1006,58 @@
    "fieldname": "turnover_last_3_year",
    "fieldtype": "Data",
    "label": "Turnover Last 3 Year"
+  },
+  {
+   "fieldname": "section_break_gdwn",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "service_provider__subcontractor",
+   "fieldtype": "Check",
+   "label": "Service Provider / Subcontractor"
+  },
+  {
+   "default": "0",
+   "fieldname": "dealerdistributor",
+   "fieldtype": "Check",
+   "label": "Dealer/Distributor"
+  },
+  {
+   "default": "0",
+   "fieldname": "trader",
+   "fieldtype": "Check",
+   "label": "Trader"
+  },
+  {
+   "default": "0",
+   "fieldname": "manufacture",
+   "fieldtype": "Check",
+   "label": "Manufacture"
+  },
+  {
+   "fieldname": "column_break_lgck",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "other_mul",
+   "fieldtype": "Check",
+   "label": "Other / Multiple Business activity"
+  },
+  {
+   "depends_on": "eval:doc.other_mul",
+   "description": "Add Comma Seprated Values",
+   "fieldname": "other_business",
+   "fieldtype": "Small Text",
+   "label": "Other Business"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-24 11:52:14.337601",
+ "modified": "2026-07-27 19:15:52.655472",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

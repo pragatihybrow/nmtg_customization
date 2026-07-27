@@ -113,6 +113,57 @@ frappe.ui.form.on("Supplier Registration Form", {
             });
             frm.refresh_field('department_info');
         }
+    },
+    
+    before_save(frm) {
+
+        // At least one business activity should be selected
+        const business_activity_fields = [
+            'service_provider__subcontractor',
+            'dealerdistributor',
+            'trader',
+            'manufacture',
+            'other__multiple_business_activity'
+        ];
+
+        const is_any_checked = business_activity_fields.some(
+            fieldname => frm.doc[fieldname] == 1
+        );
+
+        if (!is_any_checked) {
+            frappe.throw(__('Please select at least one Business Activity.'));
+        }
+
+
+        // Email Validation
+        if (frm.doc.email_id) {
+            const email_regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!email_regex.test(frm.doc.email_id)) {
+                frappe.throw(__('Please enter a valid Email ID.'));
+            }
+        }
+
+
+        // GSTIN Validation
+        if (frm.doc.gst_no) {
+            const gst_regex =
+                /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
+
+            if (!gst_regex.test(frm.doc.gst_no.toUpperCase())) {
+                frappe.throw(__('Please enter a valid GST Number (GSTIN).'));
+            }
+        }
+
+
+        // PAN Validation
+        if (frm.doc.pan_no) {
+            const pan_regex = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
+
+            if (!pan_regex.test(frm.doc.pan_no.toUpperCase())) {
+                frappe.throw(__('Please enter a valid PAN Number.'));
+            }
+        }
     }
 });
 
