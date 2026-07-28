@@ -123,7 +123,7 @@ frappe.ui.form.on("Supplier Registration Form", {
             'dealerdistributor',
             'trader',
             'manufacture',
-            'other__multiple_business_activity'
+            'other_mul'
         ];
 
         const is_any_checked = business_activity_fields.some(
