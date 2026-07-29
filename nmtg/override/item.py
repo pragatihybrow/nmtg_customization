@@ -29,7 +29,31 @@ class CustomItem(Item):
             frappe.throw(f"No Item Settings found for: {self.item_group} / {self.custom_product_group} / {self.custom_sub_product_group}")
 
         seq_digits = matched_row.sequence_digits or 4
-        ctx = {k: str(v) if v is not None else "" for k, v in self.as_dict().items()}
+        TABLE_VALUE_FIELDNAME = {
+            "custom_models": "model",
+            "custom_customer_type": "customer_type",
+            "custom_industry": "industry",
+            "custom_application": "application",
+        }
+
+        # Build context, handling table / table multiselect fields specially
+        ctx = {}
+        for k, v in self.as_dict().items():
+            if isinstance(v, list):
+                child_fieldname = TABLE_VALUE_FIELDNAME.get(k)
+                values = []
+                if child_fieldname:
+                    for child in v:
+                        child_val = (
+                            child.get(child_fieldname)
+                            if isinstance(child, dict)
+                            else getattr(child, child_fieldname, None)
+                        )
+                        if child_val:
+                            values.append(str(child_val))
+                ctx[k] = ", ".join(values)
+            else:
+                ctx[k] = str(v) if v is not None else ""
 
         def apply_pattern(pattern, context):
             pattern = pattern.replace("\n", "").strip()
@@ -44,13 +68,8 @@ class CustomItem(Item):
         ctx_no_seq["sequence"] = ""
         code_prefix = apply_pattern(code_pattern, ctx_no_seq)
 
-        # Seed the series so it continues from any items that already exist
-        # for this prefix (e.g. created before this logic was atomic, or via
-        # data import), instead of restarting from 1.
         self.seed_series_if_missing(code_prefix, seq_digits)
 
-        # Atomic: takes a row lock on tabSeries so concurrent saves for the
-        # same prefix can't read the same "next" number.
         next_seq = getseries(code_prefix, seq_digits)
 
         ctx["sequence"] = next_seq
@@ -81,4 +100,3 @@ class CustomItem(Item):
             VALUES (%s, %s)
             ON DUPLICATE KEY UPDATE current = GREATEST(current, %s)
         """, (code_prefix, current, current))
-

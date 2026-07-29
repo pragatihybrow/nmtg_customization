@@ -24,6 +24,19 @@ const ITEM_SETTINGS_SKIP_FIELDS = [
     "custom_quality_category_required"
 ];
 
+// Fields that need a special bracketed hint instead of (or in addition to)
+// the raw fieldname, wherever they show up (multiselect + pattern helper).
+const ITEM_SETTINGS_FIELD_LABEL_HINTS = {
+    custom_od: "use for sales",
+    custom_diameter: "use for purchase"
+};
+
+function get_field_display_label(f) {
+    let base = f.label || f.fieldname;
+    let hint = ITEM_SETTINGS_FIELD_LABEL_HINTS[f.fieldname];
+    return hint ? `${base} (${hint})` : base;
+}
+
 const ITEM_SETTINGS_STANDARD_TOKENS = [
     { value: "item_group", label: "Item Group" },
     { value: "custom_product_group", label: "Product Group" },
@@ -83,7 +96,7 @@ function render_required_fields_multiselect(frm, cdt, cdn) {
 
         let options = custom_fields.map(f => ({
             value: f.fieldname,
-            label: `${f.label || f.fieldname} (${f.fieldname})`
+            label: `${get_field_display_label(f)} (${f.fieldname})`
         }));
 
         let control = frappe.ui.form.make_control({
@@ -161,7 +174,7 @@ function render_pattern_helper(frm, cdt, cdn, target_fieldname) {
     get_item_custom_fields(function (all_fields) {
         let custom_tokens = all_fields
             .filter(f => !ITEM_SETTINGS_SKIP_FIELDS.includes(f.fieldname))
-            .map(f => ({ value: f.fieldname, label: f.label || f.fieldname }));
+            .map(f => ({ value: f.fieldname, label: get_field_display_label(f) }));
 
         let tokens = ITEM_SETTINGS_STANDARD_TOKENS.concat(custom_tokens);
 
@@ -227,4 +240,3 @@ function render_pattern_helper(frm, cdt, cdn, target_fieldname) {
         update_preview();
     });
 }
-

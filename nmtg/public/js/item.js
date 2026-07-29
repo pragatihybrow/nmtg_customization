@@ -56,6 +56,15 @@ frappe.ui.form.on("Item", {
     custom_tl: function(frm) {
         set_actual_size(frm);
     },
+    custom_id_uom: function(frm) {
+        set_actual_size(frm);
+    },
+    custom_od_uom: function(frm) {
+        set_actual_size(frm);
+    },
+    custom_total_length_uom: function(frm) {
+        set_actual_size(frm);
+    },
 
     custom_material_type(frm) {
 
@@ -260,11 +269,16 @@ function set_actual_size(frm) {
     let id = frm.doc.custom_id || "";
     let od = frm.doc.custom_od || "";
     let tl = frm.doc.custom_tl || "";
+    let id_uom = frm.doc.custom_id_uom || "";
+    let od_uom = frm.doc.custom_od_uom || "";
+    let tl_uom = frm.doc.custom_total_length_uom || "";
+
+
 
     if (id && od && tl) {
         frm.set_value(
             "custom_actual_size",
-            `${id} x ${od} x ${tl}`
+            `${id}${id_uom} x ${od}${od_uom} x ${tl}${tl_uom}`
         );
     } else {
         frm.set_value("custom_actual_size", "");
