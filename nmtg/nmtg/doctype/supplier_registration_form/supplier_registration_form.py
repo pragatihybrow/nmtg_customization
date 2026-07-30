@@ -110,7 +110,6 @@ class SupplierRegistrationForm(Document):
                 pincode=self.get("postal__zip_code"),
                 phone=self.get("telephone"),
                 email_id=self.get("email_id"),
-                gstin=self.get("gst_no"),
                 is_primary_address=1,
                 is_shipping_address=1,
             )
@@ -154,7 +153,6 @@ class SupplierRegistrationForm(Document):
         pincode,
         phone=None,
         email_id=None,
-        gstin=None,
         is_primary_address=0,
         is_shipping_address=0,
     ):
@@ -198,12 +196,6 @@ class SupplierRegistrationForm(Document):
             address_doc.phone = phone
         if email_id:
             address_doc.email_id = email_id
-        if gstin:
-            address_doc.gstin = gstin
-            # Registered Regular is the sensible default whenever a GSTIN is present;
-            # adjust here if you need to derive a different GST category.
-            if not address_doc.get("gst_category") or address_doc.gst_category == "Unregistered":
-                address_doc.gst_category = "Registered Regular"
         address_doc.is_primary_address = is_primary_address
         address_doc.is_shipping_address = is_shipping_address
 
@@ -247,11 +239,25 @@ class SupplierRegistrationForm(Document):
         contact_doc.last_name = name_parts[1] if len(name_parts) > 1 else ""
 
         if email_id:
-            if not any(row.email_id == email_id for row in contact_doc.email_ids):
+            existing_row = next((row for row in contact_doc.email_ids if row.email_id == email_id), None)
+            if existing_row:
+                # Make sure it's the one and only primary email
+                for row in contact_doc.email_ids:
+                    row.is_primary = 1 if row.email_id == email_id else 0
+            else:
+                # Unset any existing primary before adding the new primary email
+                for row in contact_doc.email_ids:
+                    row.is_primary = 0
                 contact_doc.append("email_ids", {"email_id": email_id, "is_primary": 1})
 
         if phone:
-            if not any(row.phone == phone for row in contact_doc.phone_nos):
+            existing_row = next((row for row in contact_doc.phone_nos if row.phone == phone), None)
+            if existing_row:
+                for row in contact_doc.phone_nos:
+                    row.is_primary_phone = 1 if row.phone == phone else 0
+            else:
+                for row in contact_doc.phone_nos:
+                    row.is_primary_phone = 0
                 contact_doc.append("phone_nos", {"phone": phone, "is_primary_phone": 1})
 
         contact_doc.flags.ignore_mandatory = True
@@ -279,118 +285,3 @@ class SupplierRegistrationForm(Document):
         })
         group_doc.insert(ignore_permissions=True)
         return group_doc.name
-
-        
-# # Copyright (c) 2026, Hybrowlabs and contributors
-# # For license information, please see license.txt
-# import frappe
-# from frappe.model.document import Document
-
-
-# class SupplierRegistrationForm(Document):
-#     def on_submit(self):
-#         self.sync_to_supplier()
-
-#     def sync_to_supplier(self):
-#         if not self.supplier_name:
-#             return
-
-#         supplier = frappe.get_doc("Supplier", self.supplier_name)
-
-#         field_map = {
-#             "types_of_organization": "supplier_type",
-#             "supplier_type": "custom_supplier_scope",
-#             "request_type": "request_type",
-#             "website": "website",
-#             "country": "country",
-#             "other_business": "custom_other_business",
-#             "ownership": "custom_ownership",
-
-#             # Tax / statutory
-#             "gst_no": "gstin",
-#             "pan_no": "pan",
-#             "vat__tin_no": "custom_vat__tin_no",
-#             "area_code": "custom_area_code",
-#             "msme_no": "custom_msme_registration_no",
-#             "central_excise_registration_no": "custom_central_excise_registration_no",
-#             "cst_no": "custom_cst_no",
-#             "website":"website",
-
-#             # International / import
-#             "taxpayer_identification_no__vat_id__ein": "custom_taxpayer_identification_no__vat_id__ein",
-#             "import_export_code__export_license_no": "custom_import_export_code__export_license_no",
-#             "nearest_seaport": "custom_nearest_seaport",
-#             "nearest_airport": "custom_nearest_airport",
-#             "transport__mode": "custom_preferble_transport__mode",
-#             "other_transportation_mode": "custom_other_transportation_mode_",
-#         }
-
-#         for src_field, target_field in field_map.items():
-#             value = self.get(src_field)
-#             if value:
-#                 supplier.set(target_field, value)
-
-#         self.set_supplier_group(supplier)
-
-#         supplier.custom_supplier_registration_form_created = 1
-#         supplier.flags.ignore_mandatory = True
-#         supplier.save(ignore_permissions=True)
-
-#     def set_supplier_group(self, supplier):
-
-#         checkbox_group_map = {
-#             "service_provider__subcontractor": "Service Provider / Subcontractor",
-#             "dealerdistributor": "Dealer/Distributor",
-#             "trader": "Trader",
-#             "manufacture": "Manufacture",
-#         }
-
-#         selected_groups = []
-#         for fieldname, group_name in checkbox_group_map.items():
-#             if self.get(fieldname):
-#                 selected_groups.append(group_name)
-
-#         # "Other / Multiple Business activity" -> comma-separated custom names
-#         if self.get("other_mul") and self.get("other_business"):
-#             for name in self.other_business.split(","):
-#                 name = name.strip()
-#                 if name:
-#                     selected_groups.append(name)
-
-#         if not selected_groups:
-#             return
-
-#         # Dedupe, preserving order
-#         seen = set()
-#         deduped = []
-#         for g in selected_groups:
-#             if g not in seen:
-#                 seen.add(g)
-#                 deduped.append(g)
-#         selected_groups = deduped
-
-#         # Rebuild fresh each submit (avoids stale/duplicate rows on re-submission flows)
-#         supplier.set("custom_other_supplier_group_included", [])
-#         for group_name in selected_groups:
-#             supplier.append(
-#                 "custom_other_supplier_group_included",
-#                 {"supplier_group": self.get_or_create_supplier_group(group_name)},
-#             )
-
-#     @staticmethod
-#     def get_or_create_supplier_group(group_name):
-#         if frappe.db.exists("Supplier Group", group_name):
-#             return group_name
-
-#         parent = "All Supplier Groups"
-#         if not frappe.db.exists("Supplier Group", parent):
-#             parent = frappe.db.get_value("Supplier Group", {"is_group": 1}, "name")
-
-#         group_doc = frappe.get_doc({
-#             "doctype": "Supplier Group",
-#             "supplier_group_name": group_name,
-#             "parent_supplier_group": parent,
-#             "is_group": 0,
-#         })
-#         group_doc.insert(ignore_permissions=True)
-#         return group_doc.name
