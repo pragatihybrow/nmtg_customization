@@ -104,16 +104,51 @@ frappe.ui.form.on("Supplier Registration Form", {
         calculate_ghg_accounting_score(frm);
         calculate_financial_stability_score(frm);
     },
-    onload: function(frm) {
-        if (frm.is_new() && (!frm.doc.department_info || frm.doc.department_info.length === 0)) {
-            const departments = ['Quality', 'Purchase', 'Account', 'Logistic'];
-            departments.forEach(dept => {
-                let row = frm.add_child('department_info');
-                row.department = dept;
-            });
-            frm.refresh_field('department_info');
-        }
-    },
+    
+   onload: function(frm) {
+    if (frm.is_new() && (!frm.doc.department_info || frm.doc.department_info.length === 0)) {
+        const departments = ['Quality', 'Purchase', 'Account', 'Logistic'];
+        departments.forEach(dept => {
+            let row = frm.add_child('department_info');
+            row.department = dept;
+        });
+        frm.refresh_field('department_info');
+    }
+
+    if (frm.is_new() && (!frm.doc.domestic_supplier_document_checklist || frm.doc.domestic_supplier_document_checklist.length === 0)) {
+        const domestic_docs = [
+            'GST Certificate',
+            'PAN Card',
+            'Cancelled Cheque Copy',
+            'MSME Certificate',
+            'List of Equipment with Make, Mfg. Date and Capacity',
+            'List of Instruments with Make, Mfg. Date and Capacity',
+            'List of Machinery with Make, Mfg. Date and Capacity',
+            'Other Supporting Document',
+            'VAT / TIN No.'
+        ];
+        domestic_docs.forEach(doc_name => {
+            let row = frm.add_child('domestic_supplier_document_checklist');
+            row.requirement__document = doc_name;
+        });
+        frm.refresh_field('domestic_supplier_document_checklist');
+    }
+
+    if (frm.is_new() && (!frm.doc.international_supplier_document_checklist || frm.doc.international_supplier_document_checklist.length === 0)) {
+        const international_docs = [
+            'Taxpayer Identification Certificate',
+            'BIS Certificate',
+            'Import / Export License',
+            'Product Catalogue',
+            'Other Supporting Document'
+        ];
+        international_docs.forEach(doc_name => {
+            let row = frm.add_child('international_supplier_document_checklist');
+            row.requirement__document = doc_name;
+        });
+        frm.refresh_field('international_supplier_document_checklist');
+    }
+},
     
     before_save(frm) {
 

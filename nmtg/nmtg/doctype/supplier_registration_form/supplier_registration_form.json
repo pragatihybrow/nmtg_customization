@@ -301,10 +301,13 @@
    "label": "Attach"
   },
   {
+   "fetch_from": "supplier_name.request_type",
+   "fetch_if_empty": 1,
    "fieldname": "request_type",
    "fieldtype": "Select",
    "label": "Request Type",
-   "options": "\nNew Supplier\nExisting Supplier Update\nRe-Evaluation"
+   "options": "\nNew Supplier\nExisting Supplier Update\nRe-Evaluation",
+   "read_only": 1
   },
   {
    "fieldname": "city",
@@ -946,9 +949,10 @@
    "options": "\nYes\nNo"
   },
   {
+   "description": "Ex. Aanshi Panchal",
    "fieldname": "primary_contact_person",
    "fieldtype": "Data",
-   "label": "Primary Contact Person"
+   "label": "Primary Contact Person Name"
   },
   {
    "fieldname": "detailed_office_address",
@@ -1057,7 +1061,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-28 16:37:17.656707",
+ "modified": "2026-07-30 10:55:30.474181",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

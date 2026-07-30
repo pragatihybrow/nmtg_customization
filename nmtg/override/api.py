@@ -559,3 +559,11 @@ def validate_quality_category_before_submit(doc, method):
 def custom_set_rejection_remark(name, remark):
     frappe.db.set_value("Supplier", name, "custom_rejection_remark", remark)
     frappe.db.commit()
+
+
+@frappe.whitelist(allow_guest=True)
+def get_supplier_request_type(supplier_name):
+    if not supplier_name:
+        return {}
+    request_type = frappe.db.get_value("Supplier", supplier_name, "request_type")
+    return {"request_type": request_type}
