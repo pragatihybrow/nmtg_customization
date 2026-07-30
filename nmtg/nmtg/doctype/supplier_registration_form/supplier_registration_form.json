@@ -42,8 +42,8 @@
   "major_customers",
   "major_suppliers",
   "address_contact_tab",
-  "telephone",
   "email_id",
+  "website",
   "office_and_factory_address_are_different",
   "detailed_office_address",
   "city",
@@ -53,14 +53,14 @@
   "duns",
   "duns_number",
   "column_break_qzqj",
-  "website",
+  "telephone",
+  "primary_contact_person",
   "detailed_factory_address",
   "city_factory",
   "postal__zip_code_factory",
   "state__province_factory",
   "country_factory",
   "year_established",
-  "primary_contact_person",
   "certification_compliance_tab",
   "test",
   "certified_by_iso__international_standards",
@@ -166,7 +166,8 @@
  "fields": [
   {
    "fieldname": "section_break_5dbf",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Basic Details"
   },
   {
    "fieldname": "amended_from",
@@ -1013,7 +1014,8 @@
   },
   {
    "fieldname": "section_break_gdwn",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Business Info"
   },
   {
    "default": "0",
@@ -1061,7 +1063,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-30 10:55:30.474181",
+ "modified": "2026-07-30 14:27:36.494642",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

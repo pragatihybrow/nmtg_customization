@@ -27,8 +27,8 @@ const ITEM_SETTINGS_SKIP_FIELDS = [
 // Fields that need a special bracketed hint instead of (or in addition to)
 // the raw fieldname, wherever they show up (multiselect + pattern helper).
 const ITEM_SETTINGS_FIELD_LABEL_HINTS = {
-    custom_od: "use for sales",
-    custom_diameter: "use for purchase"
+    // custom_od: "use for sales",
+    // custom_diameter: "use for purchase"
 };
 
 function get_field_display_label(f) {
