@@ -10,6 +10,8 @@
   "section_break_er4d",
   "amended_from",
   "supplier",
+  "primary_contact_person_name",
+  "contact_no",
   "supplier_audit_checksheet",
   "criteria",
   "maximum_score",
@@ -52,30 +54,44 @@
   {
    "fieldname": "maximum_score",
    "fieldtype": "Float",
-   "label": "Maximum Score"
+   "label": "Maximum Score",
+   "read_only": 1
   },
   {
    "fieldname": "achieved_score",
    "fieldtype": "Float",
-   "label": "Achieved Score"
+   "label": "Achieved Score",
+   "read_only": 1
   },
   {
    "fieldname": "score_",
    "fieldtype": "Percent",
-   "label": "Score %"
+   "label": "Score %",
+   "read_only": 1
   },
   {
    "fieldname": "risk_level",
    "fieldtype": "Select",
    "label": "Risk Level",
-   "options": "\nExcellent-Approved\nGood-Approved\nAcceptable-Approved with Improvement Plan\nHigh Risk\t-Conditional Approval\nVery High Risk-Re-Audit Required"
+   "options": "\nExcellent-Approved\nGood-Approved\nAcceptable-Approved with Improvement Plan\nHigh Risk\t-Conditional Approval\nVery High Risk-Re-Audit Required",
+   "read_only": 1
+  },
+  {
+   "fieldname": "primary_contact_person_name",
+   "fieldtype": "Data",
+   "label": "Primary Contact Person Name"
+  },
+  {
+   "fieldname": "contact_no",
+   "fieldtype": "Data",
+   "label": "Contact No"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-15 12:17:56.814247",
+ "modified": "2026-08-03 14:28:54.823507",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Audit",

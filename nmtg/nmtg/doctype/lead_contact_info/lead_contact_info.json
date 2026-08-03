@@ -11,7 +11,8 @@
   "designation",
   "email_id",
   "contact_no",
-  "whatsapp_no"
+  "whatsapp_no",
+  "custom_contact_ref"
  ],
  "fields": [
   {
@@ -43,13 +44,19 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Whatsapp No"
+  },
+  {
+   "fieldname": "custom_contact_ref",
+   "fieldtype": "Link",
+   "label": "Contact Ref",
+   "options": "Contact"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-31 12:48:26.385125",
+ "modified": "2026-08-03 15:07:29.491240",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Lead Contact Info",

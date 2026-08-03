@@ -998,19 +998,22 @@
    "label": "State / Province (Factory)"
   },
   {
+   "description": "Turnover",
    "fieldname": "turnover_last_1_year",
    "fieldtype": "Data",
-   "label": "Turnover Last 1 Year"
+   "label": "Last Year"
   },
   {
+   "description": "Turnover",
    "fieldname": "turnover_last_2_year",
    "fieldtype": "Data",
-   "label": "Turnover Last 2 Year"
+   "label": "Last 2 Year"
   },
   {
+   "description": "Turnover",
    "fieldname": "turnover_last_3_year",
    "fieldtype": "Data",
-   "label": "Turnover Last 3 Year"
+   "label": "Last 3 Year"
   },
   {
    "fieldname": "section_break_gdwn",
@@ -1063,7 +1066,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-07-30 14:27:36.494642",
+ "modified": "2026-08-03 14:34:01.063237",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

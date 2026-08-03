@@ -259,7 +259,8 @@ doctype_js = {
     "Purchase Order": "public/js/purchase_order.js",
     "Supplier":        "public/js/supplier.js",
     "Supplier Quotation":"public/js/supplier_quotation.js",
-    "Request for Quotation": "public/js/request_for_quotation.js"
+    "Request for Quotation": "public/js/request_for_quotation.js",
+    "Lead":"public/js/lead.js"
 
 }
 
@@ -281,18 +282,16 @@ doc_events = {
             
         ],
         "on_submit":[
-            "nmtg.override.quality_inspection.on_submit",
-            # "nmtg.override.quality_inspection.split_purchase_receipt_rows"
-    
+            "nmtg.override.quality_inspection.on_submit",    
         ],
-        # "on_cancel": "nmtg.override.quality_inspection.on_cancel",
     },
     "Supplier Quotation": {
         "before_submit": "nmtg.override.api.validate_quality_category_before_submit"
-    }
-    # "Purchase Order": {
-    #     "validate": "nmtg.override.purchase_order.calculate_qty_in_kg"
-    # },
+    },
+    #  "Lead": {
+    #     "on_update": "nmtg.override.lead.sync_lead_contacts",
+    #     "after_insert": "nmtg.override.lead.sync_lead_contacts",
+    # }
     
 }
 
