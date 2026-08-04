@@ -567,3 +567,107 @@ def get_supplier_request_type(supplier_name):
         return {}
     request_type = frappe.db.get_value("Supplier", supplier_name, "request_type")
     return {"request_type": request_type}
+
+
+import json
+import frappe
+
+
+@frappe.whitelist(allow_guest=True)
+def submit_supplier_registration():
+    payload = json.loads(frappe.request.data)
+    doc_data = payload.get("doc") or payload
+    doc_data["doctype"] = "Supplier Registration Form"
+
+    doc = frappe.get_doc(doc_data)
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    return {"name": doc.name}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_link_options():
+    doctypes = ["Country", "Supplier", "Competency"]
+    result = {}
+    for doctype in doctypes:
+        result[doctype] = frappe.get_all(
+            doctype,
+            pluck="name",
+            order_by="name asc",
+            limit_page_length=0,
+        )
+    return result
+
+
+@frappe.whitelist(allow_guest=True)
+def upload_supplier_file():
+    """
+    Guest-safe file upload for the public Supplier Registration Form.
+    Bypasses the core /api/method/upload_file permission check
+    (which requires create permission on File, which Guest lacks)
+    while still validating that a real file was posted.
+    """
+    if "file" not in frappe.request.files:
+        frappe.throw("No file was uploaded.")
+
+    file = frappe.request.files["file"]
+    filename = file.filename
+    content = file.stream.read()
+
+    if not content:
+        frappe.throw("Uploaded file is empty.")
+
+    saved = save_file(
+        fname=filename,
+        content=content,
+        dt=None,          # not attached to a specific doc yet — form isn't saved until submit
+        dn=None,
+        is_private=1,
+        ignore_permissions=True,
+    )
+
+    return {"file_url": saved.file_url, "file_name": saved.file_name}
+
+
+  
+import base64
+
+
+@frappe.whitelist(allow_guest=True)
+def upload_supplier_file():
+    if "file" not in frappe.request.files:
+        frappe.throw("No file was uploaded.")
+
+    file = frappe.request.files["file"]
+    filename = file.filename
+    content = file.stream.read()
+
+    if not content:
+        frappe.throw("Uploaded file is empty.")
+
+    file_doc = frappe.get_doc({
+        "doctype": "File",
+        "file_name": filename,
+        "content": base64.b64encode(content).decode("utf-8"),
+        "decode": True,
+        "is_private": 1,
+        "attached_to_doctype": None,
+        "attached_to_name": None,
+    })
+    file_doc.insert(ignore_permissions=True)
+
+    return {"file_url": file_doc.file_url, "file_name": file_doc.file_name}
+
+@frappe.whitelist(allow_guest=True)
+def save_supplier_audit(doc):
+    if isinstance(doc, str):
+        doc = json.loads(doc)
+
+    if doc.get("doctype") != "Supplier Audit":
+        frappe.throw("Invalid doctype.")
+
+    audit = frappe.get_doc(doc)
+    audit.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return {"name": audit.name}

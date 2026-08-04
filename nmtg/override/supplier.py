@@ -82,3 +82,9 @@ Your Supplier Registration Form is ready. Please complete it using the link belo
 	)
 
 	frappe.msgprint(f"Email sent to {doc.email_id}")
+
+
+@frappe.whitelist()
+def get_computed_supplier_status(supplier):
+    doc = frappe.get_doc("Supplier", supplier)
+    return get_supplier_status(doc.as_dict())
