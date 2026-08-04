@@ -288,10 +288,9 @@ doc_events = {
     "Supplier Quotation": {
         "before_submit": "nmtg.override.api.validate_quality_category_before_submit"
     },
-    #  "Lead": {
-    #     "on_update": "nmtg.override.lead.sync_lead_contacts",
-    #     "after_insert": "nmtg.override.lead.sync_lead_contacts",
-    # }
+     "Supplier": {
+        "validate": "nmtg.override.supplier.validate"
+    }
     
 }
 
