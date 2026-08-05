@@ -1,0 +1,159 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-05 11:51:50.712872",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_i7uo",
+  "amended_from",
+  "organization_name",
+  "annual_turnover",
+  "column_break_zlta",
+  "no_of_employees",
+  "approx_annual_requirement",
+  "column_break_ript",
+  "territory",
+  "requirement_timeline",
+  "section_break_fslp",
+  "naming_series",
+  "salutation",
+  "email",
+  "mobile_no",
+  "column_break_lggf",
+  "full_name",
+  "whatsapp"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_i7uo",
+   "fieldtype": "Section Break",
+   "label": "Organization"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Enquiry",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "organization_name",
+   "fieldtype": "Data",
+   "label": "Organization Name"
+  },
+  {
+   "fieldname": "column_break_zlta",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "no_of_employees",
+   "fieldtype": "Select",
+   "label": "No of Employees",
+   "options": "1-10\n11-50\n51-200\n201-500\n501-1000\n1000+"
+  },
+  {
+   "fieldname": "column_break_ript",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "annual_turnover",
+   "fieldtype": "Data",
+   "label": "Annual Turnover "
+  },
+  {
+   "fieldname": "territory",
+   "fieldtype": "Link",
+   "label": "Territory",
+   "options": "Territory"
+  },
+  {
+   "fieldname": "approx_annual_requirement",
+   "fieldtype": "Data",
+   "label": "Approx. Annual Requirement"
+  },
+  {
+   "fieldname": "requirement_timeline",
+   "fieldtype": "Data",
+   "label": "Requirement Timeline"
+  },
+  {
+   "fieldname": "section_break_fslp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "salutation",
+   "fieldtype": "Link",
+   "label": "Salutation",
+   "options": "Salutation"
+  },
+  {
+   "fieldname": "column_break_lggf",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "label": "Full Name"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email"
+  },
+  {
+   "fieldname": "whatsapp",
+   "fieldtype": "Data",
+   "label": "WhatsApp"
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "label": "Mobile No"
+  },
+  {
+   "default": "CRM-ENQ-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Series",
+   "options": "CRM-ENQ-.YYYY.-",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-05 11:57:55.037158",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Enquiry",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

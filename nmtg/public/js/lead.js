@@ -14,12 +14,21 @@ frappe.ui.form.on('Lead', {
         set_industry_filter(frm);
         set_application_filter(frm);
         set_first_row_name(frm);
+        toggle_qualification_gated_buttons(frm);
+        override_prospect_button(frm);
+        override_quotation_button(frm);
+        // override_opportunity_button(frm);
+        override_customer_button(frm);
     },
-
     refresh: function(frm) {
         set_industry_filter(frm);
         set_application_filter(frm);
         set_first_row_name(frm);
+        setTimeout(() => toggle_qualification_gated_buttons(frm), 500);
+        override_prospect_button(frm);
+        override_quotation_button(frm);
+        // override_opportunity_button(frm);
+        override_customer_button(frm);
     },
 
     first_name(frm) {
@@ -29,6 +38,17 @@ frappe.ui.form.on('Lead', {
         set_first_row_name(frm);
     }
 });
+
+
+function toggle_qualification_gated_buttons(frm) {
+    if (frm.doc.workflow_state === "Qualified") return;
+
+    frm.remove_custom_button("Customer", "Create");
+    frm.remove_custom_button("Opportunity", "Create");
+    frm.remove_custom_button("Quotation", "Create");
+    frm.remove_custom_button("Prospect", "Create");
+    frm.remove_custom_button("Add to Prospect", "Action");
+}
 
 function set_industry_filter(frm) {
     const customer_types = (frm.doc.custom_customer_type || [])
@@ -138,9 +158,7 @@ function sync_contact(frm, cdt, cdn) {
                 frappe.model.set_value(cdt, cdn, 'custom_contact_ref', r.message);
             }
 
-            // Contact sync may have silently updated the Lead's `modified`
-            // timestamp server-side (core Contact->Lead sync hook).
-            // Refresh just that timestamp so the next Save doesn't conflict.
+            
             frappe.call({
                 method: 'frappe.client.get_value',
                 args: {
@@ -156,4 +174,204 @@ function sync_contact(frm, cdt, cdn) {
             });
         }
     });
+}
+
+
+function copy_custom_field(values, target_doctype, frm, source_fieldname, target_fieldname) {
+	target_fieldname = target_fieldname || source_fieldname;
+
+	if (!frappe.meta.has_field(target_doctype, target_fieldname)) return;
+
+	let df = frappe.meta.get_docfield(target_doctype, target_fieldname);
+	let value = frm.doc[source_fieldname];
+	if (value === undefined || value === null) return;
+
+	if (df.fieldtype === "Table" || df.fieldtype === "Table MultiSelect") {
+		if (!Array.isArray(value)) return;
+		values[target_fieldname] = value.map((row) => {
+			let clean = {};
+			Object.keys(row).forEach((key) => {
+				if (
+					!["name", "owner", "creation", "modified", "modified_by", "parent", "parentfield", "parenttype", "doctype", "idx", "docstatus"].includes(key)
+				) {
+					clean[key] = row[key];
+				}
+			});
+			return clean;
+		});
+	} else {
+		values[target_fieldname] = value;
+	}
+}
+
+function route_to_new_doc(doctype, values) {
+	frappe.route_options = values;
+	frappe.new_doc(doctype);
+}
+
+
+/* ---------------------------------------------------------------------
+ * Prospect
+ * ------------------------------------------------------------------- */
+function override_prospect_button(frm) {
+	if (frm.doc.workflow_state !== "Qualified") return;
+
+	frm.remove_custom_button("Prospect", "Create");
+	frm.add_custom_button(__("Prospect"), () => make_prospect_from_lead(frm), __("Create"));
+}
+
+function make_prospect_from_lead(frm) {
+	frappe.model.with_doctype("Prospect", () => {
+		let values = {};
+
+		// standard field mapping
+		values.company_name = frm.doc.company_name;
+		values.no_of_employees = frm.doc.no_of_employees;
+		values.annual_revenue = frm.doc.annual_revenue;
+		values.industry = frm.doc.industry;
+		values.market_segment = frm.doc.market_segment;
+		values.territory = frm.doc.territory;
+		values.website = frm.doc.website;
+		values.fax = frm.doc.fax;
+		values.city = frm.doc.city;
+		values.state = frm.doc.state;
+		values.country = frm.doc.country;
+
+		// link back to originating lead
+		values.leads = [{
+			lead: frm.doc.name,
+			lead_name: frm.doc.lead_name,
+			lead_owner: frm.doc.lead_owner,
+		}];
+
+		// custom fields — same fieldname on both sides
+		[
+			"custom_approx_annual_requirement",
+			"custom_requirement_timeline",
+			"custom_product_group",
+			"custom_application",
+			"custom_industry_ct",
+			"custom_customer_type",
+			"custom_contact_info",
+			"custom_product_intrest",
+		].forEach((fieldname) => copy_custom_field(values, "Prospect", frm, fieldname));
+
+		// renamed on Lead (trailing underscore) vs Prospect
+		copy_custom_field(values, "Prospect", frm, "custom_annual_turnover_", "custom_annual_turnover");
+		copy_custom_field(values, "Prospect", frm, "custom_application_description_", "custom_application_description");
+
+		route_to_new_doc("Prospect", values);
+	});
+}
+
+
+/* ---------------------------------------------------------------------
+ * Opportunity
+ * ------------------------------------------------------------------- */
+function override_opportunity_button(frm) {
+	if (frm.doc.workflow_state !== "Qualified") return;
+
+	frm.remove_custom_button("Opportunity", "Create");
+	frm.add_custom_button(__("Opportunity"), () => make_opportunity_from_lead(frm), __("Create"));
+}
+
+function make_opportunity_from_lead(frm) {
+	frappe.model.with_doctype("Opportunity", () => {
+		let values = {};
+
+		values.opportunity_from = "Lead";
+		values.party_name = frm.doc.name;
+		values.customer_name = frm.doc.company_name || frm.doc.lead_name;
+
+		// standard field mapping
+		values.no_of_employees = frm.doc.no_of_employees;
+		values.annual_revenue = frm.doc.annual_revenue;
+		values.industry = frm.doc.industry;
+		values.market_segment = frm.doc.market_segment;
+		values.territory = frm.doc.territory;
+		values.website = frm.doc.website;
+		values.city = frm.doc.city;
+		values.state = frm.doc.state;
+		values.country = frm.doc.country;
+
+		// custom fields — same fieldname on both sides
+		[
+			"custom_approx_annual_requirement",
+			"custom_requirement_timeline",
+			"custom_product_group",
+			"custom_application",
+			"custom_industry_ct",
+			"custom_customer_type",
+			"custom_product_intrest",
+		].forEach((fieldname) => copy_custom_field(values, "Opportunity", frm, fieldname));
+
+		// renamed on Lead (trailing underscore) vs Opportunity
+		copy_custom_field(values, "Opportunity", frm, "custom_annual_turnover_", "custom_annual_turnover");
+		copy_custom_field(values, "Opportunity", frm, "custom_application_description_", "custom_application_description");
+
+		route_to_new_doc("Opportunity", values);
+	});
+}
+
+
+/* ---------------------------------------------------------------------
+ * Quotation
+ * ------------------------------------------------------------------- */
+function override_quotation_button(frm) {
+	if (frm.doc.workflow_state !== "Qualified") return;
+
+	frm.remove_custom_button("Quotation", "Create");
+	frm.add_custom_button(__("Quotation"), () => make_quotation_from_lead(frm), __("Create"));
+}
+
+function make_quotation_from_lead(frm) {
+	frappe.model.with_doctype("Quotation", () => {
+		let values = {};
+
+		// same ordering concern as Opportunity: quotation_to before party_name
+		values.quotation_to = "Lead";
+		values.party_name = frm.doc.name;
+		values.customer_name = frm.doc.company_name || frm.doc.lead_name;
+
+		// custom fields — same fieldname on both sides
+		[
+			"custom_customer_type",
+			"custom_industry_ct",
+			"custom_application",
+			"custom_product_group",
+			"custom_product_intrest",
+		].forEach((fieldname) => copy_custom_field(values, "Quotation", frm, fieldname));
+
+		// renamed on Lead (trailing underscore) vs Quotation
+		copy_custom_field(values, "Quotation", frm, "custom_application_description_", "custom_application_description");
+
+		route_to_new_doc("Quotation", values);
+	});
+}
+
+
+/* ---------------------------------------------------------------------
+ * Customer
+ * ------------------------------------------------------------------- */
+function override_customer_button(frm) {
+	if (frm.doc.workflow_state !== "Qualified") return;
+
+	frm.remove_custom_button("Customer", "Create");
+	frm.add_custom_button(__("Customer"), () => make_customer_from_lead(frm), __("Create"));
+}
+
+function make_customer_from_lead(frm) {
+	frappe.model.with_doctype("Customer", () => {
+		let values = {};
+
+		values.customer_name = frm.doc.company_name || frm.doc.lead_name;
+		values.lead_name = frm.doc.name; // back-link to originating lead
+		values.territory = frm.doc.territory;
+
+		copy_custom_field(values, "Customer", frm, "custom_customer_type", "custom_customer__type");
+		copy_custom_field(values, "Customer", frm, "custom_industry_ct", "custom_industrys");
+		copy_custom_field(values, "Customer", frm, "custom_application"); // same fieldname on both sides
+
+		route_to_new_doc("Customer", values);
+	});
 }
