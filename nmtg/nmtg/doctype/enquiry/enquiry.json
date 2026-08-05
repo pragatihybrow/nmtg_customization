@@ -10,6 +10,7 @@
   "section_break_i7uo",
   "amended_from",
   "organization_name",
+  "company",
   "annual_turnover",
   "column_break_zlta",
   "no_of_employees",
@@ -124,13 +125,19 @@
    "label": "Series",
    "options": "CRM-ENQ-.YYYY.-",
    "reqd": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-05 11:57:55.037158",
+ "modified": "2026-08-05 15:26:55.559237",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Enquiry",

@@ -260,7 +260,8 @@ doctype_js = {
     "Supplier":        "public/js/supplier.js",
     "Supplier Quotation":"public/js/supplier_quotation.js",
     "Request for Quotation": "public/js/request_for_quotation.js",
-    "Lead":"public/js/lead.js"
+    "Lead":"public/js/lead.js",
+    "Opportunity":"public/js/opportunity.js"
 
 }
 
@@ -293,7 +294,8 @@ doc_events = {
     },
         "Lead": {
         "validate": "nmtg.override.api.validate_lead"
-    }
+    },
+    
 
     
 }
