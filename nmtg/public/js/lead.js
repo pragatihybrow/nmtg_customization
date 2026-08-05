@@ -13,13 +13,20 @@ frappe.ui.form.on('Lead', {
     onload: function(frm) {
         set_industry_filter(frm);
         set_application_filter(frm);
-        render_product_checkboxes(frm);
+        set_first_row_name(frm);
     },
 
     refresh: function(frm) {
         set_industry_filter(frm);
         set_application_filter(frm);
-        render_product_checkboxes(frm);
+        set_first_row_name(frm);
+    },
+
+    first_name(frm) {
+        set_first_row_name(frm);
+    },
+    company_name(frm) {
+        set_first_row_name(frm);
     }
 });
 
@@ -87,59 +94,66 @@ function set_application_filter(frm) {
     });
 }
 
+function set_first_row_name(frm) {
+    let cname = frm.doc.first_name || frm.doc.company_name || '';
+    if (!cname) return;
 
-
-const PRODUCT_OPTIONS = [
-    "Locking Assembly",
-    "Shrink Disc",
-    "Tensioner Nut (Hydraulic)",
-    "Tensioner Nut (Mechanical)",
-    "Tensioner Bolt & Stud Set",
-    "One Way Clutch / Freewheel (Standard)",
-    "Holdback / Backstop (Mounted)",
-    "Overrunning Clutch (Industrial)",
-    "Hydraulic Turning Motor with Overrunning Clutch",
-    "Clamping Sleeve",
-    "Keyless Rigid Coupling"
-];
-
-
-
-function render_product_checkboxes(frm) {
-    const wrapper = frm.fields_dict.custom_product.$wrapper;
-    wrapper.empty();
-
-    const selected = (frm.doc.custom_product_ct || "")
-        .split(",")
-        .map(v => v.trim())
-        .filter(Boolean);
-
-    const $container = $('<div class="product-checkbox-group" style="display:flex;flex-wrap:wrap;gap:8px 24px;"></div>').appendTo(wrapper);
-
-    PRODUCT_OPTIONS.forEach((option, idx) => {
-        const checkbox_id = `custom_product_${idx}`;
-        const is_checked = selected.includes(option);
-
-        const $item = $(`
-            <div class="checkbox" style="flex:0 0 45%;">
-                <label style="font-weight:normal;">
-                    <input type="checkbox" id="${checkbox_id}" data-value="${frappe.utils.escape_html(option)}" ${is_checked ? "checked" : ""}>
-                    ${frappe.utils.escape_html(option)}
-                </label>
-            </div>
-        `).appendTo($container);
-
-        $item.find("input").on("change", () => sync_product_ct(frm));
-    });
+    if (!frm.doc.custom_contact_info || !frm.doc.custom_contact_info.length) {
+        let row = frm.add_child('custom_contact_info');
+        row.name1 = cname;
+    } else {
+        let row = frm.doc.custom_contact_info[0];
+        // don't clobber a row once it's linked to an actual Contact
+        if (row.name1 !== cname && !row.custom_contact_ref) {
+            frappe.model.set_value(row.doctype, row.name, 'name1', cname);
+        }
+    }
+    frm.refresh_field('custom_contact_info');
 }
 
-function sync_product_ct(frm) {
-    const wrapper = frm.fields_dict.custom_product.$wrapper;
-    const checked_values = [];
+frappe.ui.form.on('Lead Contact Info', {
+    email_id(frm, cdt, cdn) { debounced_sync_contact(frm, cdt, cdn); },
+    contact_no(frm, cdt, cdn) { debounced_sync_contact(frm, cdt, cdn); },
+    whatsapp_no(frm, cdt, cdn) { debounced_sync_contact(frm, cdt, cdn); },
+    designation(frm, cdt, cdn) { debounced_sync_contact(frm, cdt, cdn); },
+    name1(frm, cdt, cdn) { debounced_sync_contact(frm, cdt, cdn); }
+});
 
-    wrapper.find('input[type="checkbox"]:checked').each(function () {
-        checked_values.push($(this).data("value"));
+const debounced_sync_contact = frappe.utils.debounce(sync_contact, 800);
+
+function sync_contact(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+
+    if (!row.name1) return;
+    if (!row.email_id && !row.contact_no && !row.whatsapp_no) return;
+
+    frappe.call({
+        method: "nmtg.override.api.create_or_update_lead_contact",
+        args: {
+            row: row,
+            lead: frm.doc.name
+        },
+        callback: function (r) {
+            if (r.message) {
+                frappe.model.set_value(cdt, cdn, 'custom_contact_ref', r.message);
+            }
+
+            // Contact sync may have silently updated the Lead's `modified`
+            // timestamp server-side (core Contact->Lead sync hook).
+            // Refresh just that timestamp so the next Save doesn't conflict.
+            frappe.call({
+                method: 'frappe.client.get_value',
+                args: {
+                    doctype: 'Lead',
+                    filters: frm.doc.name,
+                    fieldname: 'modified'
+                },
+                callback: function (res) {
+                    if (res.message && res.message.modified) {
+                        frm.doc.modified = res.message.modified;
+                    }
+                }
+            });
+        }
     });
-
-    frm.set_value("custom_product_ct", checked_values.join(", "));
 }

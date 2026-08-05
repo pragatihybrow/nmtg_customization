@@ -14,15 +14,14 @@
    "fieldname": "product_group",
    "fieldtype": "Link",
    "label": "Product Group",
-   "link_filters": "[[\"Item Group\",\"custom_level\",\"=\",\"Level 2\"]]",
-   "options": "Item Group"
+   "options": "Product Group"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-07-30 16:21:34.844674",
+ "modified": "2026-08-05 10:47:15.638354",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Product Group CT",

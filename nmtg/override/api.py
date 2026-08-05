@@ -671,3 +671,119 @@ def save_supplier_audit(doc):
     audit.insert(ignore_permissions=True)
     frappe.db.commit()
     return {"name": audit.name}
+
+def validate_lead(doc, method=None):
+    if doc.workflow_state != "Qualified":
+        return
+
+    missing_fields = []
+
+    if not doc.custom_customer_type:
+        missing_fields.append(_("Customer Type"))
+
+    if not doc.custom_industry_ct:
+        missing_fields.append(_("Industry"))
+
+    if not doc.custom_application:
+        missing_fields.append(_("Application"))
+
+    if not doc.custom_product_group:
+        missing_fields.append(_("Product Group"))
+
+    if missing_fields:
+        frappe.throw(
+            _("The following fields are mandatory before changing the Workflow State to Qualified:<br><br><b>{0}</b>").format(
+                "<br>".join(f"• {field}" for field in missing_fields)
+            )
+        )
+
+
+@frappe.whitelist()
+def create_or_update_lead_contact(row, lead):
+    if isinstance(row, str):
+        row = json.loads(row)
+    row = frappe._dict(row)
+    contact_name = row.get('custom_contact_ref')
+
+    # Validate the stored ref is still linked to this lead
+    if contact_name:
+        linked = frappe.db.exists("Dynamic Link", {
+            "parent": contact_name,
+            "parenttype": "Contact",
+            "link_doctype": "Lead",
+            "link_name": lead
+        })
+        if not linked:
+            contact_name = None
+
+    # Dedup by email, but only if that contact is already linked to this lead
+    if not contact_name and row.get('email_id'):
+        existing = frappe.db.sql("""
+            SELECT ce.parent
+            FROM `tabContact Email` ce
+            INNER JOIN `tabDynamic Link` dl
+                ON dl.parent = ce.parent
+                AND dl.parenttype = 'Contact'
+                AND dl.link_doctype = 'Lead'
+                AND dl.link_name = %s
+            WHERE ce.email_id = %s
+            LIMIT 1
+        """, (lead, row.get('email_id')))
+        if existing:
+            contact_name = existing[0][0]
+
+    if contact_name and frappe.db.exists("Contact", contact_name):
+        contact = frappe.get_doc("Contact", contact_name)
+    else:
+        contact = frappe.new_doc("Contact")
+
+    # ensure this Lead is linked, whether contact is new or reused
+    already_linked = any(
+        l.link_doctype == "Lead" and l.link_name == lead
+        for l in contact.get('links', [])
+    )
+    if not already_linked:
+        contact.append('links', {
+            'link_doctype': 'Lead',
+            'link_name': lead
+        })
+
+    contact.first_name = row.get('name1') or contact.first_name or "Contact"
+    contact.designation = row.get('designation')
+
+    if row.get('email_id'):
+        # ensure no other row is marked primary before adding/updating this one
+        for e in contact.get('email_ids', []):
+            e.is_primary = 0
+
+        existing_email = next(
+            (e for e in contact.get('email_ids', []) if e.email_id == row.get('email_id')),
+            None
+        )
+        if existing_email:
+            existing_email.is_primary = 1
+        else:
+            contact.append('email_ids', {'email_id': row.get('email_id'), 'is_primary': 1})
+
+    if row.get('contact_no'):
+        for p in contact.get('phone_nos', []):
+            p.is_primary_phone = 0
+
+        existing_phone = next(
+            (p for p in contact.get('phone_nos', []) if p.phone == row.get('contact_no')),
+            None
+        )
+        if existing_phone:
+            existing_phone.is_primary_phone = 1
+        else:
+            contact.append('phone_nos', {'phone': row.get('contact_no'), 'is_primary_phone': 1})
+
+    if row.get('whatsapp_no'):
+        contact.custom_whatsapp_no = row.get('whatsapp_no')
+
+    if contact.is_new():
+        contact.insert(ignore_permissions=True)
+    else:
+        contact.save(ignore_permissions=True)
+
+    return contact.name

@@ -290,7 +290,11 @@ doc_events = {
     },
      "Supplier": {
         "validate": "nmtg.override.supplier.validate"
+    },
+        "Lead": {
+        "validate": "nmtg.override.api.validate_lead"
     }
+
     
 }
 
