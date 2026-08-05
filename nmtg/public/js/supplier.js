@@ -70,7 +70,7 @@ frappe.ui.form.on('Supplier', {
         if (frm.is_new()) return;
 
         frappe.call({
-            method: "nmtg.override.api.get_computed_supplier_status",
+            method: "nmtg.override.supplier.get_computed_supplier_status",
             args: { supplier: frm.doc.name },
             callback(r) {
                 if (r.message && r.message !== frm.doc.custom_supplier_status) {
