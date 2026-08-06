@@ -27,7 +27,7 @@ HEADER_CUSTOM_FIELDS = [
     "custom_retention__security_deposit_",
     "custom_retention__security_deposit_amount",
     "custom_supplier_contact_person",
-    "custom_certificate_commitment"
+    "custom_certificate_commitment",
     "custom_supplier_email",
     "custom_supplier_mobile",
     "custom_general_terms_acceptance",
@@ -787,3 +787,80 @@ def create_or_update_lead_contact(row, lead):
         contact.save(ignore_permissions=True)
 
     return contact.name
+
+
+# STAGE_KEYS = {"intro", "followup1", "followup2", "final"}
+
+
+# @frappe.whitelist()
+# def send_lead_stage_email(lead, stage_key, subject, message):
+# 	if stage_key not in STAGE_KEYS:
+# 		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
+
+# 	if not frappe.has_permission("Lead", "write", lead):
+# 		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+# 	doc = frappe.get_doc("Lead", lead)
+
+# 	contacts = doc.get("custom_contact_info") or []
+# 	if not contacts:
+# 		frappe.throw(_("No entries in Contact Info to send to."))
+
+# 	recipient = contacts[-1].email_id
+# 	if not recipient:
+# 		frappe.throw(_("The last Contact Info row has no email address."))
+
+# 	frappe.sendmail(
+# 		recipients=[recipient],
+# 		subject=subject,
+# 		message=message,
+# 		reference_doctype="Lead",
+# 		reference_name=lead,
+# 	)
+
+# 	sent_on = frappe.utils.now()
+# 	doc.db_set(f"custom_{stage_key}_email_sent", 1, update_modified=False)
+# 	doc.db_set(f"custom_{stage_key}_email_sent_on", sent_on, update_modified=False)
+
+# 	return {"sent_on": sent_on, "recipient": recipient}
+
+STAGE_FIELD_MAP = {
+	"intro": "intro",
+	"followup1": "followup_1",
+	"followup2": "followup_2",
+	"final": "final",
+}
+
+
+@frappe.whitelist()
+def send_lead_stage_email(lead, stage_key, subject, message):
+	if stage_key not in STAGE_FIELD_MAP:
+		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
+
+	if not frappe.has_permission("Lead", "write", lead):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	doc = frappe.get_doc("Lead", lead)
+
+	contacts = doc.get("custom_contact_info") or []
+	if not contacts:
+		frappe.throw(_("No entries in Contact Info to send to."))
+
+	recipient = contacts[-1].email_id
+	if not recipient:
+		frappe.throw(_("The last Contact Info row has no email address."))
+
+	frappe.sendmail(
+		recipients=[recipient],
+		subject=subject,
+		message=message,
+		reference_doctype="Lead",
+		reference_name=lead,
+	)
+
+	field_key = STAGE_FIELD_MAP[stage_key]
+	sent_on = frappe.utils.now()
+	doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
+	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
+
+	return {"sent_on": sent_on, "recipient": recipient}
