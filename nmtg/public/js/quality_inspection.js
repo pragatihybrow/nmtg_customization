@@ -242,12 +242,48 @@ function evaluate_formula(formula, item_field_map, param_value_map) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Build item_field_map from item_doc
 // ─────────────────────────────────────────────────────────────────────────────
+// function build_item_field_map(item_doc) {
+//     return {
+//         "Diameter(mm)" : flt(item_doc.custom_diameter),
+//         "OD(mm)"       : flt(item_doc.custom_od),
+//         "ID(mm)"       : flt(item_doc.custom_id),
+//         "TL(mm)"       : flt(item_doc.custom_tl),
+//         "Thickness(mm)": flt(item_doc.custom_tl),
+//     };
+// }
+
 function build_item_field_map(item_doc) {
     return {
-        "Diameter(mm)" : flt(item_doc.custom_diameter),
-        "OD(mm)"       : flt(item_doc.custom_od),
-        "ID(mm)"       : flt(item_doc.custom_id),
-        "TL(mm)"       : flt(item_doc.custom_tl),
+        "Diameter(mm)"                     : flt(item_doc.custom_diameter),
+        "OD(mm)"                           : flt(item_doc.custom_od),
+        "Outer Diameter(mm)"               : flt(item_doc.custom_od),
+        "ID(mm)"                           : flt(item_doc.custom_id),
+        "Inner Diameter"                   : flt(item_doc.custom_id),
+        "TL(mm)"                           : flt(item_doc.custom_tl),
+        "Thickness(mm)"                    : flt(item_doc.custom_thickness),
+        "Width(mm)"                        : flt(item_doc.custom_width),
+        "Height(mm)"                       : flt(item_doc.custom_height),
+        "Spigot Diameter(mm)"              : flt(item_doc.custom_spigot_diameter),
+        "Groove(mm)"                       : flt(item_doc.custom_groove),
+        "Drill Value(mm)"                  : flt(item_doc.custom_drill_value),
+        "Deep Value(mm)"                   : flt(item_doc.custom_deep_value),
+        "Gap Between Spring And Coil(mm)"  : flt(item_doc.custom_gap_between_spring_and_coil),
+        "Horse Power"                      : flt(item_doc.custom_horse_power),
+        "Speed"                            : flt(item_doc.custom_speed),
+        "Chain Pitch(mm)"                  : flt(item_doc.custom_value_of_chain_pitch),
+        "AF(mm)"                           : flt(item_doc.custom_af_flat_to_flat_distance),
+        "Step(mm)"                         : flt(item_doc.custom_step),
+        "Cross Sectional Width(mm)"        : flt(item_doc.custom_cross_sectional_width),
+        "Cross Sectional Thickness(mm)"    : flt(item_doc.custom_cross_sectional_thickness),
+        "Wired Length(mm)"                 : flt(item_doc.custom_wired_length),
+        "Wired Diameter(mm)"               : flt(item_doc.custom_wired_diameter),
+        "Frame Value(mm)"                  : flt(item_doc.custom_frame_value),
+        "Pipe Size(mm)"                    : flt(item_doc.custom_pipe_size),
+        "Thread Size(mm)"                  : flt(item_doc.custom_thread_size),
+        "No of Teeth"                      : flt(item_doc.custom_no_of_teeth),
+        "Pitch Diameter(mm)"               : flt(item_doc.custom_value_of_pitch_diameter),
+        "Tooth Thickness(mm)"              : flt(item_doc.custom_value_of_tooth_thickness),
+        "Flute Length(mm)"                 : flt(item_doc.custom_flute_length),
     };
 }
 
