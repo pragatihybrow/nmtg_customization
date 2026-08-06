@@ -684,8 +684,8 @@ def validate_lead(doc, method=None):
     if not doc.custom_industry_ct:
         missing_fields.append(_("Industry"))
 
-    if not doc.custom_application:
-        missing_fields.append(_("Application"))
+    # if not doc.custom_application:
+    #     missing_fields.append(_("Application"))
 
     if not doc.custom_product_group:
         missing_fields.append(_("Product Group"))

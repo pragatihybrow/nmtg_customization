@@ -261,13 +261,16 @@ doctype_js = {
     "Supplier Quotation":"public/js/supplier_quotation.js",
     "Request for Quotation": "public/js/request_for_quotation.js",
     "Lead":"public/js/lead.js",
-    "Opportunity":"public/js/opportunity.js"
+    "Opportunity":"public/js/opportunity.js",
+    "Prospect":"public/js/prospect.js"
 
 }
 
 override_doctype_class = {
     "Item": "nmtg.override.item.CustomItem",
-    "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt"
+    "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt",
+    "Opportunity": "nmtg.override.opportunity.CustomOpportunity"
+
 }
 
 doctype_list_js = {

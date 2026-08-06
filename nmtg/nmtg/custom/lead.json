@@ -797,7 +797,7 @@
    "insert_after": "custom_product_group",
    "is_system_generated": 0,
    "is_virtual": 0,
-   "label": "Product Intrest",
+   "label": "Any Product Specification",
    "length": 0,
    "link_filters": null,
    "mandatory_depends_on": null,

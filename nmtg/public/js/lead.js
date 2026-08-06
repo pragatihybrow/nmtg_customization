@@ -258,7 +258,7 @@ function make_prospect_from_lead(frm) {
 
 		// renamed on Lead (trailing underscore) vs Prospect
 		copy_custom_field(values, "Prospect", frm, "custom_annual_turnover_", "custom_annual_turnover");
-		copy_custom_field(values, "Prospect", frm, "custom_application_description_", "custom_application_description");
+		copy_custom_field(values, "Prospect", frm, "custom_application_description_", "custom_application_description_");
 
 		route_to_new_doc("Prospect", values);
 	});
