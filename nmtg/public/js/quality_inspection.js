@@ -140,6 +140,55 @@ function parse_formula_variables(formula) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Evaluate custom_formula_for_conversion dynamically
 // ─────────────────────────────────────────────────────────────────────────────
+// function evaluate_formula(formula, item_field_map, param_value_map) {
+//     if (!formula) return null;
+
+//     const tokens = parse_formula_variables(formula);
+//     let expr = formula;
+
+//     for (const token of tokens) {
+//         let val = null;
+
+//         if (token in item_field_map) {
+//             val = flt(item_field_map[token]);
+//         } else if (token in param_value_map) {
+//             const raw = param_value_map[token];
+//             if (raw === undefined || raw === null || raw === "") return null;
+//             val = flt(raw);
+//         } else {
+//             console.warn("[evaluate_formula] Unknown token:", token, "| formula:", formula,
+//                          "| item_field_map keys:", Object.keys(item_field_map),
+//                          "| param_value_map keys:", Object.keys(param_value_map));
+//             return null;
+//         }
+
+//         if (isNaN(val)) {
+//             console.warn("[evaluate_formula] NaN for token:", token, "val:", val);
+//             return null;
+//         }
+
+//         expr = expr.split(token).join(String(val));
+//     }
+
+//     try {
+//         const result = Function('"use strict"; return (' + expr + ')')();
+//         if (!isFinite(result)) {
+//             console.warn("[evaluate_formula] Non-finite result:", result, "expr:", expr);
+//             return null;
+//         }
+//         return result;
+//     } catch (e) {
+//         console.error("[evaluate_formula] Eval error:", e, "expr:", expr);
+//         return null;
+//     }
+// }
+
+
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Evaluate custom_formula_for_conversion dynamically
+// ─────────────────────────────────────────────────────────────────────────────
 function evaluate_formula(formula, item_field_map, param_value_map) {
     if (!formula) return null;
 
@@ -149,12 +198,19 @@ function evaluate_formula(formula, item_field_map, param_value_map) {
     for (const token of tokens) {
         let val = null;
 
-        if (token in item_field_map) {
-            val = flt(item_field_map[token]);
-        } else if (token in param_value_map) {
+        if (token in param_value_map) {
             const raw = param_value_map[token];
-            if (raw === undefined || raw === null || raw === "") return null;
-            val = flt(raw);
+            if (raw === undefined || raw === null || raw === "") {
+                if (token in item_field_map) {
+                    val = flt(item_field_map[token]);
+                } else {
+                    return null;
+                }
+            } else {
+                val = flt(raw);
+            }
+        } else if (token in item_field_map) {
+            val = flt(item_field_map[token]);
         } else {
             console.warn("[evaluate_formula] Unknown token:", token, "| formula:", formula,
                          "| item_field_map keys:", Object.keys(item_field_map),
