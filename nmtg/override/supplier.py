@@ -46,7 +46,7 @@ def validate(doc, method):
 	if new_status:
 		doc.custom_supplier_status = new_status
 
-
+		
 @frappe.whitelist()
 def send_supplier_forms(supplier):
 	doc = frappe.get_doc("Supplier", supplier)
@@ -57,14 +57,14 @@ def send_supplier_forms(supplier):
 	audit_content = frappe.render_template(
 		"""
 Your Supplier Audit Form is ready. Please complete it here:<br>
-<a href="{{ base_url }}/supplier-audit-form?supplier_name={{ doc.supplier_name }}">Complete Supplier Audit Form</a><br><br>""",
+<a href="{{ base_url }}/supplier-audit-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Audit Form</a><br><br>""",
 		{"doc": doc, "base_url": get_url()},
 	)
 
 	registration_content = frappe.render_template(
 		"""Dear {{ doc.supplier_name }},<br><br>
 Your Supplier Registration Form is ready. Please complete it using the link below:<br><br>
-<a href="{{ base_url }}/supplier-registration--form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Registration Form</a><br><br>""",
+<a href="{{ base_url }}/supplier-registration-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Registration Form</a><br><br>""",
 		{"doc": doc, "base_url": get_url()},
 	)
 
@@ -82,7 +82,6 @@ Your Supplier Registration Form is ready. Please complete it using the link belo
 	)
 
 	frappe.msgprint(f"Email sent to {doc.email_id}")
-
 
 @frappe.whitelist()
 def get_computed_supplier_status(supplier):
