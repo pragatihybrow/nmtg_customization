@@ -317,5 +317,12 @@ fixtures = [
             ["field_name", "=", "supplier_type"],
             ["property", "=", "options"]
         ]
+    },
+        {
+        "dt": "Translation",
+        "filters": [
+            ["language", "=", "en"],
+            ["source_text", "in", ["Enquiry", "Purchase Receipt"]]
+        ]
     }
 ]

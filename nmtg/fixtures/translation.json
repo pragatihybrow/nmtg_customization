@@ -1,0 +1,28 @@
+[
+ {
+  "context": null,
+  "contributed": 0,
+  "contribution_docname": null,
+  "contribution_status": "",
+  "docstatus": 0,
+  "doctype": "Translation",
+  "language": "en",
+  "modified": "2026-06-15 11:01:36.568020",
+  "name": "23hlb9a1us",
+  "source_text": "Purchase Receipt",
+  "translated_text": "GRN"
+ },
+ {
+  "context": null,
+  "contributed": 0,
+  "contribution_docname": null,
+  "contribution_status": "",
+  "docstatus": 0,
+  "doctype": "Translation",
+  "language": "en",
+  "modified": "2026-08-06 12:58:06.922604",
+  "name": "aq57l5nok0",
+  "source_text": "Enquiry",
+  "translated_text": "Direct Customer Enquiry"
+ }
+]
