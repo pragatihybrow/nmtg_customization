@@ -789,12 +789,41 @@ def create_or_update_lead_contact(row, lead):
     return contact.name
 
 
-# STAGE_KEYS = {"intro", "followup1", "followup2", "final"}
+
+# STAGE_FIELD_MAP = {
+# 	"intro": "intro",
+# 	"followup1": "followup_1",
+# 	"followup2": "followup_2",
+# 	"final": "final",
+# }
+
+
+# def get_lead_recipients(doc):
+# 	contacts = doc.get("custom_contact_info") or []
+
+# 	emails = []
+# 	primary_email = None
+
+# 	for row in contacts:
+# 		if not row.email_id:
+# 			continue
+# 		if row.primary_contact and not primary_email:
+# 			primary_email = row.email_id
+# 		if row.email_id not in emails:
+# 			emails.append(row.email_id)
+
+# 	if not emails:
+# 		return None, []
+
+# 	to = primary_email or emails[-1]
+# 	cc = [e for e in emails if e != to]
+
+# 	return to, cc
 
 
 # @frappe.whitelist()
 # def send_lead_stage_email(lead, stage_key, subject, message):
-# 	if stage_key not in STAGE_KEYS:
+# 	if stage_key not in STAGE_FIELD_MAP:
 # 		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
 
 # 	if not frappe.has_permission("Lead", "write", lead):
@@ -802,27 +831,27 @@ def create_or_update_lead_contact(row, lead):
 
 # 	doc = frappe.get_doc("Lead", lead)
 
-# 	contacts = doc.get("custom_contact_info") or []
-# 	if not contacts:
-# 		frappe.throw(_("No entries in Contact Info to send to."))
-
-# 	recipient = contacts[-1].email_id
-# 	if not recipient:
-# 		frappe.throw(_("The last Contact Info row has no email address."))
+# 	to, cc = get_lead_recipients(doc)
+# 	if not to:
+# 		frappe.throw(_("No contact email addresses found to send to."))
 
 # 	frappe.sendmail(
-# 		recipients=[recipient],
+# 		recipients=[to],
+# 		cc=cc,
 # 		subject=subject,
 # 		message=message,
 # 		reference_doctype="Lead",
 # 		reference_name=lead,
 # 	)
 
-# 	sent_on = frappe.utils.now()
-# 	doc.db_set(f"custom_{stage_key}_email_sent", 1, update_modified=False)
-# 	doc.db_set(f"custom_{stage_key}_email_sent_on", sent_on, update_modified=False)
+	# field_key = STAGE_FIELD_MAP[stage_key]
+	# sent_on = frappe.utils.now()
+	# doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
+	# doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
 
-# 	return {"sent_on": sent_on, "recipient": recipient}
+	# return {"sent_on": sent_on, "recipient": to, "cc": cc}
+
+
 
 STAGE_FIELD_MAP = {
 	"intro": "intro",
@@ -830,6 +859,45 @@ STAGE_FIELD_MAP = {
 	"followup2": "followup_2",
 	"final": "final",
 }
+
+
+ATTACHMENT_FILE_URL = "/files/NMTG_Company_Profile.pdf"
+
+
+def get_lead_recipients(doc):
+	"""Primary contact (primary_contact=1) -> To; rest with an email -> CC.
+	Falls back to the last row if no primary is marked."""
+	contacts = doc.get("custom_contact_info") or []
+
+	emails = []
+	primary_email = None
+
+	for row in contacts:
+		if not row.email_id:
+			continue
+		if row.primary_contact and not primary_email:
+			primary_email = row.email_id
+		if row.email_id not in emails:
+			emails.append(row.email_id)
+
+	if not emails:
+		return None, []
+
+	to = primary_email or emails[-1]
+	cc = [e for e in emails if e != to]
+
+	return to, cc
+
+
+def get_email_attachments():
+	if not ATTACHMENT_FILE_URL:
+		return []
+	try:
+		file_doc = frappe.get_doc("File", {"file_url": ATTACHMENT_FILE_URL})
+		return [{"fname": file_doc.file_name, "fcontent": file_doc.get_content()}]
+	except frappe.DoesNotExistError:
+		frappe.log_error("NMTG stage email: attachment file not found", ATTACHMENT_FILE_URL)
+		return []
 
 
 @frappe.whitelist()
@@ -842,20 +910,18 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 
 	doc = frappe.get_doc("Lead", lead)
 
-	contacts = doc.get("custom_contact_info") or []
-	if not contacts:
-		frappe.throw(_("No entries in Contact Info to send to."))
-
-	recipient = contacts[-1].email_id
-	if not recipient:
-		frappe.throw(_("The last Contact Info row has no email address."))
+	to, cc = get_lead_recipients(doc)
+	if not to:
+		frappe.throw(_("No contact email addresses found to send to."))
 
 	frappe.sendmail(
-		recipients=[recipient],
+		recipients=[to],
+		cc=cc,
 		subject=subject,
 		message=message,
 		reference_doctype="Lead",
 		reference_name=lead,
+		attachments=get_email_attachments(),
 	)
 
 	field_key = STAGE_FIELD_MAP[stage_key]
@@ -863,4 +929,4 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 	doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
 
-	return {"sent_on": sent_on, "recipient": recipient}
+	return {"sent_on": sent_on, "recipient": to, "cc": cc}

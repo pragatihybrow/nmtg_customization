@@ -41,6 +41,15 @@ frappe.ui.form.on('Lead', {
     qualification_status: function (frm) {
 		render_email_preview(frm);
 	},
+	validate(frm) {
+		let primary_count = (frm.doc.custom_contact_info || []).filter(
+			d => cint(d.primary_contact)
+		).length;
+
+		if (primary_count > 1) {
+			frappe.throw(__("Only one Contact can be marked as Primary Contact."));
+		}
+	}
 });
 
 
@@ -390,7 +399,6 @@ function build_signature(sender_name, sender_designation, sender_mobile) {
 	`;
 }
 
-// Colorful pill palette — cycles through these for each product group
 const BADGE_COLORS = [
 	{ bg: "#e3f2fd", fg: "#1565c0" }, // blue
 	{ bg: "#e8f5e9", fg: "#2e7d32" }, // green
@@ -401,27 +409,10 @@ const BADGE_COLORS = [
 	{ bg: "#fff8e1", fg: "#f9a825" }, // amber
 ];
 
-// Single, consistent light color scheme used for every stage card in the
-// preview accordion — bg/fg for the number badge + chip, and a soft "tint"
-// used for the card's left border/background.
 const STAGE_COLOR = { bg: "#607d8b", fg: "#ffffff", tint: "#eceff1", border: "#b0bec5" };
 
-const DEFAULT_PRODUCT_GROUPS = [
-	"Locking Assemblies",
-	"Shrink Discs",
-	"Freewheels One-Way Clutches / Holdback Devices",
-	"Tensioner Nuts & Bolts",
-	"Hydraulic Turning Motor Assembly with Overrunning Clutch",
-];
 
-// Maps the JS-side stage key (used in frm._email_preview_stages, and in the
-// URL-safe onclick handler) to the actual Lead doctype custom fieldname
-// segment. These differ for the follow-up stages: JS uses "followup1" /
-// "followup2" (no underscore before the digit) while the actual custom
-// fields on the Lead doctype are custom_followup_1_email_sent /
-// custom_followup_2_email_sent (underscore before the digit). Keeping this
-// map in one place avoids the mismatch that caused the "Unknown column
-// 'custom_followup1_email_sent'" SQL error.
+
 const STAGE_FIELD_KEY_MAP = {
 	intro: "intro",
 	followup1: "followup_1",
@@ -433,20 +424,11 @@ function get_stage_field_key(stage_key) {
 	return STAGE_FIELD_KEY_MAP[stage_key] || stage_key;
 }
 
-function build_product_group_badges(product_groups) {
-	const groups = product_groups && product_groups.length ? product_groups : DEFAULT_PRODUCT_GROUPS;
 
-	const pills = groups
-		.map((name, i) => {
-			const c = BADGE_COLORS[i % BADGE_COLORS.length];
-			return `<span style="display:inline-block; background:${c.bg}; color:${c.fg}; font-weight:600; font-size:12px; padding:5px 12px; margin:3px 5px 3px 0; border-radius:14px;">${frappe.utils.escape_html(name)}</span>`;
-		})
-		.join("");
 
-	return `<div style="margin: 6px 0 10px 0;">${pills}</div>`;
-}
+function get_stage_defs(customer_name, NMTG_SIGNATURE, dynamic_values) {
+	const dv = dynamic_values || { industry: "your", application: "your", product_group: "our", customer_type: "your", product_group_list: [] };
 
-function get_stage_defs(customer_name, NMTG_SIGNATURE, product_groups) {
 	return [
 		{
 			key: "intro",
@@ -457,21 +439,33 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, product_groups) {
 			body: `
 				<p>Dear Sir/Madam,</p>
 				<p>Greetings from NMTG!</p>
-				<p>We are pleased to introduce NMTG, a leading manufacturer of high-performance mechanical
-				power transmission components with over 50 years of engineering excellence. Our products are
-				designed to deliver reliable performance, precision, and long service life across a wide range
-				of industrial applications like gearbox, crusher, pulley, Bucket elevator, Industrial Motor,
-				Gas Compression, Pumps, cement, steel, mining, food &amp; packaging machine, Machine tools,
-				printing and textile and many more.</p>
-				<p>Based on your requirement, we'd like to highlight the following product group(s):</p>
-				${build_product_group_badges(product_groups)}
-				<p>NMTG is a trusted supplier to several leading OEMs, including Flender Drives, Nishuka,
-				Bonfiglioli, Popel Drive, New Allenberry Works, Premium Transmission, Shanthi Gears, TKIL,
-				KSB, Sulzer, BTL, Adani, Vedanta, AM/NS and many more.</p>
-				<p>We are also supplied in Govt. and PSUs BHEL, SAIL, RINL, NTPC, NMDC, NLC, Andrew Yule,
-				BCCL, HCL and many more.</p>
+				<p>We are pleased to introduce NMTG Mechtrans Techniques Pvt. Ltd., a leading manufacturer of
+				high-performance mechanical power transmission products with over 50 years of engineering
+				excellence.</p>
+				<p>Considering your ${frappe.utils.escape_html(dv.industry)} industry and
+				${frappe.utils.escape_html(dv.application)} application, our
+				${frappe.utils.escape_html(dv.product_group)} range may be suitable for your current and
+				upcoming requirements.</p>
+				<p>Our complete product range includes:</p>
+				<ul>
+					<li>Locking Assemblies</li>
+					<li>Shrink Discs</li>
+					<li>Freewheels, One-Way Clutches and Holdback Devices</li>
+					<li>Tensioner Nuts and Bolts</li>
+					<li>Hydraulic Turning Motor Assemblies with Overrunning Clutches</li>
+				</ul>
+				<p>Our products are designed to deliver reliable performance, precision, and long service life
+				across applications such as gearboxes, crushers, pulleys, bucket elevators, industrial motors,
+				gas compressors, pumps, cement plants, steel plants, mining equipment, food and packaging
+				machinery, machine tools, printing machinery, textile machinery, and many more.</p>
+				<p>NMTG is a trusted supplier to several leading OEMs and industrial organizations, including
+				Flender Drives, Hero Motors, ABB, GE Vernova, Siemens, Caterpillar, TKIL Industries,
+				Bonfiglioli, KSB, Sulzer, Adani, Vedanta, AM/NS India, and many others.</p>
+				<p>We have also supplied our products to government organizations and public-sector
+				undertakings such as BHEL, SAIL, RINL, NTPC, NMDC, NLC India, Andrew Yule, BCCL, HCL, and
+				others.</p>
 				<p>Our engineering expertise, consistent quality, and application support make us a preferred
-				partner for OEMs seeking reliable and cost-effective power transmission solutions.</p>
+				partner for reliable and cost-effective mechanical power transmission solutions.</p>
 				<p>We would appreciate the opportunity to discuss your current or upcoming requirements and
 				explore how NMTG can support your business.</p>
 				<p>We look forward to hearing from you.</p>
@@ -501,7 +495,7 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, product_groups) {
 			key: "followup2",
 			label: "Follow-up 2",
 			icon: "🔁",
-			offset_days: 7, // days after followup1
+			offset_days: 7,
 			subject: "Follow-Up: Introduction to NMTG Power Transmission Solutions",
 			body: `
 				<p>Dear ${customer_name},</p>
@@ -521,7 +515,7 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, product_groups) {
 			key: "final",
 			label: "Final Follow-up",
 			icon: "🚪",
-			offset_days: 15, // days after followup2
+			offset_days: 15,
 			subject: "Keeping the Door Open – NMTG Power Transmission Solutions",
 			body: `
 				<p>Dear ${customer_name},</p>
@@ -561,19 +555,14 @@ function render_email_preview(frm) {
 
 	const customer_name = frm.doc.lead_name || frm.doc.company_name || "Sir/Madam";
 	const anchor_str = frm.doc.qualified_on || frappe.datetime.get_today();
-	const product_groups = (frm.doc.custom_product_group || [])
-		.map((row) => row.product_group)
-		.filter(Boolean);
 
 	$wrapper.html(`<div class="text-muted" style="padding: 10px;">Loading email preview…</div>`);
 
-	// Sender name and designation are already on the Lead (fetched from Lead
-	// Owner). Mobile No is not, so fetch it from the User record directly.
 	const get_mobile = frm.doc.lead_owner
 		? frappe.db.get_value("User", frm.doc.lead_owner, "mobile_no")
 		: Promise.resolve({ message: {} });
 
-	get_mobile.then((r) => {
+	Promise.all([get_mobile, get_dynamic_lead_values(frm)]).then(([r, dynamic_values]) => {
 		const sender_name = frm.doc.custom_lead_owner_name || "";
 		const sender_designation = frm.doc.job_title || "";
 		const sender_mobile = (r.message && r.message.mobile_no) || "";
@@ -584,96 +573,18 @@ function render_email_preview(frm) {
 			customer_name,
 			anchor_str,
 			build_signature(sender_name, sender_designation, sender_mobile),
-			product_groups
+			dynamic_values
 		);
 	});
 }
 
-// function render_preview_body(frm, $wrapper, customer_name, anchor_str, NMTG_SIGNATURE, product_groups) {
-// 	const stages = get_stage_defs(customer_name, NMTG_SIGNATURE, product_groups);
-//     frm._email_preview_stages = stages;
 
-// 	let cumulative_days = 0;
-//     const recipient_email = get_last_contact_email(frm);
-// 	const rows = stages
-// 		.map((stage, i) => {
-// 			cumulative_days += stage.offset_days;
-// 			const due_date = frappe.datetime.add_days(anchor_str, cumulative_days);
-// 			const c = STAGE_COLOR;
-// 			const panel_id = `stage-panel-${stage.key}`;
-// 			const arrow_id = `stage-arrow-${stage.key}`;
-
-// 			const field_key = get_stage_field_key(stage.key);
-// 			const already_sent = frm.doc[`custom_${field_key}_email_sent`];
-// 			const send_control = already_sent
-// 				? `<span style="font-size:11px; font-weight:600; color:#2e7d32; background:#e8f5e9; padding:3px 10px; border-radius:10px;">✓ Sent</span>`
-// 				: `<button type="button"
-// 					class="btn btn-xs btn-default"
-// 					style="font-size:11px;"
-// 					onclick="event.stopPropagation(); send_lead_stage_email_ui('${stage.key}');">
-// 					Send
-// 				</button>`;
-
-// 			return `
-// 			<div style="border:1px solid ${c.border}; border-left:4px solid ${c.bg}; border-radius:8px; margin-bottom:10px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,0.04);">
-// 				<div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; cursor:pointer; background:${c.tint};"
-// 					 onclick="
-// 						var b=document.getElementById('${panel_id}');
-// 						var a=document.getElementById('${arrow_id}');
-// 						var open = b.style.display !== 'none';
-// 						b.style.display = open ? 'none' : 'block';
-// 						a.style.transform = open ? 'rotate(0deg)' : 'rotate(180deg)';
-// 					 ">
-// 					<div style="display:flex; align-items:center; gap:10px;">
-// 						<span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:${c.bg}; color:${c.fg}; font-weight:700; font-size:12px; flex-shrink:0;">${i + 1}</span>
-// 						<div>
-// 							<div style="font-weight:700; color:${c.bg};">${stage.icon ? stage.icon + " " : ""}${frappe.utils.escape_html(stage.label)}</div>
-// 							<div style="font-size:12px; color:var(--text-muted);">
-// 								<span style="display:inline-block; background:${c.bg}22; color:${c.bg}; font-weight:600; padding:1px 8px; border-radius:10px; margin-top:3px;">
-// 									Planned for ${frappe.datetime.str_to_user(due_date)}
-// 								</span>
-// 							</div>
-// 						</div>
-// 					</div>
-//                     <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-// 						${send_control}
-// 						<span id="${arrow_id}" style="font-size:14px; color:${c.bg}; transition:transform 0.15s ease;">▾</span>
-// 					</div>
-// 				</div>
-// 				<div id="${panel_id}" style="display:none; border-top:1px solid ${c.border}; padding:14px; background:var(--fg-color);">
-// 					<div style="font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:${c.bg}; font-weight:700; margin-bottom:4px;">Subject</div>
-// 					<div style="font-weight:600; margin-bottom:12px; padding:8px 10px; background:${c.tint}; border-radius:6px;">${frappe.utils.escape_html(stage.subject)}</div>
-// 					<div style="font-size:11px; letter-spacing:.03em; text-transform:uppercase; color:${c.bg}; font-weight:700; margin-bottom:4px;">Body Preview</div>
-// 					<div style="background:var(--subtle-fg); border:1px solid var(--border-color); border-radius:6px; padding:10px; max-height:260px; overflow:auto;">
-// 						${stage.body}
-// 					</div>
-// 				</div>
-// 			</div>`;
-// 		})
-// 		.join("");
-
-// 	$wrapper.html(`
-// 		<div style="padding: 6px 0;">
-// 			<div style="margin-bottom:12px; font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-// 				${recipient_email ? `Recipient: <b>${frappe.utils.escape_html(recipient_email)}</b>` : `<span style="color:#c62828;">No recipient email set on last Contact Info row</span>`}
-// 			</div>
-// 			${rows}
-// 		</div>
-// 	`);
-// }
-
-function render_preview_body(frm, $wrapper, customer_name, anchor_str, NMTG_SIGNATURE, product_groups) {
-	const stages = get_stage_defs(customer_name, NMTG_SIGNATURE, product_groups);
+function render_preview_body(frm, $wrapper, customer_name, anchor_str, NMTG_SIGNATURE, dynamic_values) {
+	const stages = get_stage_defs(customer_name, NMTG_SIGNATURE, dynamic_values);
     frm._email_preview_stages = stages;
 
-    const recipient_email = get_last_contact_email(frm);
+    const { to: recipient_to, cc: recipient_cc } = get_lead_recipients(frm);
 
-    // Two parallel walks over the stages:
-    // 1) original_cumulative_days — fixed offsets from anchor_str (qualified_on),
-    //    exactly as originally planned, ignoring what actually happened.
-    // 2) chained_reference_date — the "live" plan, which re-anchors off each
-    //    stage's actual sent date once it's been sent (falls back to that
-    //    stage's own chained due date if not sent yet).
     let original_cumulative_days = 0;
     let chained_reference_date = anchor_str;
 
@@ -687,14 +598,11 @@ function render_preview_body(frm, $wrapper, customer_name, anchor_str, NMTG_SIGN
 			const already_sent = frm.doc[`custom_${field_key}_email_sent`];
 			const sent_on = frm.doc[`custom_${field_key}_email_sent_on`];
 
-			// original plan, untouched by reality
 			original_cumulative_days += stage.offset_days;
 			const original_due_date = frappe.datetime.add_days(anchor_str, original_cumulative_days);
 
-			// live/chained plan
 			const chained_due_date = frappe.datetime.add_days(chained_reference_date, stage.offset_days);
-			// advance the chain for the next stage: use this stage's actual
-			// sent date if available, else its chained due date
+
 			chained_reference_date = sent_on || chained_due_date;
 
 			let date_lines;
@@ -768,17 +676,32 @@ function render_preview_body(frm, $wrapper, customer_name, anchor_str, NMTG_SIGN
 	$wrapper.html(`
 		<div style="padding: 6px 0;">
 			<div style="margin-bottom:12px; font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
-				${recipient_email ? `Recipient: <b>${frappe.utils.escape_html(recipient_email)}</b>` : `<span style="color:#c62828;">No recipient email set on last Contact Info row</span>`}
+				${recipient_to
+					? `To: <b>${frappe.utils.escape_html(recipient_to)}</b>${recipient_cc.length ? ` &nbsp;|&nbsp; CC: <b>${frappe.utils.escape_html(recipient_cc.join(", "))}</b>` : ""}`
+					: `<span style="color:#c62828;">No contact email addresses set in Contact Info</span>`}
 			</div>
 			${rows}
 		</div>
 	`);
 }
 
-function get_last_contact_email(frm) {
+function get_lead_recipients(frm) {
 	const rows = frm.doc.custom_contact_info || [];
-	if (!rows.length) return null;
-	return rows[rows.length - 1].email_id || null;
+	const emails = [];
+	let primary_email = null;
+
+	rows.forEach(row => {
+		if (!row.email_id) return;
+		if (row.primary_contact && !primary_email) primary_email = row.email_id;
+		if (!emails.includes(row.email_id)) emails.push(row.email_id);
+	});
+
+	if (!emails.length) return { to: null, cc: [] };
+
+	const to = primary_email || emails[emails.length - 1];
+	const cc = emails.filter(e => e !== to);
+
+	return { to, cc };
 }
 
 function send_lead_stage_email_ui(stage_key) {
@@ -788,14 +711,18 @@ function send_lead_stage_email_ui(stage_key) {
 	const stage = (frm._email_preview_stages || []).find(s => s.key === stage_key);
 	if (!stage) return;
 
-	const recipient_email = get_last_contact_email(frm);
-	if (!recipient_email) {
-		frappe.msgprint(__("The last row in Contact Info has no email address. Add one before sending."));
+	const { to, cc } = get_lead_recipients(frm);
+	if (!to) {
+		frappe.msgprint(__("No contact email addresses found in Contact Info. Add one before sending."));
 		return;
 	}
 
+	const confirm_msg = cc.length
+		? __("Send \"{0}\" to {1} (cc: {2})?", [stage.label, to, cc.join(", ")])
+		: __("Send \"{0}\" to {1}?", [stage.label, to]);
+
 	frappe.confirm(
-		__("Send \"{0}\" to {1}?", [stage.label, recipient_email]),
+		confirm_msg,
 		() => {
 			frappe.call({
 				method: "nmtg.override.api.send_lead_stage_email",
@@ -812,7 +739,10 @@ function send_lead_stage_email_ui(stage_key) {
 						const field_key = get_stage_field_key(stage.key);
 						frm.doc[`custom_${field_key}_email_sent`] = 1;
 						frm.doc[`custom_${field_key}_email_sent_on`] = r.message.sent_on;
-						frappe.show_alert({ message: __("Email sent to {0}", [recipient_email]), indicator: "green" });
+						const sent_msg = r.message.cc && r.message.cc.length
+							? __("Email sent to {0} (cc: {1})", [r.message.recipient, r.message.cc.join(", ")])
+							: __("Email sent to {0}", [r.message.recipient]);
+						frappe.show_alert({ message: sent_msg, indicator: "green" });
 						render_email_preview(frm);
 					}
 				}
@@ -821,3 +751,63 @@ function send_lead_stage_email_ui(stage_key) {
 	);
 }
 window.send_lead_stage_email_ui = send_lead_stage_email_ui;
+
+
+async function get_title_field(doctype) {
+	await new Promise(resolve => frappe.model.with_doctype(doctype, resolve));
+	const meta = frappe.get_meta(doctype);
+	return (meta && meta.title_field) || "name";
+}
+
+async function get_link_titles(doctype, names) {
+	if (!names || !names.length) return [];
+	const title_field = await get_title_field(doctype);
+	if (title_field === "name") return names;
+
+	return Promise.all(
+		names.map(n =>
+			frappe.db.get_value(doctype, n, title_field)
+				.then(r => (r.message && r.message[title_field]) || n)
+				.catch(() => n)
+		)
+	);
+}
+
+async function get_dynamic_lead_values(frm) {
+	const industries = (frm.doc.custom_industry_ct || []).map(r => r.industry).filter(Boolean);
+	const applications = (frm.doc.custom_application || []).map(r => r.application).filter(Boolean);
+	const customer_types = (frm.doc.custom_customer_type || []).map(r => r.customer_type).filter(Boolean);
+	const product_groups = (frm.doc.custom_product_group || []).map(r => r.product_group).filter(Boolean);
+
+	const [industry_titles, application_titles, customer_type_titles, product_group_titles] = await Promise.all([
+		get_link_titles("Industry", industries),
+		get_link_titles("Application", applications),
+		get_link_titles("Customer Type", customer_types),
+		get_link_titles("Product Group", product_groups),
+	]);
+
+	return {
+		industry: industry_titles.join(", ") || "your",
+		application: application_titles.join(", ") || "your",
+		product_group: product_group_titles.join(", ") || "our",
+		customer_type: customer_type_titles.join(", ") || "your",
+		product_group_list: product_group_titles,
+	};
+}
+
+
+const DEFAULT_PRODUCT_GROUP_LIST = [
+	"Locking Assemblies",
+	"Shrink Discs",
+	"Freewheels, One-Way Clutches and Holdback Devices",
+	"Tensioner Nuts and Bolts",
+	"Hydraulic Turning Motor Assemblies with Overrunning Clutches",
+];
+
+function build_product_group_list_html(product_group_list) {
+	const items = product_group_list && product_group_list.length
+		? product_group_list
+		: DEFAULT_PRODUCT_GROUP_LIST;
+
+	return `<ul>${items.map(name => `<li>${frappe.utils.escape_html(name)}</li>`).join("")}</ul>`;
+}

@@ -12,7 +12,8 @@
   "email_id",
   "contact_no",
   "whatsapp_no",
-  "custom_contact_ref"
+  "custom_contact_ref",
+  "primary_contact"
  ],
  "fields": [
   {
@@ -50,13 +51,19 @@
    "fieldtype": "Link",
    "label": "Contact Ref",
    "options": "Contact"
+  },
+  {
+   "default": "0",
+   "fieldname": "primary_contact",
+   "fieldtype": "Check",
+   "label": "Primary Contact"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-03 15:07:29.491240",
+ "modified": "2026-08-07 12:54:07.731433",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Lead Contact Info",
