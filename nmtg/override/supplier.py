@@ -46,7 +46,8 @@ def validate(doc, method):
 	if new_status:
 		doc.custom_supplier_status = new_status
 
-		
+
+
 @frappe.whitelist()
 def send_supplier_forms(supplier):
 	doc = frappe.get_doc("Supplier", supplier)
@@ -54,12 +55,7 @@ def send_supplier_forms(supplier):
 	if not doc.email_id:
 		frappe.throw("Supplier does not have an Email ID set (via Primary Contact).")
 
-	audit_content = frappe.render_template(
-		"""
-Your Supplier Audit Form is ready. Please complete it here:<br>
-<a href="{{ base_url }}/supplier-audit-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Audit Form</a><br><br>""",
-		{"doc": doc, "base_url": get_url()},
-	)
+	category = doc.custom_supplier_category
 
 	registration_content = frappe.render_template(
 		"""Dear {{ doc.supplier_name }},<br><br>
@@ -67,6 +63,15 @@ Your Supplier Registration Form is ready. Please complete it using the link belo
 <a href="{{ base_url }}/supplier-registration-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Registration Form</a><br><br>""",
 		{"doc": doc, "base_url": get_url()},
 	)
+
+	audit_content = ""
+	if category == "A":
+		audit_content = frappe.render_template(
+			"""
+Your Supplier Audit Form is ready. Please complete it here:<br>
+<a href="{{ base_url }}/supplier-audit-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Audit Form</a><br><br>""",
+			{"doc": doc, "base_url": get_url()},
+		)
 
 	message = f"""
 	{registration_content}
@@ -82,6 +87,43 @@ Your Supplier Registration Form is ready. Please complete it using the link belo
 	)
 
 	frappe.msgprint(f"Email sent to {doc.email_id}")
+
+	
+# @frappe.whitelist()
+# def send_supplier_forms(supplier):
+# 	doc = frappe.get_doc("Supplier", supplier)
+
+# 	if not doc.email_id:
+# 		frappe.throw("Supplier does not have an Email ID set (via Primary Contact).")
+
+# 	audit_content = frappe.render_template(
+# 		"""
+# Your Supplier Audit Form is ready. Please complete it here:<br>
+# <a href="{{ base_url }}/supplier-audit-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Audit Form</a><br><br>""",
+# 		{"doc": doc, "base_url": get_url()},
+# 	)
+
+# 	registration_content = frappe.render_template(
+# 		"""Dear {{ doc.supplier_name }},<br><br>
+# Your Supplier Registration Form is ready. Please complete it using the link below:<br><br>
+# <a href="{{ base_url }}/supplier-registration-form?supplier_name={{ doc.supplier_name | urlencode }}">Complete Supplier Registration Form</a><br><br>""",
+# 		{"doc": doc, "base_url": get_url()},
+# 	)
+
+# 	message = f"""
+# 	{registration_content}
+# 	{audit_content}
+# 	Thank you,<br>
+# 	NMTG India<br>
+# 	"""
+
+# 	frappe.sendmail(
+# 		recipients=[doc.email_id],
+# 		subject=f"Supplier Forms - {doc.supplier_name}",
+# 		message=message,
+# 	)
+
+# 	frappe.msgprint(f"Email sent to {doc.email_id}")
 
 @frappe.whitelist()
 def get_computed_supplier_status(supplier):

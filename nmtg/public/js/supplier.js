@@ -44,29 +44,29 @@ frappe.ui.form.on('Supplier', {
             });
         }
     },
-    refresh: function(frm) {
-		if (!frm.is_new()) {
-			frm.add_custom_button("Send Supplier Forms", function () {
-				if (!frm.doc.email_id) {
-					frappe.msgprint("Please set a Primary Contact with an Email ID first.");
-					return;
-				}
-				frappe.confirm(
-					`Send Supplier Audit Form and Registration Form to <b>${frm.doc.email_id}</b>?`,
-					function () {
-						frappe.call({
-							method: "nmtg.override.supplier.send_supplier_forms",
-							args: { supplier: frm.doc.name },
-							freeze: true,
-							freeze_message: "Sending...",
-							callback: function () {
-								frappe.show_alert({ message: "Forms sent successfully", indicator: "green" });
-							},
-						});
-					}
-				);
-			});
-		}
+  refresh: function(frm) {
+    if (!frm.is_new() && frm.doc.custom_supplier_status !== "Approved Supplier") {
+        frm.add_custom_button("Send Supplier Forms", function () {
+            if (!frm.doc.email_id) {
+                frappe.msgprint("Please set a Primary Contact with an Email ID first.");
+                return;
+            }
+            frappe.confirm(
+                `Send Supplier Audit Form and Registration Form to <b>${frm.doc.email_id}</b>?`,
+                function () {
+                    frappe.call({
+                        method: "nmtg.override.supplier.send_supplier_forms",
+                        args: { supplier: frm.doc.name },
+                        freeze: true,
+                        freeze_message: "Sending...",
+                        callback: function () {
+                            frappe.show_alert({ message: "Forms sent successfully", indicator: "green" });
+                        },
+                    });
+                }
+            );
+        });
+    }
         if (frm.is_new()) return;
 
         frappe.call({
