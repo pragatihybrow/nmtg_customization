@@ -12,8 +12,8 @@
   "supplier",
   "primary_contact_person_name",
   "contact_no",
-  "email_address",
   "audit_version",
+  "email_address",
   "supplier_audit_checksheet",
   "criteria",
   "maximum_score",
@@ -97,14 +97,15 @@
   {
    "fieldname": "email_address",
    "fieldtype": "Data",
-   "label": "Email Address"
+   "label": "Email Address",
+   "options": "Email"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-11 15:51:14.875800",
+ "modified": "2026-08-11 15:53:40.512022",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Audit",
