@@ -1,0 +1,103 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "format:{opportunity_no}",
+ "creation": "2026-08-12 10:12:06.416126",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_1433",
+  "opportunity_no",
+  "reference_type",
+  "column_break_aelh",
+  "enquiry_reference",
+  "opportunity_form",
+  "amended_from",
+  "section_break_envb",
+  "item_summary"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_1433",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Enquiry Item Summary",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "opportunity_no",
+   "fieldtype": "Link",
+   "label": "Opportunity No",
+   "options": "Opportunity"
+  },
+  {
+   "fieldname": "enquiry_reference",
+   "fieldtype": "Data",
+   "label": "Enquiry Reference"
+  },
+  {
+   "fieldname": "section_break_envb",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "item_summary",
+   "fieldtype": "Table",
+   "label": "Item Summary",
+   "options": "Opportunity Item"
+  },
+  {
+   "fieldname": "column_break_aelh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "reference_type",
+   "fieldtype": "Select",
+   "label": "Reference Type",
+   "options": "\nCustomer\nLead\nProspect\nEnquiry"
+  },
+  {
+   "fieldname": "opportunity_form",
+   "fieldtype": "Dynamic Link",
+   "label": "Opportunity Form",
+   "options": "reference_type"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-12 12:05:00.340177",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Enquiry Item Summary",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
