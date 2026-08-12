@@ -95,6 +95,7 @@
    "read_only": 1
   },
   {
+   "fetch_from": "supplier.email_id",
    "fieldname": "email_address",
    "fieldtype": "Data",
    "label": "Email Address",
@@ -105,7 +106,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-11 15:53:40.512022",
+ "modified": "2026-08-12 10:07:22.687092",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Audit",
