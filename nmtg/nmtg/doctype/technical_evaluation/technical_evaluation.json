@@ -1,0 +1,150 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-13 14:34:35.024921",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_8ref",
+  "reference_type",
+  "opportunity_form",
+  "customer",
+  "general_technical_remarks",
+  "naming_series",
+  "column_break_zzwa",
+  "enquiry_reference",
+  "amended_from",
+  "opportunity_no",
+  "overall_technical_status",
+  "email",
+  "lead_engineer",
+  "version",
+  "section_break_qxui",
+  "items"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_8ref",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Technical Evaluation",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "reference_type",
+   "fieldtype": "Select",
+   "label": "Reference Type",
+   "options": "\nCustomer\nLead\nProspect\nEnquiry"
+  },
+  {
+   "fieldname": "enquiry_reference",
+   "fieldtype": "Data",
+   "label": "Enquiry Reference"
+  },
+  {
+   "fieldname": "opportunity_form",
+   "fieldtype": "Dynamic Link",
+   "label": "Opportunity Form",
+   "options": "reference_type"
+  },
+  {
+   "fieldname": "opportunity_no",
+   "fieldtype": "Link",
+   "label": "Opportunity No",
+   "options": "Opportunity"
+  },
+  {
+   "fieldname": "column_break_zzwa",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_qxui",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Technical Evaluation Item"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Data",
+   "label": "Customer"
+  },
+  {
+   "fieldname": "overall_technical_status",
+   "fieldtype": "Select",
+   "label": "Overall Technical Status",
+   "options": "Under Review"
+  },
+  {
+   "fieldname": "general_technical_remarks",
+   "fieldtype": "Small Text",
+   "label": "General Technical Remarks"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "lead_engineer",
+   "fieldtype": "Data",
+   "label": "Lead Engineer"
+  },
+  {
+   "default": "TE-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "TE-.YYYY.-"
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Data",
+   "label": "Version",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-13 16:45:04.935833",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Technical Evaluation",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

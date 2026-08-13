@@ -13,9 +13,9 @@ IGNORE_TEST_RECORD_DEPENDENCIES = []  # eg. ["User"]
 
 
 
-class IntegrationTestEnquiryItemSummary(IntegrationTestCase):
+class IntegrationTestTechnicalEvaluation(IntegrationTestCase):
 	"""
-	Integration tests for EnquiryItemSummary.
+	Integration tests for TechnicalEvaluation.
 	Use this class for testing interactions between multiple components.
 	"""
 
