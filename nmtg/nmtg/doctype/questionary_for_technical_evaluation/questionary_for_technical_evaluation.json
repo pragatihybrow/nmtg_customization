@@ -2,48 +2,43 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "creation": "2026-08-13 15:05:07.554270",
+ "creation": "2026-08-14 17:00:50.894857",
  "doctype": "DocType",
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
-  "model",
-  "competitor_model",
-  "competitor_model_name"
+  "request_no",
+  "question",
+  "answer_from_customer"
  ],
  "fields": [
   {
-   "fieldname": "model",
-   "fieldtype": "Link",
-   "in_list_view": 1,
-   "label": "Model",
-   "options": "Model"
-  },
-  {
-   "fieldname": "competitor_model",
+   "fieldname": "question",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Competitor Model",
-   "options": "Model",
-   "reqd": 1
+   "label": "Question"
   },
   {
-   "fieldname": "competitor_model_name",
-   "fieldtype": "Data",
+   "fieldname": "answer_from_customer",
+   "fieldtype": "Small Text",
    "in_list_view": 1,
-   "label": "Competitor Name",
-   "options": "Model",
-   "reqd": 1
+   "label": " Answer From Customer"
+  },
+  {
+   "fieldname": "request_no",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Request No"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-17 16:21:32.446686",
+ "modified": "2026-08-17 17:18:43.983357",
  "modified_by": "Administrator",
  "module": "NMTG",
- "name": "Competitor Model CT",
+ "name": "Questionary For Technical Evaluation",
  "owner": "Administrator",
  "permissions": [],
  "row_format": "Dynamic",

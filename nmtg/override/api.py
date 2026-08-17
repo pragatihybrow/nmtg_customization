@@ -4,6 +4,8 @@ from frappe.utils import today
 from frappe import _
 import json
 import re
+from frappe.utils import escape_html, get_url
+
 
 REMARKS_KEY = "__remarks__"
 
@@ -790,68 +792,6 @@ def create_or_update_lead_contact(row, lead):
 
 
 
-# STAGE_FIELD_MAP = {
-# 	"intro": "intro",
-# 	"followup1": "followup_1",
-# 	"followup2": "followup_2",
-# 	"final": "final",
-# }
-
-
-# def get_lead_recipients(doc):
-# 	contacts = doc.get("custom_contact_info") or []
-
-# 	emails = []
-# 	primary_email = None
-
-# 	for row in contacts:
-# 		if not row.email_id:
-# 			continue
-# 		if row.primary_contact and not primary_email:
-# 			primary_email = row.email_id
-# 		if row.email_id not in emails:
-# 			emails.append(row.email_id)
-
-# 	if not emails:
-# 		return None, []
-
-# 	to = primary_email or emails[-1]
-# 	cc = [e for e in emails if e != to]
-
-# 	return to, cc
-
-
-# @frappe.whitelist()
-# def send_lead_stage_email(lead, stage_key, subject, message):
-# 	if stage_key not in STAGE_FIELD_MAP:
-# 		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
-
-# 	if not frappe.has_permission("Lead", "write", lead):
-# 		frappe.throw(_("Not permitted"), frappe.PermissionError)
-
-# 	doc = frappe.get_doc("Lead", lead)
-
-# 	to, cc = get_lead_recipients(doc)
-# 	if not to:
-# 		frappe.throw(_("No contact email addresses found to send to."))
-
-# 	frappe.sendmail(
-# 		recipients=[to],
-# 		cc=cc,
-# 		subject=subject,
-# 		message=message,
-# 		reference_doctype="Lead",
-# 		reference_name=lead,
-# 	)
-
-	# field_key = STAGE_FIELD_MAP[stage_key]
-	# sent_on = frappe.utils.now()
-	# doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
-	# doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
-
-	# return {"sent_on": sent_on, "recipient": to, "cc": cc}
-
-
 
 STAGE_FIELD_MAP = {
 	"intro": "intro",
@@ -930,3 +870,208 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
 
 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
+
+
+import json
+
+import frappe
+from frappe import _
+from frappe.utils import escape_html, get_url
+
+
+ITEM_FIELDS = [
+	"request_no",
+	"product_group",
+	"customer_requirement__brief",
+	"qty",
+	"competitor_name",
+	"competitor_model",
+	"nmtg_model",
+	"item_code",
+	"item_name",
+	"selection_type",
+	"technical_status",
+	"clarification_required",
+	"drawing_approval_required",
+	"drawing",
+	"feasibility_review_required",
+	"apqp_required",
+	"apqp",
+	"remark",
+]
+
+DETAIL_FIELDS = [
+	"name",
+	"reference_type",
+	"opportunity_form",
+	"customer",
+	"enquiry_reference",
+	"overall_technical_status",
+	"lead_engineer",
+	"email",
+	"version",
+	"general_technical_remarks",
+]
+
+
+@frappe.whitelist()
+def send_technical_evaluation_questionary(technical_evaluation):
+	"""Called from the desk button. Requires a logged-in session with
+	read access to the record (normal desk permissions apply)."""
+
+	doc = frappe.get_doc("Technical Evaluation", technical_evaluation)
+
+	if not doc.email:
+		frappe.throw(_("Email is not set on {0}").format(doc.name))
+
+	if not doc.questionary_for_technical_evaluation:
+		frappe.throw(_("No questions found on {0} to send").format(doc.name))
+
+	link = get_url(f"/questionary-for-technical-evaluation?technical_evaluation={doc.name}")
+
+	rows_html = "".join(
+		"<tr>"
+		f"<td style='padding:6px;border:1px solid #ddd;'>{escape_html(row.request_no or '')}</td>"
+		f"<td style='padding:6px;border:1px solid #ddd;'>{escape_html(row.question or '')}</td>"
+		"</tr>"
+		for row in doc.questionary_for_technical_evaluation
+	)
+
+	message = f"""
+		<div style="padding:0 0 16px 0;border-bottom:2px solid #000000;margin-bottom:20px;">
+			<h2 style="margin:0;font-family:Arial, Helvetica, sans-serif;color:#000000;font-size:20px;font-weight:700;">
+				NMTG Mechtrans Techniques Pvt. Ltd.
+			</h2>
+		</div>
+		<div style="padding:0 4px 24px;font-family:Arial, Helvetica, sans-serif;color:#1c2b3a;font-size:14px;line-height:1.6;">
+			<p>Dear {escape_html(doc.customer or "Sir/Madam")},</p>
+
+			<p>
+				Greetings from NMTG Mechtrans Techniques Pvt. Ltd.
+			</p>
+
+			<p>
+				With reference to Technical Evaluation <b>{escape_html(doc.name)}</b>, we require certain
+				clarifications from your end to proceed further with our technical assessment. Kindly find
+				the list of queries below.
+			</p>
+
+			<table style="border-collapse:collapse;width:100%;margin:16px 0;">
+				<thead>
+					<tr>
+						<th style="padding:8px 10px;border:1px solid #ddd;background:#f2f2f2;text-align:left;">Request No</th>
+						<th style="padding:8px 10px;border:1px solid #ddd;background:#f2f2f2;text-align:left;">Question</th>
+					</tr>
+				</thead>
+				<tbody>
+					{rows_html}
+				</tbody>
+			</table>
+
+			<p>
+				We kindly request you to submit your responses at your earliest convenience by clicking on
+				the link below.
+			</p>
+
+			<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:24px auto;">
+				<tr>
+					<td style="background-color:#000000;border-radius:4px;" align="center">
+						<a href="{link}"
+						   target="_blank"
+						   style="display:inline-block;padding:12px 28px;font-family:Arial, Helvetica, sans-serif;
+						          font-size:14px;font-weight:600;letter-spacing:.2px;color:#ffffff !important;
+						          text-decoration:none !important;border:1px solid #000000;border-radius:4px;">
+							Click here to answer the questionary
+						</a>
+					</td>
+				</tr>
+			</table>
+
+			<p style="font-size:12.5px;color:#5a6b78;">
+				Should the button above not work, please copy and paste the following link into your browser:<br>
+				<a href="{link}" style="color:#0c355a;">{link}</a>
+			</p>
+
+			<p>
+				Should you have any queries regarding the above, please feel free to reach out to us.
+			</p>
+
+			<p>
+				Thanking you,<br>
+				<b>NMTG Mechtrans Techniques Pvt. Ltd.</b>
+			</p>
+		</div>
+	"""
+
+	frappe.sendmail(
+		recipients=[doc.email],
+		subject=_("Technical Evaluation Questionary - {0}").format(doc.name),
+		message=message,
+		reference_doctype=doc.doctype,
+		reference_name=doc.name,
+	)
+
+	doc.add_comment("Info", _("Questionary email sent to {0}").format(doc.email))
+
+	return {"sent": True}
+
+
+@frappe.whitelist(allow_guest=True)
+def get_technical_evaluation_for_customer(technical_evaluation):
+	"""Guest-safe read. Returns only what the portal is allowed to show —
+	never the raw document — so guests never need read permission on the
+	whole 'Technical Evaluation' doctype."""
+
+	if not frappe.db.exists("Technical Evaluation", technical_evaluation):
+		frappe.throw(_("Technical Evaluation not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_doc("Technical Evaluation", technical_evaluation)
+
+	details = {f: doc.get(f) for f in DETAIL_FIELDS}
+
+	items = [{f: row.get(f) for f in ITEM_FIELDS} for row in doc.items]
+
+	questionary = [
+		{
+			"name": row.name,
+			"request_no": row.request_no,
+			"question": row.question,
+			"answer_from_customer": row.answer_from_customer,
+		}
+		for row in doc.questionary_for_technical_evaluation
+	]
+
+	return {"details": details, "items": items, "questionary": questionary}
+
+
+@frappe.whitelist(allow_guest=True)
+def save_technical_evaluation_answers(technical_evaluation, answers):
+	"""Guest-safe write. Updates ONLY answer_from_customer on matching
+	child rows — never touches any other field on the parent or on
+	Items."""
+
+	if isinstance(answers, str):
+		answers = json.loads(answers)
+
+	if not frappe.db.exists("Technical Evaluation", technical_evaluation):
+		frappe.throw(_("Technical Evaluation not found"), frappe.DoesNotExistError)
+
+	doc = frappe.get_doc("Technical Evaluation", technical_evaluation)
+
+	answer_map = {a.get("name"): a.get("answer_from_customer") for a in answers if a.get("name")}
+
+	updated = 0
+	for row in doc.questionary_for_technical_evaluation:
+		if row.name in answer_map:
+			frappe.db.set_value(
+				row.doctype,
+				row.name,
+				"answer_from_customer",
+				answer_map[row.name],
+				update_modified=True,
+			)
+			updated += 1
+
+	frappe.db.commit()
+
+	return {"name": doc.name, "updated": updated}

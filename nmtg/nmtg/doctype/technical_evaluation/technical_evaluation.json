@@ -22,7 +22,10 @@
   "lead_engineer",
   "version",
   "section_break_qxui",
-  "items"
+  "items",
+  "section_break_hibi",
+  "questionary_for_technical_evaluation",
+  "send_questionary_to_customer"
  ],
  "fields": [
   {
@@ -100,8 +103,9 @@
   },
   {
    "fieldname": "lead_engineer",
-   "fieldtype": "Data",
-   "label": "Lead Engineer"
+   "fieldtype": "Link",
+   "label": "Lead Engineer",
+   "options": "User"
   },
   {
    "default": "TE-.YYYY.-",
@@ -115,13 +119,28 @@
    "fieldtype": "Data",
    "label": "Version",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_break_hibi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "questionary_for_technical_evaluation",
+   "fieldtype": "Table",
+   "label": "Questionary For Technical Evaluation",
+   "options": "Questionary For Technical Evaluation"
+  },
+  {
+   "fieldname": "send_questionary_to_customer",
+   "fieldtype": "Button",
+   "label": "Send Questionary To Customer"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-13 16:45:04.935833",
+ "modified": "2026-08-17 16:16:20.576438",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",
