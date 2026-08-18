@@ -1274,3 +1274,65 @@ def generate_apqp_template(parent, item_row):
         "Technical Evaluation", te.name, is_private=1
     )
     return file_doc.file_url
+
+
+def get_prospect_recipients(doc):
+	lead_names = [row.lead for row in (doc.get("leads") or []) if row.lead]
+	if not lead_names:
+		return None, []
+
+	emails = []
+	primary_email = None
+
+	for lead_name in lead_names:
+		if frappe.db.get_value("Lead", lead_name, "workflow_state") != "Qualified":
+			continue
+
+		lead_doc = frappe.get_doc("Lead", lead_name)
+		for row in (lead_doc.get("custom_contact_info") or []):
+			if not row.email_id:
+				continue
+			if row.primary_contact and not primary_email:
+				primary_email = row.email_id
+			if row.email_id not in emails:
+				emails.append(row.email_id)
+
+	if not emails:
+		return None, []
+
+	to = primary_email or emails[-1]
+	cc = [e for e in emails if e != to]
+
+	return to, cc
+
+
+@frappe.whitelist()
+def send_prospect_stage_email(prospect, stage_key, subject, message):
+	if stage_key not in STAGE_FIELD_MAP:
+		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
+
+	if not frappe.has_permission("Prospect", "write", prospect):
+		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+	doc = frappe.get_doc("Prospect", prospect)
+
+	to, cc = get_prospect_recipients(doc)
+	if not to:
+		frappe.throw(_("No contact email addresses found to send to."))
+
+	frappe.sendmail(
+		recipients=[to],
+		cc=cc,
+		subject=subject,
+		message=message,
+		reference_doctype="Prospect",
+		reference_name=prospect,
+		attachments=get_email_attachments(),
+	)
+
+	field_key = STAGE_FIELD_MAP[stage_key]
+	sent_on = frappe.utils.now()
+	doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
+	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
+
+	return {"sent_on": sent_on, "recipient": to, "cc": cc}
