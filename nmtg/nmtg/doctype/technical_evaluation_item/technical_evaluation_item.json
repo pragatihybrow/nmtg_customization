@@ -22,8 +22,10 @@
   "drawing_approval_required",
   "drawing",
   "feasibility_review_required",
-  "send_feasibility_review",
+  "create_feasibility_review",
+  "feasibility_review_report",
   "apqp_required",
+  "download_apqp",
   "apqp",
   "remark"
  ],
@@ -142,13 +144,6 @@
    "label": "Drawing"
   },
   {
-   "depends_on": "eval:doc.feasibility_review_required===\"Yes\"",
-   "fieldname": "send_feasibility_review",
-   "fieldtype": "Button",
-   "in_list_view": 1,
-   "label": "Send Feasibility Review"
-  },
-  {
    "depends_on": "eval:doc.apqp_required===\"Yes\"",
    "fieldname": "apqp",
    "fieldtype": "Attach",
@@ -160,13 +155,34 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Competitor Name"
+  },
+  {
+   "depends_on": "eval:doc.feasibility_review_required===\"Yes\"",
+   "fieldname": "create_feasibility_review",
+   "fieldtype": "Button",
+   "in_list_view": 1,
+   "label": "Create Feasibility Review"
+  },
+  {
+   "fieldname": "download_apqp",
+   "fieldtype": "Button",
+   "label": "Download APQP"
+  },
+  {
+   "depends_on": "eval:doc.feasibility_review_required===\"Yes\"",
+   "fieldname": "feasibility_review_report",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Feasibility Review Report",
+   "options": "Feasibility Review Report",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-17 16:17:15.833807",
+ "modified": "2026-08-18 14:22:11.643343",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",

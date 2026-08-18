@@ -5,6 +5,11 @@ from frappe import _
 import json
 import re
 from frappe.utils import escape_html, get_url
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+from frappe.utils.file_manager import save_file
+
 
 
 REMARKS_KEY = "__remarks__"
@@ -1075,3 +1080,197 @@ def save_technical_evaluation_answers(technical_evaluation, answers):
 	frappe.db.commit()
 
 	return {"name": doc.name, "updated": updated}
+
+
+
+import frappe
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+from frappe.utils.file_manager import save_file
+
+
+@frappe.whitelist()
+def generate_apqp_template(parent, item_row):
+    te = frappe.get_doc("Technical Evaluation", parent)
+    row = next(r for r in te.items if r.name == item_row)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "APQP"
+
+    # ---- Fonts & fills ----
+    font_company = Font(name="Arial", size=12, bold=True)
+    font_title = Font(name="Arial", size=11, bold=True)
+    font_label = Font(name="Arial", size=9, bold=True)
+    font_value = Font(name="Arial", size=9)
+    font_header = Font(name="Arial", size=9, bold=True, color="FFFFFF")
+
+    fill_company = PatternFill("solid", fgColor="DCE6F1")
+    fill_label = PatternFill("solid", fgColor="DCE6F1")
+    fill_header = PatternFill("solid", fgColor="1F4E78")
+
+    thin = Side(style="thin", color="000000")
+    border_all = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+    # ---- Column widths ----
+    widths = {"A": 7, "B": 14, "C": 14, "D": 14, "E": 16, "F": 14, "G": 16, "H": 14, "I": 14, "J": 16}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+
+    # ---- Row 1-2: Company / Format / Doc info ----
+    ws.merge_cells("A1:B2")
+    ws["A1"] = "NMTG Mechtrans Techniques Pvt. Ltd."
+    ws["A1"].font = font_company
+    ws["A1"].alignment = center
+    ws["A1"].fill = fill_company
+
+    ws.merge_cells("C1:H1")
+    ws["C1"] = "FORMAT - ENGINEERING"
+    ws["C1"].font = font_title
+    ws["C1"].alignment = center
+
+    ws.merge_cells("C2:H2")
+    ws["C2"] = "TITLE \u2013 ADVANCE PRODUCT QUALITY PLANING CHART"
+    ws["C2"].font = font_title
+    ws["C2"].alignment = center
+
+    ws["I1"] = "Document No"
+    ws["I1"].font = font_label
+    ws["I1"].fill = fill_label
+    ws["I1"].alignment = center
+    ws["J1"] = te.name  # Document No = parent Technical Evaluation name
+    ws["J1"].font = font_value
+    ws["J1"].alignment = center
+
+    ws["I2"] = "Rev. No. & Date"
+    ws["I2"].font = font_label
+    ws["I2"].fill = fill_label
+    ws["I2"].alignment = center
+    ws["J2"] = f"00 & {frappe.utils.today()}"
+    ws["J2"].font = font_value
+    ws["J2"].alignment = center
+
+    # ---- Row 3: Customer / Part Name / Page ----
+    ws["A3"] = "Customer"
+    ws["A3"].font = font_label
+    ws["A3"].fill = fill_label
+    ws["A3"].alignment = center
+
+    ws.merge_cells("B3:D3")
+    ws["B3"] = te.customer or ""
+    ws["B3"].font = font_value
+    ws["B3"].alignment = left
+
+    ws["E3"] = "Part Name :"
+    ws["E3"].font = font_label
+    ws["E3"].fill = fill_label
+    ws["E3"].alignment = center
+
+    ws.merge_cells("F3:H3")
+    ws["F3"] = row.item_name or row.item_code or ""
+    ws["F3"].font = font_value
+    ws["F3"].alignment = left
+
+    ws["I3"] = "PAGE"
+    ws["I3"].font = font_label
+    ws["I3"].fill = fill_label
+    ws["I3"].alignment = center
+    ws["J3"] = "1 of 1"
+    ws["J3"].font = font_value
+    ws["J3"].alignment = center
+
+    # ---- Row 4: Table headers ----
+    ws.merge_cells("B4:D4")  # Activities Description spans 3 columns
+    headers = {
+        "A4": "Sr. No.",
+        "B4": "Activities Description",
+        "E4": "Status / action",
+        "F4": "Reference",
+        "G4": "Responsibility",
+        "H4": "Target Date",
+        "I4": "Actual Date",
+        "J4": "Verification Status",
+    }
+    for cell, text in headers.items():
+        c = ws[cell]
+        c.value = text
+        c.font = font_header
+        c.fill = fill_header
+        c.alignment = center
+
+    # Borders for header block (rows 1-4)
+    for r_ in ws.iter_rows(min_row=1, max_row=4, min_col=1, max_col=10):
+        for cell in r_:
+            cell.border = border_all
+
+    ws.row_dimensions[1].height = 22
+    ws.row_dimensions[2].height = 22
+    ws.row_dimensions[3].height = 26
+    ws.row_dimensions[4].height = 30
+
+    # ---- Blank rows for filling in (5-24) ----
+    for r in range(5, 25):
+        ws.merge_cells(f"B{r}:D{r}")  # keep Activities Description as one wide column, not 3
+        for col_idx in range(1, 11):
+            col = get_column_letter(col_idx)
+            c = ws[f"{col}{r}"]
+            c.border = border_all
+            c.alignment = left if col == "B" else center
+
+    # ---- Comments section ----
+    comments_row = 26
+    ws.merge_cells(f"A{comments_row}:B{comments_row + 1}")
+    c = ws[f"A{comments_row}"]
+    c.value = "Comments ( If any ) :"
+    c.font = font_label
+    c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+
+    ws.merge_cells(f"C{comments_row}:J{comments_row + 1}")
+    for r_ in ws.iter_rows(min_row=comments_row, max_row=comments_row + 1, min_col=1, max_col=10):
+        for cell in r_:
+            cell.border = border_all
+    ws.row_dimensions[comments_row].height = 20
+    ws.row_dimensions[comments_row + 1].height = 20
+
+    # ---- Prepared By / Reviewed By ----
+    sign_row = comments_row + 3
+    ws.merge_cells(f"A{sign_row}:B{sign_row}")
+    c = ws[f"A{sign_row}"]
+    c.value = "Prepared By :"
+    c.font = font_label
+    c.alignment = left
+
+    ws.merge_cells(f"C{sign_row}:E{sign_row}")
+
+    ws.merge_cells(f"F{sign_row}:G{sign_row}")
+    c = ws[f"F{sign_row}"]
+    c.value = "Reviewed By :"
+    c.font = font_label
+    c.alignment = left
+
+    ws.merge_cells(f"H{sign_row}:J{sign_row}")
+
+    for col in range(1, 11):
+        letter = get_column_letter(col)
+        ws[f"{letter}{sign_row}"].border = Border(bottom=thin)
+    ws.row_dimensions[sign_row].height = 22
+
+    ws.freeze_panes = "A5"
+    ws.sheet_view.showGridLines = False
+
+    # ---- Save & attach ----
+    safe_te_name = te.name.replace("/", "-")
+    file_path = f"/tmp/APQP_{safe_te_name}_{row.item_code}.xlsx"
+    wb.save(file_path)
+
+    with open(file_path, "rb") as f:
+        content = f.read()
+
+    file_doc = save_file(
+        f"APQP_{safe_te_name}_{row.item_code}.xlsx", content,
+        "Technical Evaluation", te.name, is_private=1
+    )
+    return file_doc.file_url

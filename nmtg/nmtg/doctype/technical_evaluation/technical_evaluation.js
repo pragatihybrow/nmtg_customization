@@ -41,10 +41,83 @@ frappe.ui.form.on("Technical Evaluation Item", {
     },
     request_no: function(frm) {
         set_request_no_options(frm);
+    },
+    create_feasibility_review: function(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        if (row.feasibility_review_report) {
+            frappe.set_route("Form", "Feasibility Review Report", row.feasibility_review_report);
+            return;
+        }
+
+        if (!row.item_code) {
+            frappe.msgprint(__("Please set Item Code before creating a Feasibility Review."));
+            return;
+        }
+
+        frappe.confirm(
+            __("Create a new Feasibility Review Report for this item?"),
+            function() {
+                const categories = [
+                    "Technical Capability",
+                    "Infrastructure Feasibility",
+                    "Existing Work Load Vs Time Line",
+                    "Staff",
+                    "Budgets & Financial Matters",
+                    "Other",
+                    "Statutory & Regulatory Requirements"
+                ];
+
+                frappe.call({
+                    method: "frappe.client.insert",
+                    args: {
+                        doc: {
+                            doctype: "Feasibility Review Report",
+                            customer: frm.doc.customer,
+                            customer_part_no: row.item_code,
+                            ref_customer_document_no: frm.doc.name,
+                            ref_enquiry: frm.doc.opportunity_no,
+                            prepared_by: frappe.session.user,
+                            date: frappe.datetime.get_today(),
+                            feasibility_checkpoints: categories.map(cat => ({ category: cat })),
+                            customer_part_name:row.item_name
+                        }
+                    },
+                    freeze: true,
+                    freeze_message: __("Creating Feasibility Review Report..."),
+                    callback: function(r) {
+                        if (r.message) {
+                            frappe.model.set_value(cdt, cdn, "feasibility_review_report", r.message.name);
+
+                            frm.save().then(() => {
+                                frappe.show_alert({
+                                    message: __("Feasibility Review Report {0} created", [r.message.name]),
+                                    indicator: "green"
+                                });
+                                frappe.set_route("Form", "Feasibility Review Report", r.message.name);
+                            });
+                        }
+                    }
+                });
+            }
+        );
+    },
+    download_apqp: function(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        frappe.call({
+            method: "nmtg.override.api.generate_apqp_template",
+            args: { parent: frm.doc.name, item_row: row.name },
+            freeze: true,
+            freeze_message: __("Generating APQP..."),
+            callback: function(r) {
+                if (r.message) {
+                    window.open(r.message);
+                }
+            }
+        });
     }
 });
 
-// on initial parent form load/refresh, set options for all existing rows
 frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
     refresh(frm) {
         (frm.doc.items || []).forEach(row => {

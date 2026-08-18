@@ -1,0 +1,172 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-08-18 12:52:35.609287",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "category",
+  "have_we_machined_same_components_in_past",
+  "can_the_parts_manufactured_in_our_setup",
+  "is_organization_capable_to_machining_the_component",
+  "is_adequate_equipment_available",
+  "is_space",
+  "part",
+  "is_the_adequate_manpower_available",
+  "orders_in_pipeline_can_delay_this_order",
+  "is_qualified_staff_available",
+  "if_needed_is_training_available",
+  "is_the_workload_manageable",
+  "are_additional_specialists_needed",
+  "financial_stability",
+  "payment_option_by_customer",
+  "other_special_condition_if_there_is_any",
+  "verification_of_statutory_requirements",
+  "verification_of_regulatory_requirement"
+ ],
+ "fields": [
+  {
+   "fieldname": "category",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Category",
+   "options": "\nTechnical Capability\nInfrastructure Feasibility\nExisting Work Load Vs Time Line\nStaff\nBudgets & Financial Matters\nOther\nStatutory & Regulatory Requirements"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Technical Capability\"",
+   "fieldname": "is_organization_capable_to_machining_the_component",
+   "fieldtype": "Select",
+   "label": "Is organization capable to machining the component?",
+   "options": "\nYes\nNo\nOutsourced"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Technical Capability\"",
+   "fieldname": "have_we_machined_same_components_in_past",
+   "fieldtype": "Select",
+   "label": "Have we machined same components in past?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Technical Capability\"",
+   "fieldname": "can_the_parts_manufactured_in_our_setup",
+   "fieldtype": "Select",
+   "label": "Can the parts manufactured in our setup?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Infrastructure Feasibility\"",
+   "fieldname": "is_adequate_equipment_available",
+   "fieldtype": "Select",
+   "label": "Is adequate equipment available?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Infrastructure Feasibility\"",
+   "fieldname": "is_space",
+   "fieldtype": "Select",
+   "label": "Is space for raw material storage & final material storage available?",
+   "options": "\nYes\nNo\nExpansion Needed"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Infrastructure Feasibility\"",
+   "fieldname": "part",
+   "fieldtype": "Select",
+   "label": "Part requires any specific Process? And the same is available in organization setup?",
+   "options": "\nYes\nNo\nOutsourced"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Existing Work Load Vs Time Line\"",
+   "fieldname": "is_the_adequate_manpower_available",
+   "fieldtype": "Select",
+   "label": "Is the adequate manpower available?",
+   "options": "\nYes\nNo\nOutsourced"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Existing Work Load Vs Time Line\"",
+   "fieldname": "orders_in_pipeline_can_delay_this_order",
+   "fieldtype": "Select",
+   "label": "Orders in pipeline can delay this order?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Staff\"",
+   "fieldname": "is_qualified_staff_available",
+   "fieldtype": "Select",
+   "label": "Is qualified staff available?",
+   "options": "\nYes\nNo\nOutsourced-training to be planned"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Staff\"",
+   "fieldname": "if_needed_is_training_available",
+   "fieldtype": "Select",
+   "label": "If needed, is training available?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Staff\"",
+   "fieldname": "is_the_workload_manageable",
+   "fieldtype": "Select",
+   "label": "Is the workload manageable?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Staff\"",
+   "fieldname": "are_additional_specialists_needed",
+   "fieldtype": "Select",
+   "label": "Are additional specialists needed?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Budgets & Financial Matters\"",
+   "fieldname": "financial_stability",
+   "fieldtype": "Select",
+   "label": "Financial Stability",
+   "options": "\nGood\nDebt Needed"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Budgets & Financial Matters\"",
+   "fieldname": "payment_option_by_customer",
+   "fieldtype": "Select",
+   "label": "Payment option by customer ",
+   "options": "\nAccepted\nNegotiation Needed"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Other\"",
+   "fieldname": "other_special_condition_if_there_is_any",
+   "fieldtype": "Data",
+   "label": "Other special condition if there is any",
+   "options": "\nAccepted\nNegotiation Needed"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Statutory & Regulatory Requirements\"",
+   "fieldname": "verification_of_statutory_requirements",
+   "fieldtype": "Select",
+   "label": "Verification of statutory requirements ",
+   "options": "\nReviewed And Complied\nNot Complied And Critical To Comply\nNo Specific Requirement"
+  },
+  {
+   "depends_on": "eval:doc.category===\"Statutory & Regulatory Requirements\"",
+   "fieldname": "verification_of_regulatory_requirement",
+   "fieldtype": "Select",
+   "label": "Verification of regulatory requirement",
+   "options": "\nReviewed And Complied\nNot Complied And Critical To Comply\nNo Specific Requirement"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-08-18 13:18:48.242425",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Feasibility Checkpoints CT",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

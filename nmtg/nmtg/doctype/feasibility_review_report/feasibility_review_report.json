@@ -1,0 +1,191 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-08-17 18:21:20.997161",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_ti7g",
+  "amended_from",
+  "customer",
+  "customer_part_no",
+  "customer_part_name",
+  "equivalent_to_reference_drawing_no",
+  "approved_by",
+  "column_break_dmez",
+  "ref_enquiry",
+  "date",
+  "ref_customer_document_no",
+  "prepared_by",
+  "naming_series",
+  "section_break_uhhv",
+  "feasibility_checkpoints",
+  "section_break_dhdf",
+  "risk_review",
+  "section_break_jboi",
+  "order_execution_is_feasible",
+  "column_break_nasn",
+  "can_we_send_quote",
+  "column_break_pcnz",
+  "justification_of_decision"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_ti7g",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Feasibility Review Report",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Data",
+   "label": "Customer"
+  },
+  {
+   "fieldname": "ref_enquiry",
+   "fieldtype": "Link",
+   "label": "Ref. Enquiry",
+   "options": "Opportunity"
+  },
+  {
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date"
+  },
+  {
+   "fieldname": "ref_customer_document_no",
+   "fieldtype": "Link",
+   "label": "Ref. Customer Document No",
+   "options": "Technical Evaluation"
+  },
+  {
+   "fieldname": "equivalent_to_reference_drawing_no",
+   "fieldtype": "Data",
+   "label": "Equivalent to Reference Drawing No"
+  },
+  {
+   "fieldname": "customer_part_no",
+   "fieldtype": "Data",
+   "label": "Customer Part No"
+  },
+  {
+   "fieldname": "prepared_by",
+   "fieldtype": "Link",
+   "label": "Prepared By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "approved_by",
+   "fieldtype": "Link",
+   "label": "Approved By",
+   "options": "User"
+  },
+  {
+   "fieldname": "column_break_dmez",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_uhhv",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "feasibility_checkpoints",
+   "fieldtype": "Table",
+   "label": "Feasibility Checkpoints",
+   "options": "Feasibility Checkpoints CT"
+  },
+  {
+   "default": "TR-DND-.",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "TR-DND-."
+  },
+  {
+   "fieldname": "section_break_dhdf",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "risk_review",
+   "fieldtype": "Table",
+   "label": "Risk Review",
+   "options": "Risk Review CT"
+  },
+  {
+   "fieldname": "section_break_jboi",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "order_execution_is_feasible",
+   "fieldtype": "Select",
+   "label": "Order Execution is Feasible?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "column_break_nasn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "can_we_send_quote",
+   "fieldtype": "Select",
+   "label": "Can we Send Quote?",
+   "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "column_break_pcnz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "justification_of_decision",
+   "fieldtype": "Select",
+   "label": "Justification of Decision",
+   "options": "\nFit for Business\nNot Fit For Business"
+  },
+  {
+   "fieldname": "customer_part_name",
+   "fieldtype": "Data",
+   "label": "Customer Part Name"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-08-18 14:19:52.227204",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Feasibility Review Report",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
