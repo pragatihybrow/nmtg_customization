@@ -8,8 +8,8 @@
  "engine": "InnoDB",
  "field_order": [
   "model",
-  "competitor_model",
-  "competitor_model_name"
+  "competitor_model_name",
+  "competitor_model"
  ],
  "fields": [
   {
@@ -23,7 +23,7 @@
    "fieldname": "competitor_model",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Competitor Model",
+   "label": "Competitor Name",
    "options": "Model",
    "reqd": 1
   },
@@ -31,7 +31,7 @@
    "fieldname": "competitor_model_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Competitor Name",
+   "label": "Competitor Model",
    "options": "Model",
    "reqd": 1
   }
@@ -40,7 +40,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-17 16:21:32.446686",
+ "modified": "2026-08-19 11:16:07.048881",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Competitor Model CT",
