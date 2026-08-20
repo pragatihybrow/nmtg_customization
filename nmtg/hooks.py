@@ -298,15 +298,18 @@ doc_events = {
         "Lead": {
         "validate": "nmtg.override.api.validate_lead"
     },
-    
-
-    
+    "Supplier Audit": {
+		"on_submit": "nmtg.override.supplier.update_supplier_next_audit_date",
+	},
 }
 
 scheduler_events = {
     "monthly": [
         "nmtg.nmtg.doctype.supplier_performance_summary.supplier_performance_summary.create_monthly_supplier_performance"
-    ]
+    ],
+    "daily": [
+		"nmtg.nmtg.override.supplier.send_due_supplier_audit_reminders",
+	],
 }
 
 fixtures = [

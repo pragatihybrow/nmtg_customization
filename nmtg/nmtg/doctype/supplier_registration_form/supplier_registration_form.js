@@ -10,6 +10,7 @@ frappe.ui.form.on("Supplier Registration Form", {
                 >
             </div>
         `);
+         toggle_all_cert_locks(frm);
     },
     supplier_type: function(frm) {
         calculate_legal_registration_score(frm);
@@ -104,6 +105,35 @@ frappe.ui.form.on("Supplier Registration Form", {
         calculate_ghg_accounting_score(frm);
         calculate_financial_stability_score(frm);
     },
+    // IATF 16949
+    iatf_16949(frm) { toggle_all_cert_locks(frm); },
+    date_of_registration_iatf_16949(frm) { toggle_all_cert_locks(frm); },
+    date_of_expiry_iatf_16949(frm) { toggle_all_cert_locks(frm); },
+
+    // ISO 9001
+    iso_9001(frm) { toggle_all_cert_locks(frm); },
+    date_of_registration_iso_9001(frm) { toggle_all_cert_locks(frm); },
+    date_of_expiry_iso_9001(frm) { toggle_all_cert_locks(frm); },
+
+    // ISO 14001
+    iso_14001(frm) { toggle_all_cert_locks(frm); },
+    date_of_registration_iso_14001(frm) { toggle_all_cert_locks(frm); },
+    date_of_expiry_iso_14001(frm) { toggle_all_cert_locks(frm); },
+
+    // ISO 45001
+    iso_45001(frm) { toggle_all_cert_locks(frm); },
+    date_of_registration__iso_45001(frm) { toggle_all_cert_locks(frm); },
+    date_of_expiry_iso_45001(frm) { toggle_all_cert_locks(frm); },
+
+    // ISO 50001
+    iso_50001(frm) { toggle_all_cert_locks(frm); },
+    date_of_registration_iso_50001(frm) { toggle_all_cert_locks(frm); },
+    date_of_expiry_iso_50001(frm) { toggle_all_cert_locks(frm); },
+
+    // Other Standard
+    other_standard(frm) { toggle_all_cert_locks(frm); },
+    date_of_registration(frm) { toggle_all_cert_locks(frm); },
+    date_of_expiry(frm) { toggle_all_cert_locks(frm); },
     
    onload: function(frm) {
     if (frm.is_new() && (!frm.doc.department_info || frm.doc.department_info.length === 0)) {
@@ -202,6 +232,61 @@ frappe.ui.form.on("Supplier Registration Form", {
     }
 });
 
+
+
+function toggle_all_cert_locks(frm) {
+    const today = frappe.datetime.get_today();
+
+    // Each block: [enable_checkbox, expiry_fieldname, [fields_to_lock]]
+    const cert_blocks = [
+        [
+            "iatf_16949",
+            "date_of_expiry_iatf_16949",
+            ["attach_certificate_iatf_16949", "date_of_registration_iatf_16949", "date_of_expiry_iatf_16949"]
+        ],
+        [
+            "iso_9001",
+            "date_of_expiry_iso_9001",
+            ["attach_certificate_iso_9001", "date_of_registration_iso_9001", "date_of_expiry_iso_9001"]
+        ],
+        [
+            "iso_14001",
+            "date_of_expiry_iso_14001",
+            ["attach_certificate_iso_14001", "date_of_registration_iso_14001", "date_of_expiry_iso_14001"]
+        ],
+        [
+            "iso_45001",
+            "date_of_expiry_iso_45001",
+            ["attach_certificate_iso_45001", "date_of_registration__iso_45001", "date_of_expiry_iso_45001"]
+        ],
+        [
+            "iso_50001",
+            "date_of_expiry_iso_50001",
+            ["date_of_registration_iso_50001", "date_of_expiry_iso_50001"]
+        ],
+        [
+            "other_standard",
+            "date_of_expiry",
+            ["attach_certificate", "other_standards", "date_of_registration", "date_of_expiry"]
+        ],
+    ];
+
+    cert_blocks.forEach(([checkbox_field, expiry_field, fields_to_lock]) => {
+        let should_lock = 0;
+
+        if (frm.doc[checkbox_field] && frm.doc[expiry_field]) {
+            // Locked while certificate is still valid: today <= expiry
+            should_lock = today <= frm.doc[expiry_field] ? 1 : 0;
+        }
+
+        fields_to_lock.forEach(fieldname => {
+            frm.set_df_property(fieldname, "read_only", should_lock);
+        });
+    });
+
+    frm.refresh_fields();
+}
+
 // Checks the relevant checklist child table for a row matching the requirement label,
 // and returns true only if that row is marked "Yes" and has an attachment uploaded.
 function has_attachment_for_requirement(frm, table_fieldname, requirement_label) {
@@ -209,6 +294,41 @@ function has_attachment_for_requirement(frm, table_fieldname, requirement_label)
     let row = rows.find(r => r.requirement__document === requirement_label);
     return !!(row && row.attachment);
 }
+
+// function calculate_legal_registration_score(frm) {
+//     if (!frm.doc.supplier_type) return;
+
+//     let score = 0;
+
+//     if (frm.doc.supplier_type === "Domestic") {
+//         // field -> corresponding checklist requirement label
+//         let checks = [
+//             { field: frm.doc.gst_no, label: "GST Certificate" },
+//             { field: frm.doc.pan_no, label: "PAN Card" },
+//             { field: frm.doc.vat__tin_no, label: "VAT / TIN No." }
+//         ];
+
+//         checks.forEach(c => {
+//             if (c.field) {
+//                 let has_attachment = has_attachment_for_requirement(
+//                     frm, "domestic_supplier_document_checklist", c.label
+//                 );
+//                 let this_score = has_attachment ? 3 : 2;
+//                 score = Math.max(score, this_score);
+//             }
+//         });
+//     } else if (frm.doc.supplier_type === "International") {
+//         if (frm.doc.taxpayer_identification_no__vat_id__ein) {
+//             let has_attachment = has_attachment_for_requirement(
+//                 frm, "international_supplier_document_checklist", "Taxpayer Identification Certificate"
+//             );
+//             score = has_attachment ? 3 : 2;
+//         }
+//     }
+
+//     set_evaluation_score(frm, "Company Legally Registered", score);
+// }
+
 
 function calculate_legal_registration_score(frm) {
     if (!frm.doc.supplier_type) return;
@@ -219,8 +339,7 @@ function calculate_legal_registration_score(frm) {
         // field -> corresponding checklist requirement label
         let checks = [
             { field: frm.doc.gst_no, label: "GST Certificate" },
-            { field: frm.doc.pan_no, label: "PAN Card" },
-            { field: frm.doc.vat__tin_no, label: "VAT / TIN No." }
+            { field: frm.doc.pan_no, label: "PAN Card" }
         ];
 
         checks.forEach(c => {
@@ -243,6 +362,7 @@ function calculate_legal_registration_score(frm) {
 
     set_evaluation_score(frm, "Company Legally Registered", score);
 }
+
 
 function calculate_years_in_business_score(frm) {
     let score = frm.doc.year_established ? 3 : 0;

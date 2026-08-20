@@ -259,6 +259,7 @@
    "options": "International Organization Standards CT"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.other_standard ",
    "fieldname": "date_of_registration",
    "fieldtype": "Date",
@@ -273,6 +274,7 @@
    "options": "International Organization Standards CT"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.other_standard ",
    "fieldname": "date_of_expiry",
    "fieldtype": "Date",
@@ -414,12 +416,14 @@
    "label": "Other Standard"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.other_standard",
    "fieldname": "other_standards",
    "fieldtype": "Data",
    "label": "Other Standard"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.other_standard ",
    "fieldname": "attach_certificate",
    "fieldtype": "Attach",
@@ -718,30 +722,35 @@
    "label": "Total No. of Employees"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iatf_16949",
    "fieldname": "attach_certificate_iatf_16949",
    "fieldtype": "Attach",
    "label": "Attach Certificate IATF 16949"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_9001",
    "fieldname": "attach_certificate_iso_9001",
    "fieldtype": "Attach",
    "label": "Attach Certificate ISO 9001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_14001",
    "fieldname": "attach_certificate_iso_14001",
    "fieldtype": "Attach",
    "label": "Attach Certificate ISO 14001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_45001",
    "fieldname": "attach_certificate_iso_45001",
    "fieldtype": "Attach",
    "label": "Attach Certificate ISO 45001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_9001",
    "fieldname": "date_of_registration_iso_9001",
    "fieldtype": "Date",
@@ -749,30 +758,35 @@
    "options": "International Organization Standards CT"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_45001",
    "fieldname": "date_of_registration__iso_45001",
    "fieldtype": "Date",
    "label": "Date of Registration  ISO 45001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_14001",
    "fieldname": "date_of_registration_iso_14001",
    "fieldtype": "Date",
    "label": "Date of Registration ISO 14001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_14001",
    "fieldname": "date_of_expiry_iso_14001",
    "fieldtype": "Date",
    "label": "Date of Expiry ISO 14001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_45001",
    "fieldname": "date_of_expiry_iso_45001",
    "fieldtype": "Date",
    "label": "Date of Expiry ISO 45001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_9001",
    "fieldname": "date_of_expiry_iso_9001",
    "fieldtype": "Date",
@@ -802,6 +816,7 @@
    "options": "International Supplier Document Checklist CT"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iatf_16949",
    "fieldname": "date_of_registration_iatf_16949",
    "fieldtype": "Date",
@@ -809,6 +824,7 @@
    "options": "International Organization Standards CT"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iatf_16949",
    "fieldname": "date_of_expiry_iatf_16949",
    "fieldtype": "Date",
@@ -843,6 +859,7 @@
    "label": "ISO 50001"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_50001",
    "fieldname": "date_of_registration_iso_50001",
    "fieldtype": "Date",
@@ -850,6 +867,7 @@
    "options": "International Organization Standards CT"
   },
   {
+   "allow_on_submit": 1,
    "depends_on": "eval:doc.iso_50001",
    "fieldname": "date_of_expiry_iso_50001",
    "fieldtype": "Date",
@@ -1066,7 +1084,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-03 14:34:01.063237",
+ "modified": "2026-08-19 14:22:03.906714",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",

@@ -14,6 +14,7 @@
   "contact_no",
   "audit_version",
   "email_address",
+  "date",
   "supplier_audit_checksheet",
   "criteria",
   "maximum_score",
@@ -100,13 +101,20 @@
    "fieldtype": "Data",
    "label": "Email Address",
    "options": "Email"
+  },
+  {
+   "default": "Today",
+   "fieldname": "date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "options": "Today"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-12 10:07:22.687092",
+ "modified": "2026-08-20 11:30:52.759132",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Audit",
