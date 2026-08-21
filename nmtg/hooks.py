@@ -308,9 +308,10 @@ scheduler_events = {
         "nmtg.nmtg.doctype.supplier_performance_summary.supplier_performance_summary.create_monthly_supplier_performance"
     ],
     "daily": [
-		"nmtg.nmtg.override.supplier.send_due_supplier_audit_reminders",
-        "nmtg.nmtg.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders"
+		"nmtg.override.supplier.send_due_supplier_audit_reminders",
+		"nmtg.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders"
 	],
+
 }
 
 fixtures = [

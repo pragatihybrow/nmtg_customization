@@ -196,7 +196,6 @@ def send_due_supplier_audit_reminders():
 				message=f"Supplier: {row.name}\n\n{frappe.get_traceback()}",
 			)
 
-
 def send_audit_due_reminder(supplier_row):
 	if not supplier_row.email_id:
 		frappe.log_error(
@@ -222,17 +221,25 @@ Hello Sir/Madam,<br><br>
 
 Greetings from NMTG!<br><br>
 
-As per our supplier audit cycle, your periodic Supplier Audit is due
-(cycle due date: {{ due_date }}). Kindly complete the audit form using the
-link below at your earliest convenience:<br><br>
+As part of our periodic Supplier Quality Audit process, your supplier re-audit is
+now due as per the scheduled audit cycle.<br><br>
+
+We request you to kindly complete the Supplier Audit Form using the link below at
+your earliest convenience.<br><br>
 
 Supplier Audit Form:<br>
 <a href="{{ audit_link }}">{{ audit_link }}</a><br><br>
 
-Thank you for your continued cooperation.<br><br>
+Re-Audit Due Date: {{ due_date }}<br><br>
+
+Your timely response will help us complete the supplier re-evaluation process and
+maintain our approved supplier records.<br><br>
+
+Thank you for your continued support and cooperation.<br><br>
 
 Best Regards,<br>
 NMTG Quality Team<br>
+NMTG Mechtrans Techniques Pvt. Ltd.<br>
 <a href="https://www.nmtgindia.com">www.nmtgindia.com</a>
 """,
 		context,
@@ -240,7 +247,7 @@ NMTG Quality Team<br>
 
 	frappe.sendmail(
 		recipients=[supplier_row.email_id],
-		subject="Action Required: Supplier Audit Renewal Due – NMTG",
+		subject="Supplier Re-Audit Due – Action Required",
 		message=message,
 	)
 
@@ -271,7 +278,7 @@ def update_supplier_next_audit_date(doc, method=None):
 	)
 
 
-# @frappe.whitelist()
-# def trigger_supplier_audit_reminders_manually():
-# 	send_due_supplier_audit_reminders()
-# 	frappe.msgprint("Supplier audit reminder check completed.")
+@frappe.whitelist()
+def trigger_supplier_audit_reminders_manually():
+	send_due_supplier_audit_reminders()
+	frappe.msgprint("Supplier audit reminder check completed.")
