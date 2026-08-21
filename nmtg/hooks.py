@@ -309,6 +309,7 @@ scheduler_events = {
     ],
     "daily": [
 		"nmtg.nmtg.override.supplier.send_due_supplier_audit_reminders",
+        "nmtg.nmtg.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders"
 	],
 }
 

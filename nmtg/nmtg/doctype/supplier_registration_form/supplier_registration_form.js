@@ -295,41 +295,6 @@ function has_attachment_for_requirement(frm, table_fieldname, requirement_label)
     return !!(row && row.attachment);
 }
 
-// function calculate_legal_registration_score(frm) {
-//     if (!frm.doc.supplier_type) return;
-
-//     let score = 0;
-
-//     if (frm.doc.supplier_type === "Domestic") {
-//         // field -> corresponding checklist requirement label
-//         let checks = [
-//             { field: frm.doc.gst_no, label: "GST Certificate" },
-//             { field: frm.doc.pan_no, label: "PAN Card" },
-//             { field: frm.doc.vat__tin_no, label: "VAT / TIN No." }
-//         ];
-
-//         checks.forEach(c => {
-//             if (c.field) {
-//                 let has_attachment = has_attachment_for_requirement(
-//                     frm, "domestic_supplier_document_checklist", c.label
-//                 );
-//                 let this_score = has_attachment ? 3 : 2;
-//                 score = Math.max(score, this_score);
-//             }
-//         });
-//     } else if (frm.doc.supplier_type === "International") {
-//         if (frm.doc.taxpayer_identification_no__vat_id__ein) {
-//             let has_attachment = has_attachment_for_requirement(
-//                 frm, "international_supplier_document_checklist", "Taxpayer Identification Certificate"
-//             );
-//             score = has_attachment ? 3 : 2;
-//         }
-//     }
-
-//     set_evaluation_score(frm, "Company Legally Registered", score);
-// }
-
-
 function calculate_legal_registration_score(frm) {
     if (!frm.doc.supplier_type) return;
 

@@ -2,6 +2,8 @@
 # For license information, please see license.txt
 import frappe
 from frappe.model.document import Document
+from frappe.utils import getdate, nowdate, date_diff, add_days
+
 
 
 class SupplierRegistrationForm(Document):
@@ -285,3 +287,98 @@ class SupplierRegistrationForm(Document):
         })
         group_doc.insert(ignore_permissions=True)
         return group_doc.name
+
+
+
+# Certificate definitions: (label, checkbox_field, expiry_field)
+CERTIFICATE_FIELDS = [
+	("IATF 16949", "iatf_16949", "date_of_expiry_iatf_16949"),
+	("ISO 9001", "iso_9001", "date_of_expiry_iso_9001"),
+	("ISO 14001", "iso_14001", "date_of_expiry_iso_14001"),
+	("ISO 45001", "iso_45001", "date_of_expiry_iso_45001"),
+	("ISO 50001", "iso_50001", "date_of_expiry_iso_50001"),
+	("Other Standard", "other_standard", "date_of_expiry"),
+]
+
+REMINDER_DAYS_BEFORE = 7
+
+
+def send_certificate_expiry_reminders():
+	"""
+	Daily scheduled job.
+	Finds Supplier Registration Form records where any certificate expires
+	exactly REMINDER_DAYS_BEFORE days from today, and emails the supplier
+	a single reminder listing all such certificates.
+
+	Add to hooks.py:
+		scheduler_events = {
+			"daily": [
+				"hybrowlabs.hybrowlabs.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders"
+			]
+		}
+	"""
+	target_date = add_days(nowdate(), REMINDER_DAYS_BEFORE)
+
+	# Build a single query condition covering all expiry fields so we only
+	# fetch records that actually need attention today.
+	or_conditions = " or ".join(
+		[f"(`{checkbox}` = 1 and `{expiry_field}` = %(target_date)s)" for _, checkbox, expiry_field in CERTIFICATE_FIELDS]
+	)
+
+	records = frappe.db.sql(
+		f"""
+		select name, email_id
+		from `tabSupplier Registration Form`
+		where email_id is not null and email_id != '' and ({or_conditions})
+		""",
+		{"target_date": target_date},
+		as_dict=True,
+	)
+
+	for record in records:
+		doc = frappe.get_doc("Supplier Registration Form", record.name)
+		expiring = _get_expiring_certificates(doc, target_date)
+
+		if not expiring:
+			continue
+
+		_send_reminder_email(doc, expiring)
+
+
+def _get_expiring_certificates(doc, target_date):
+	"""Return list of (label, expiry_date) for certificates expiring on target_date."""
+	expiring = []
+	for label, checkbox_field, expiry_field in CERTIFICATE_FIELDS:
+		if doc.get(checkbox_field) and doc.get(expiry_field):
+			if getdate(doc.get(expiry_field)) == getdate(target_date):
+				expiring.append((label, doc.get(expiry_field)))
+	return expiring
+
+
+def _send_reminder_email(doc, expiring):
+	supplier_name = doc.get("supplier_name") or doc.name
+
+	cert_lines = "".join(
+		f"<li>{label} — expires on {frappe.utils.formatdate(expiry_date)}</li>"
+		for label, expiry_date in expiring
+	)
+
+	message = f"""
+		<p>Dear {supplier_name},</p>
+		<p>This is a reminder that the following certificate(s) submitted with your
+		Supplier Registration Form ({doc.name}) will expire in {REMINDER_DAYS_BEFORE} days:</p>
+		<ul>{cert_lines}</ul>
+		<p>Please arrange to renew and upload the updated certificate(s) at your earliest convenience
+		to avoid any disruption in your supplier status.</p>
+		<p>Regards,<br>Quality Team</p>
+	"""
+
+	frappe.sendmail(
+		recipients=[doc.email_id],
+		subject=f"Certificate Expiry Reminder — {supplier_name} ({doc.name})",
+		message=message,
+		reference_doctype=doc.doctype,
+		reference_name=doc.name,
+	)
+
+	frappe.logger().info(f"Sent certificate expiry reminder for {doc.name} to {doc.email_id}")

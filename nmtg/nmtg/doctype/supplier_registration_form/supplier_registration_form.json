@@ -119,14 +119,9 @@
   "legal_information_tab",
   "gst_no",
   "pan_no",
-  "msme_no",
-  "central_excise_registration_no",
-  "central_excise_registration_date",
   "column_break_rlaw",
-  "vat__tin_no",
   "area_code",
-  "cst_no",
-  "cst_date",
+  "msme_no",
   "section_break_zczr",
   "domestic_supplier_document_checklist",
   "import_details_tab",
@@ -497,34 +492,9 @@
    "fieldtype": "Column Break"
   },
   {
-   "fieldname": "central_excise_registration_no",
-   "fieldtype": "Data",
-   "label": "Central Excise Registration No"
-  },
-  {
-   "fieldname": "central_excise_registration_date",
-   "fieldtype": "Date",
-   "label": "Central Excise Registration Date"
-  },
-  {
    "fieldname": "area_code",
    "fieldtype": "Data",
    "label": "Area Code"
-  },
-  {
-   "fieldname": "vat__tin_no",
-   "fieldtype": "Data",
-   "label": "VAT / TIN No."
-  },
-  {
-   "fieldname": "cst_no",
-   "fieldtype": "Data",
-   "label": "CST No"
-  },
-  {
-   "fieldname": "cst_date",
-   "fieldtype": "Date",
-   "label": "CST Date"
   },
   {
    "fieldname": "column_break_rlaw",
@@ -1084,7 +1054,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-19 14:22:03.906714",
+ "modified": "2026-08-21 13:42:33.554332",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Supplier Registration Form",
