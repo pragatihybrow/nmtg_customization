@@ -7,16 +7,16 @@ frappe.ui.form.on("Technical Evaluation Item", {
         set_competitor_name_options(frm, cdt, cdn);
         set_competitor_model_options(frm, cdt, cdn);
         render_attachment_slots(frm, cdt, cdn);
+        render_dynamic_required_fields(frm, cdt, cdn);
     },
 
-   
-	attachment_qty(frm, cdt, cdn) {
-		sync_attachment_rows(frm, cdt, cdn);
-		render_attachment_slots(frm, cdt, cdn);
-	},
-	drawing_approval_required(frm, cdt, cdn) {
-		render_attachment_slots(frm, cdt, cdn);
-	},
+    attachment_qty(frm, cdt, cdn) {
+        sync_attachment_rows(frm, cdt, cdn);
+        render_attachment_slots(frm, cdt, cdn);
+    },
+    drawing_approval_required(frm, cdt, cdn) {
+        render_attachment_slots(frm, cdt, cdn);
+    },
     items_render(frm, cdt, cdn) {
         set_competitor_name_options(frm, cdt, cdn);
         set_competitor_model_options(frm, cdt, cdn);
@@ -29,6 +29,7 @@ frappe.ui.form.on("Technical Evaluation Item", {
         frappe.model.set_value(cdt, cdn, "nmtg_model", "");
         update_select_field_options(frm, cdt, cdn, "competitor_model", [""]);
         set_competitor_name_options(frm, cdt, cdn);
+        render_dynamic_required_fields(frm, cdt, cdn);
     },
 
     competitor_name(frm, cdt, cdn) {
@@ -135,7 +136,7 @@ frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
         toggle_questionary_visibility(frm);
         set_request_no_options(frm);
     },
-     
+
     items_add: function(frm) {
         set_request_no_options(frm);
     },
@@ -143,52 +144,52 @@ frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
         set_request_no_options(frm);
     },
     onload: function (frm) {
-		if (frm.is_new() && !frm.doc.lead_engineer) {
-			frm.set_value("lead_engineer", frappe.session.user);
-		}
-	},
-	send_questionary_to_customer: function (frm) {
-		if (frm.is_new()) {
-			frappe.msgprint(__("Please save the document before sending the questionary."));
-			return;
-		}
+        if (frm.is_new() && !frm.doc.lead_engineer) {
+            frm.set_value("lead_engineer", frappe.session.user);
+        }
+    },
+    send_questionary_to_customer: function (frm) {
+        if (frm.is_new()) {
+            frappe.msgprint(__("Please save the document before sending the questionary."));
+            return;
+        }
 
-		if (
-			!frm.doc.questionary_for_technical_evaluation ||
-			!frm.doc.questionary_for_technical_evaluation.length
-		) {
-			frappe.msgprint(
-				__("Please add at least one row in Questionary For Technical Evaluation before sending.")
-			);
-			return;
-		}
+        if (
+            !frm.doc.questionary_for_technical_evaluation ||
+            !frm.doc.questionary_for_technical_evaluation.length
+        ) {
+            frappe.msgprint(
+                __("Please add at least one row in Questionary For Technical Evaluation before sending.")
+            );
+            return;
+        }
 
-		if (!frm.doc.email) {
-			frappe.msgprint(__("Please set the Email field before sending the questionary."));
-			return;
-		}
+        if (!frm.doc.email) {
+            frappe.msgprint(__("Please set the Email field before sending the questionary."));
+            return;
+        }
 
-		frappe.confirm(
-			__("Send the questionary link to {0}?", [frm.doc.email]),
-			function () {
-				frappe.call({
-					method: "nmtg.override.api.send_technical_evaluation_questionary",
-					args: { technical_evaluation: frm.doc.name },
-					freeze: true,
-					freeze_message: __("Sending..."),
-					callback: function (r) {
-						if (!r.exc) {
-							frappe.show_alert({
-								message: __("Questionary email sent to {0}", [frm.doc.email]),
-								indicator: "green",
-							});
-							frm.reload_doc();
-						}
-					},
-				});
-			}
-		);
-	},
+        frappe.confirm(
+            __("Send the questionary link to {0}?", [frm.doc.email]),
+            function () {
+                frappe.call({
+                    method: "nmtg.override.api.send_technical_evaluation_questionary",
+                    args: { technical_evaluation: frm.doc.name },
+                    freeze: true,
+                    freeze_message: __("Sending..."),
+                    callback: function (r) {
+                        if (!r.exc) {
+                            frappe.show_alert({
+                                message: __("Questionary email sent to {0}", [frm.doc.email]),
+                                indicator: "green",
+                            });
+                            frm.reload_doc();
+                        }
+                    },
+                });
+            }
+        );
+    },
 });
 
 
@@ -205,7 +206,6 @@ function set_request_no_options(frm) {
             .filter(d => d)
     )];
 
-    // Prepend a blank option so the field can start empty
     let options = [""].concat(request_nos).join('\n');
 
     frm.fields_dict['questionary_for_technical_evaluation'].grid.update_docfield_property(
@@ -214,7 +214,6 @@ function set_request_no_options(frm) {
 
     frm.refresh_field('questionary_for_technical_evaluation');
 }
-
 
 // Step 1: Product Group -> Competitor Name options (distinct brands)
 function set_competitor_name_options(frm, cdt, cdn) {
@@ -280,15 +279,12 @@ function update_select_field_options(frm, cdt, cdn, fieldname, options) {
     let grid_row = grid.grid_rows_by_docname[cdn];
     if (!grid_row) return;
 
-    // 1. update the row's own docfield definition
     let docfield = grid_row.docfields.find(df => df.fieldname === fieldname);
     if (docfield) docfield.options = options_str;
 
-    // 2. update the grid-level column template (governs newly created inline cell editors)
     let grid_field = grid.get_field(fieldname);
     if (grid_field && grid_field.df) grid_field.df.options = options_str;
 
-    // 3. force the INLINE cell control to rebuild
     if (grid_row.refresh_field) {
         grid_row.refresh_field(fieldname);
     } else if (grid_row.columns && grid_row.columns[fieldname]) {
@@ -298,7 +294,6 @@ function update_select_field_options(frm, cdt, cdn, fieldname, options) {
             grid_row.columns[fieldname].field.set_options(options_str);
     }
 
-    // 4. if the expanded row-form is open, refresh that field too
     if (grid_row.grid_form && grid_row.grid_form.fields_dict[fieldname]) {
         grid_row.grid_form.fields_dict[fieldname].df.options = options_str;
         grid_row.grid_form.fields_dict[fieldname].refresh();
@@ -315,82 +310,258 @@ function toggle_questionary_visibility(frm) {
     frm.refresh_field('questionary_for_technical_evaluation');
 }
 
-
-
-
 function get_html_wrapper(frm, cdt, cdn) {
-	let grid_row = frm.fields_dict["items"].grid.grid_rows_by_docname[cdn];
-	if (!grid_row || !grid_row.grid_form) return null;
-	let field = grid_row.grid_form.fields_dict["attachment"];
-	return field ? field.$wrapper : null;
+    let grid_row = frm.fields_dict["items"].grid.grid_rows_by_docname[cdn];
+    if (!grid_row || !grid_row.grid_form) return null;
+    let field = grid_row.grid_form.fields_dict["attachment"];
+    return field ? field.$wrapper : null;
 }
 
 // Trim/pad the parent's Attachment table to match attachment_qty for this request_no
 function sync_attachment_rows(frm, cdt, cdn) {
-	let row = locals[cdt][cdn];
-	if (!row.request_no) return;
+    let row = locals[cdt][cdn];
+    if (!row.request_no) return;
 
-	let linked = (frm.doc.attachment || []).filter(a => a.request_no === row.request_no);
-	let qty = cint(row.attachment_qty);
+    let linked = (frm.doc.attachment || []).filter(a => a.request_no === row.request_no);
+    let qty = cint(row.attachment_qty);
 
-	// remove excess rows if qty was reduced (only removes empty/unfilled slots first)
-	if (linked.length > qty) {
-		let to_remove = linked.slice(qty).filter(a => !a.attachment);
-		to_remove.forEach(a => frm.get_field("attachment").grid.grid_rows_by_docname[a.name].remove());
-	}
-	frm.refresh_field("attachment");
+    if (linked.length > qty) {
+        let to_remove = linked.slice(qty).filter(a => !a.attachment);
+        to_remove.forEach(a => frm.get_field("attachment").grid.grid_rows_by_docname[a.name].remove());
+    }
+    frm.refresh_field("attachment");
 }
 
 function render_attachment_slots(frm, cdt, cdn) {
-	let row = locals[cdt][cdn];
-	let $wrapper = get_html_wrapper(frm, cdt, cdn);
-	if (!$wrapper) return;
+    let row = locals[cdt][cdn];
+    let $wrapper = get_html_wrapper(frm, cdt, cdn);
+    if (!$wrapper) return;
 
-	$wrapper.empty();
+    $wrapper.empty();
 
-	if (row.drawing_approval_required !== "Yes" || !row.attachment_qty) {
-		$wrapper.append(`<div class="text-muted" style="font-size:12px;">Set "Drawing Approval Required" to Yes and enter Attachment Qty to add files.</div>`);
-		return;
-	}
-	if (!row.request_no) {
-		$wrapper.append(`<div class="text-muted" style="font-size:12px;">Request No not set on this row yet.</div>`);
-		return;
-	}
+    if (row.drawing_approval_required !== "Yes" || !row.attachment_qty) {
+        $wrapper.append(`<div class="text-muted" style="font-size:12px;">Set "Drawing Approval Required" to Yes and enter Attachment Qty to add files.</div>`);
+        return;
+    }
+    if (!row.request_no) {
+        $wrapper.append(`<div class="text-muted" style="font-size:12px;">Request No not set on this row yet.</div>`);
+        return;
+    }
 
-	let existing = (frm.doc.attachment || []).filter(a => a.request_no === row.request_no);
-	let $container = $('<div style="display:flex;flex-wrap:wrap;gap:8px;"></div>').appendTo($wrapper);
+    let existing = (frm.doc.attachment || []).filter(a => a.request_no === row.request_no);
+    let $container = $('<div style="display:flex;flex-wrap:wrap;gap:8px;"></div>').appendTo($wrapper);
 
-	for (let i = 0; i < cint(row.attachment_qty); i++) {
-		let existing_row = existing[i];
-		let $slot = $(`
-			<div style="border:1px solid var(--border-color);padding:6px 10px;border-radius:6px;min-width:140px;">
-				<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Attachment ${i + 1}</div>
-				<button class="btn btn-xs btn-default attach-btn" type="button">
-					${existing_row ? "Replace" : "Upload"}
-				</button>
-				${existing_row ? `<a href="${existing_row.attachment}" target="_blank" style="margin-left:6px;font-size:12px;">View</a>` : ""}
-			</div>
-		`);
+    for (let i = 0; i < cint(row.attachment_qty); i++) {
+        let existing_row = existing[i];
+        let $slot = $(`
+            <div style="border:1px solid var(--border-color);padding:6px 10px;border-radius:6px;min-width:140px;">
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Attachment ${i + 1}</div>
+                <button class="btn btn-xs btn-default attach-btn" type="button">
+                    ${existing_row ? "Replace" : "Upload"}
+                </button>
+                ${existing_row ? `<a href="${existing_row.attachment}" target="_blank" style="margin-left:6px;font-size:12px;">View</a>` : ""}
+            </div>
+        `);
 
-		$slot.find(".attach-btn").on("click", () => {
-			new frappe.ui.FileUploader({
-				doctype: frm.doctype,
-				docname: frm.doc.name,
-				folder: "Home/Attachments",
-				on_success: (file_doc) => {
-					if (existing_row) {
-						existing_row.attachment = file_doc.file_url;
-					} else {
-						let child = frm.add_child("attachment");
-						child.request_no = row.request_no;
-						child.attachment = file_doc.file_url;
-					}
-					frm.refresh_field("attachment");
-					render_attachment_slots(frm, cdt, cdn);
-				}
-			});
-		});
+        $slot.find(".attach-btn").on("click", () => {
+            new frappe.ui.FileUploader({
+                doctype: frm.doctype,
+                docname: frm.doc.name,
+                folder: "Home/Attachments",
+                on_success: (file_doc) => {
+                    if (existing_row) {
+                        existing_row.attachment = file_doc.file_url;
+                    } else {
+                        let child = frm.add_child("attachment");
+                        child.request_no = row.request_no;
+                        child.attachment = file_doc.file_url;
+                    }
+                    frm.refresh_field("attachment");
+                    render_attachment_slots(frm, cdt, cdn);
+                }
+            });
+        });
 
-		$container.append($slot);
-	}
+        $container.append($slot);
+    }
+}
+
+let _item_meta_fields_cache = null;
+
+function ensure_item_meta(callback) {
+    if (_item_meta_fields_cache) {
+        callback();
+        return;
+    }
+    frappe.model.with_doctype("Item", function () {
+        _item_meta_fields_cache = frappe.get_meta("Item").fields;
+        callback();
+    });
+}
+
+function get_item_field_meta(fieldname) {
+    if (!_item_meta_fields_cache) return null;
+    return _item_meta_fields_cache.find(f => f.fieldname === fieldname);
+}
+
+function get_or_create_status_wrapper(grid_row) {
+    if (!grid_row || !grid_row.grid_form || !grid_row.grid_form.fields_dict.feilds) {
+        return null;
+    }
+    let $wrapper = $(grid_row.grid_form.fields_dict.feilds.wrapper);
+    let $status = $wrapper.find(".required-fields-match-status");
+    if (!$status.length) {
+        $status = $(`<div class="required-fields-match-status" style="margin-top:8px;"></div>`);
+        $wrapper.append($status);
+    }
+    return $status;
+}
+
+function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {
+    let complete = fieldnames.every(fn =>
+        values[fn] !== undefined && values[fn] !== null && values[fn] !== ""
+    );
+
+    let row = locals[cdt][cdn];
+    let grid_row = frm.open_grid_row();
+    let $status = get_or_create_status_wrapper(grid_row);
+
+    if (!complete) {
+        if ($status) $status.empty();
+        return;
+    }
+
+    let filters = {};
+    fieldnames.forEach(fn => { filters[fn] = values[fn]; });
+
+    frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Item",
+            filters: filters,
+            fields: ["name", "item_name"],
+            limit_page_length: 2
+        },
+        callback: function (r) {
+            let matches = r.message || [];
+
+            if (matches.length === 1) {
+                if (row.item_code !== matches[0].name) {
+                    frappe.model.set_value(cdt, cdn, "item_code", matches[0].name);
+                }
+                if ($status) {
+                    $status.html(
+                        `<div style="font-size:12px;color:var(--text-success,green);">✓ Matched: ${frappe.utils.escape_html(matches[0].name)}</div>`
+                    );
+                }
+            } else if (matches.length > 1) {
+                if ($status) {
+                    $status.html(
+                        `<div style="font-size:12px;color:var(--text-warning,#b8860b);">Multiple items match — Item Code is required, select one manually below.</div>`
+                    );
+                }
+            } else {
+                if ($status) {
+                    $status.html(
+                        `<div style="font-size:12px;color:var(--text-danger,#c0392b);">No matching Item found for this combination. Item Code is required — select or create one manually below.</div>`
+                    );
+                }
+            }
+        }
+    });
+}
+
+function render_dynamic_required_fields(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+
+    let grid_row = frm.open_grid_row();
+    if (!grid_row || !grid_row.grid_form || !grid_row.grid_form.fields_dict.feilds) {
+        return;
+    }
+
+    let $wrapper = $(grid_row.grid_form.fields_dict.feilds.wrapper);
+    $wrapper.empty();
+
+    if (!row.product_group) {
+        return;
+    }
+
+    frappe.db.get_value(
+        "Product Group",
+        row.product_group,
+        "required_fields_value",
+        function (r) {
+            let csv = (r && r.required_fields_value) || "";
+            let fieldnames = csv.split(",").map(x => x.trim()).filter(Boolean);
+
+            if (!fieldnames.length) {
+                $wrapper.append(
+                    `<div class="text-muted" style="font-size:12px;">No required fields configured for this Product Group.</div>`
+                );
+                return;
+            }
+
+            ensure_item_meta(function () {
+                let saved_values = {};
+                if (row.required_feilds) {
+                    try {
+                        saved_values = JSON.parse(row.required_feilds);
+                    } catch (e) {
+                        saved_values = {};
+                    }
+                }
+
+                let $grid = $(
+                    `<div class="dynamic-required-fields" style="display:flex; flex-wrap:wrap; gap:10px;"></div>`
+                );
+                $wrapper.append($grid);
+
+                let controls = {};
+
+                function save_values() {
+                    let values = {};
+                    fieldnames.forEach(fn => {
+                        let ctrl = controls[fn];
+                        if (!ctrl) return;
+                        let v = ctrl.get_value();
+                        if (v !== null && v !== undefined && v !== "") {
+                            values[fn] = v;
+                        }
+                    });
+                    frappe.model.set_value(cdt, cdn, "required_feilds", JSON.stringify(values));
+                    try_autofetch_item_code(frm, cdt, cdn, fieldnames, values);
+                }
+
+                fieldnames.forEach(function (fn) {
+                    let meta_field = get_item_field_meta(fn);
+                    if (!meta_field) return;
+
+                    let $field_wrap = $(`<div style="min-width:180px;"></div>`);
+                    $grid.append($field_wrap);
+
+                    let control = frappe.ui.form.make_control({
+                        parent: $field_wrap,
+                        df: {
+                            fieldtype: meta_field.fieldtype,
+                            label: meta_field.label || fn,
+                            fieldname: fn,
+                            options: meta_field.options
+                        },
+                        render_input: true
+                    });
+                    control.refresh();
+
+                    if (saved_values[fn] !== undefined) {
+                        control.set_value(saved_values[fn]);
+                    }
+
+                    control.$input && control.$input.on("change", save_values);
+                    controls[fn] = control;
+                });
+
+                // Run once on open in case all fields were already filled from a previous session
+                save_values();
+            });
+        }
+    );
 }

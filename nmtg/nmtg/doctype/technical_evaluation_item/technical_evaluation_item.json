@@ -9,6 +9,7 @@
  "field_order": [
   "request_no",
   "product_group",
+  "feilds",
   "customer_requirement__brief",
   "qty",
   "competitor_name",
@@ -28,7 +29,8 @@
   "apqp_required",
   "download_apqp",
   "apqp",
-  "remark"
+  "remark",
+  "required_feilds"
  ],
  "fields": [
   {
@@ -76,6 +78,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Item Code",
+   "link_filters": "[[\"Item\",\"custom_sub_product_group\",\"=\",\"eval:doc.nmtg_model\"]]",
    "options": "Item",
    "reqd": 1
   },
@@ -86,8 +89,7 @@
    "in_list_view": 1,
    "label": "Item Name",
    "options": "Item",
-   "read_only": 1,
-   "reqd": 1
+   "read_only": 1
   },
   {
    "fieldname": "selection_type",
@@ -183,13 +185,23 @@
    "fieldname": "attachment",
    "fieldtype": "HTML",
    "label": "Attachment"
+  },
+  {
+   "fieldname": "feilds",
+   "fieldtype": "HTML",
+   "label": "Feilds"
+  },
+  {
+   "fieldname": "required_feilds",
+   "fieldtype": "Small Text",
+   "label": "Required Feilds"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-25 12:50:00.478256",
+ "modified": "2026-08-25 15:06:08.347210",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",
