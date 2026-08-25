@@ -25,7 +25,8 @@
   "items",
   "section_break_hibi",
   "questionary_for_technical_evaluation",
-  "send_questionary_to_customer"
+  "send_questionary_to_customer",
+  "attachment"
  ],
  "fields": [
   {
@@ -134,13 +135,20 @@
    "fieldname": "send_questionary_to_customer",
    "fieldtype": "Button",
    "label": "Send Questionary To Customer"
+  },
+  {
+   "fieldname": "attachment",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Attachment",
+   "options": "Attachment"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-17 16:16:20.576438",
+ "modified": "2026-08-25 13:14:33.871221",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",

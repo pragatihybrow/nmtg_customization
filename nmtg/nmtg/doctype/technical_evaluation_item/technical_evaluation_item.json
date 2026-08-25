@@ -20,7 +20,8 @@
   "technical_status",
   "clarification_required",
   "drawing_approval_required",
-  "drawing",
+  "attachment_qty",
+  "attachment",
   "feasibility_review_required",
   "create_feasibility_review",
   "feasibility_review_report",
@@ -137,13 +138,6 @@
    "label": "Remark"
   },
   {
-   "depends_on": "eval:doc.drawing_approval_required===\"Yes\"",
-   "fieldname": "drawing",
-   "fieldtype": "Attach",
-   "in_list_view": 1,
-   "label": "Drawing"
-  },
-  {
    "depends_on": "eval:doc.apqp_required===\"Yes\"",
    "fieldname": "apqp",
    "fieldtype": "Attach",
@@ -176,13 +170,26 @@
    "label": "Feasibility Review Report",
    "options": "Feasibility Review Report",
    "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.drawing_approval_required===\"Yes\"",
+   "fieldname": "attachment_qty",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Attachment Qty"
+  },
+  {
+   "depends_on": "eval:doc.drawing_approval_required===\"Yes\"",
+   "fieldname": "attachment",
+   "fieldtype": "HTML",
+   "label": "Attachment"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-18 14:22:11.643343",
+ "modified": "2026-08-25 12:50:00.478256",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",

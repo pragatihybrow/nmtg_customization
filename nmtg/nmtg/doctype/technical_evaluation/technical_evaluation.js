@@ -6,9 +6,17 @@ frappe.ui.form.on("Technical Evaluation Item", {
     form_render(frm, cdt, cdn) {
         set_competitor_name_options(frm, cdt, cdn);
         set_competitor_model_options(frm, cdt, cdn);
+        render_attachment_slots(frm, cdt, cdn);
     },
 
-    // fires for every existing row when the child table is rendered (e.g. on form load)
+   
+	attachment_qty(frm, cdt, cdn) {
+		sync_attachment_rows(frm, cdt, cdn);
+		render_attachment_slots(frm, cdt, cdn);
+	},
+	drawing_approval_required(frm, cdt, cdn) {
+		render_attachment_slots(frm, cdt, cdn);
+	},
     items_render(frm, cdt, cdn) {
         set_competitor_name_options(frm, cdt, cdn);
         set_competitor_model_options(frm, cdt, cdn);
@@ -307,3 +315,82 @@ function toggle_questionary_visibility(frm) {
     frm.refresh_field('questionary_for_technical_evaluation');
 }
 
+
+
+
+function get_html_wrapper(frm, cdt, cdn) {
+	let grid_row = frm.fields_dict["items"].grid.grid_rows_by_docname[cdn];
+	if (!grid_row || !grid_row.grid_form) return null;
+	let field = grid_row.grid_form.fields_dict["attachment"];
+	return field ? field.$wrapper : null;
+}
+
+// Trim/pad the parent's Attachment table to match attachment_qty for this request_no
+function sync_attachment_rows(frm, cdt, cdn) {
+	let row = locals[cdt][cdn];
+	if (!row.request_no) return;
+
+	let linked = (frm.doc.attachment || []).filter(a => a.request_no === row.request_no);
+	let qty = cint(row.attachment_qty);
+
+	// remove excess rows if qty was reduced (only removes empty/unfilled slots first)
+	if (linked.length > qty) {
+		let to_remove = linked.slice(qty).filter(a => !a.attachment);
+		to_remove.forEach(a => frm.get_field("attachment").grid.grid_rows_by_docname[a.name].remove());
+	}
+	frm.refresh_field("attachment");
+}
+
+function render_attachment_slots(frm, cdt, cdn) {
+	let row = locals[cdt][cdn];
+	let $wrapper = get_html_wrapper(frm, cdt, cdn);
+	if (!$wrapper) return;
+
+	$wrapper.empty();
+
+	if (row.drawing_approval_required !== "Yes" || !row.attachment_qty) {
+		$wrapper.append(`<div class="text-muted" style="font-size:12px;">Set "Drawing Approval Required" to Yes and enter Attachment Qty to add files.</div>`);
+		return;
+	}
+	if (!row.request_no) {
+		$wrapper.append(`<div class="text-muted" style="font-size:12px;">Request No not set on this row yet.</div>`);
+		return;
+	}
+
+	let existing = (frm.doc.attachment || []).filter(a => a.request_no === row.request_no);
+	let $container = $('<div style="display:flex;flex-wrap:wrap;gap:8px;"></div>').appendTo($wrapper);
+
+	for (let i = 0; i < cint(row.attachment_qty); i++) {
+		let existing_row = existing[i];
+		let $slot = $(`
+			<div style="border:1px solid var(--border-color);padding:6px 10px;border-radius:6px;min-width:140px;">
+				<div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;">Attachment ${i + 1}</div>
+				<button class="btn btn-xs btn-default attach-btn" type="button">
+					${existing_row ? "Replace" : "Upload"}
+				</button>
+				${existing_row ? `<a href="${existing_row.attachment}" target="_blank" style="margin-left:6px;font-size:12px;">View</a>` : ""}
+			</div>
+		`);
+
+		$slot.find(".attach-btn").on("click", () => {
+			new frappe.ui.FileUploader({
+				doctype: frm.doctype,
+				docname: frm.doc.name,
+				folder: "Home/Attachments",
+				on_success: (file_doc) => {
+					if (existing_row) {
+						existing_row.attachment = file_doc.file_url;
+					} else {
+						let child = frm.add_child("attachment");
+						child.request_no = row.request_no;
+						child.attachment = file_doc.file_url;
+					}
+					frm.refresh_field("attachment");
+					render_attachment_slots(frm, cdt, cdn);
+				}
+			});
+		});
+
+		$container.append($slot);
+	}
+}
