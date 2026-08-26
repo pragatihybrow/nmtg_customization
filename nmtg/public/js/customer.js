@@ -3,6 +3,7 @@ frappe.ui.form.on('Customer', {
         frm.set_value('custom_industrys', []);
         frm.set_value('custom_application', []);
         set_industry_filter(frm);
+        toggle_dealer_customer(frm);
     },
 
     custom_industrys: function(frm) {
@@ -18,7 +19,11 @@ frappe.ui.form.on('Customer', {
     refresh: function(frm) {
         set_industry_filter(frm);
         set_application_filter(frm);
-    }
+        toggle_dealer_customer(frm);
+    },
+    customer_group(frm) {
+        toggle_dealer_customer(frm);
+    },
 });
 
 function set_industry_filter(frm) {
@@ -84,3 +89,22 @@ function set_application_filter(frm) {
         });
     });
 }
+
+frappe.ui.form.on("Customer Type CT", {
+    customer_type(frm) {
+        toggle_dealer_customer(frm);
+    },
+    custom_customer__type_remove(frm) {
+        toggle_dealer_customer(frm);
+    }
+});
+
+function toggle_dealer_customer(frm) {
+    const is_dealer_group = frm.doc.customer_group === "Dealer";
+    const is_dealer_type = (frm.doc.custom_customer__type || []).some(
+        row => row.customer_type === "Dealer"
+    );
+    const show_dealer_table = is_dealer_group || is_dealer_type;
+    frm.toggle_display("custom_dealer_customer", show_dealer_table);
+}
+

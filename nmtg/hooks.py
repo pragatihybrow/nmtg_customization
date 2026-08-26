@@ -301,6 +301,9 @@ doc_events = {
     "Supplier Audit": {
 		"on_submit": "nmtg.override.supplier.update_supplier_next_audit_date",
 	},
+     "Customer": {
+        "validate": "nmtg.override.api.set_custom_dealer"
+    }
 }
 
 scheduler_events = {

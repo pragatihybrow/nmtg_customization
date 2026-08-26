@@ -9,6 +9,13 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 from frappe.utils.file_manager import save_file
+import base64
+import frappe
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+from frappe.utils.file_manager import save_file
+
 
 
 
@@ -637,9 +644,6 @@ def upload_supplier_file():
     return {"file_url": saved.file_url, "file_name": saved.file_name}
 
 
-  
-import base64
-
 
 @frappe.whitelist(allow_guest=True)
 def upload_supplier_file():
@@ -1083,13 +1087,6 @@ def save_technical_evaluation_answers(technical_evaluation, answers):
 
 
 
-import frappe
-import openpyxl
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
-from frappe.utils.file_manager import save_file
-
-
 @frappe.whitelist()
 def generate_apqp_template(parent, item_row):
     te = frappe.get_doc("Technical Evaluation", parent)
@@ -1336,3 +1333,38 @@ def send_prospect_stage_email(prospect, stage_key, subject, message):
 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
 
 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
+
+
+
+def set_custom_dealer(doc, method=None):
+    
+    if not doc.is_new():
+        return
+
+    if not doc.customer_name:
+        doc.custom_dealer = ""
+        return
+
+    customer_name = doc.customer_name.strip().lower()
+
+    rows = frappe.get_all(
+        "Dealer Customer CT",
+        fields=["parent", "dealer_customer"],
+        ignore_permissions=True,
+    )
+
+    matched_parent = ""
+    for row in rows:
+        if row.dealer_customer and row.dealer_customer.strip().lower() == customer_name:
+            matched_parent = row.parent
+            break
+
+    doc.custom_dealer = matched_parent
+
+    if matched_parent:
+        frappe.msgprint(
+            msg=_("This customer is a Dealer Customer of <b>{0}</b>").format(matched_parent),
+            title=_("Dealer Customer"),
+            indicator="blue",
+            alert=True,
+        )
