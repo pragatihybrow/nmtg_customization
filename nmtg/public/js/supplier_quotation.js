@@ -18,6 +18,12 @@ frappe.ui.form.on("Supplier Quotation", {
                 [total_percentage])
             );
         }
+    },
+    custom_transportation_arrange_by: function(frm) {
+        maybe_refresh_on_clear(frm, 'custom_transportation_arrange_by');
+    },
+    custom_additional_charges: function(frm) {
+        maybe_refresh_on_clear(frm, 'custom_additional_charges');
     }
 });
 
@@ -80,6 +86,34 @@ function calculate_payment_terms(frm, skip_amount_update = false) {
                 "amount",
                 flt(amount, 2)
             );
+        }
+    });
+}
+
+function sync_charges(frm) {
+    frappe.call({
+        method: "nmtg.override.supplier_quotation.handle_transportation_item",
+        args: { doc: frm.doc },
+        callback: function(r) {
+            frm.reload_doc();  
+        }
+    });
+}
+
+
+function maybe_refresh_on_clear(frm, fieldname) {
+    if (frm.doc[fieldname]) return;
+    if (frm.is_new()) return;   
+
+    frappe.call({
+        method: "frappe.client.save",
+        args: { doc: frm.doc },
+        freeze: true,
+        freeze_message: __("Updating charges..."),
+        callback: function(r) {
+            if (r.message) {
+                frm.reload_doc();
+            }
         }
     });
 }
