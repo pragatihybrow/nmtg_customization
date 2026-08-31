@@ -116,7 +116,7 @@
    "fieldname": "drawing_approval_required",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "Drawing Approval Required?",
+   "label": "Do you want to submit technical document to customer?",
    "options": "\nYes\nNo"
   },
   {
@@ -202,7 +202,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-31 16:57:35.265521",
+ "modified": "2026-08-31 17:50:53.220249",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",
