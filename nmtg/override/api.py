@@ -52,7 +52,6 @@ HEADER_CUSTOM_FIELDS = [
     "custom__contact_number",
 ]
 
-
 @frappe.whitelist(allow_guest=True)
 def submit_supplier_quotation(data):
     if isinstance(data, str):
@@ -77,10 +76,18 @@ def submit_supplier_quotation(data):
             f"A quotation from {data['supplier']} for {data['rfq']} already exists: {existing}"
         )
 
+    transaction_date = frappe.utils.today()
+
+    if frappe.utils.getdate(data['valid_till']) < frappe.utils.getdate(transaction_date):
+        frappe.throw(
+            _("Valid till date cannot be before {0} (today). Please choose a later date and resubmit.")
+            .format(frappe.utils.formatdate(transaction_date))
+        )
+
     doc = frappe.new_doc("Supplier Quotation")
     doc.supplier = data['supplier']
     doc.company = data['company']
-    doc.transaction_date = frappe.utils.today()
+    doc.transaction_date = transaction_date
     doc.custom_submission_date_and_time = frappe.utils.now_datetime()
     doc.valid_till = data['valid_till']
     doc.rfq = data['rfq']
@@ -137,7 +144,6 @@ def submit_supplier_quotation(data):
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
     return {"name": doc.name, "status": "created"}
-
 
 @frappe.whitelist(allow_guest=True)
 def get_rfq_for_supplier(rfq, supplier):
@@ -1368,3 +1374,23 @@ def set_custom_dealer(doc, method=None):
             indicator="blue",
             alert=True,
         )
+
+
+
+@frappe.whitelist(allow_guest=True)
+def get_supplier_scope(supplier):
+    if not supplier:
+        frappe.throw("Supplier is required")
+
+    scope = frappe.db.get_value("Supplier", supplier, "custom_supplier_scope")
+    return scope
+
+
+@frappe.whitelist(allow_guest=True)
+def get_csrf_token():
+   
+    token = frappe.sessions.get_csrf_token()
+    frappe.db.commit() 
+    return token
+
+
