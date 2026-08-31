@@ -12,16 +12,17 @@
  "fields": [
   {
    "fieldname": "dealer_customer",
-   "fieldtype": "Data",
+   "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Dealer Customer"
+   "label": "Dealer Customer",
+   "options": "Customer"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-26 12:07:59.020346",
+ "modified": "2026-08-31 18:16:26.388099",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Dealer Customer CT",
