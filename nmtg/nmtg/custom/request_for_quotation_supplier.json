@@ -20,7 +20,7 @@
    "description": null,
    "docstatus": 0,
    "dt": "Request for Quotation Supplier",
-   "fetch_from": "supplier.custom_quality_category_",
+   "fetch_from": "",
    "fetch_if_empty": 0,
    "fieldname": "custom_quality_category",
    "fieldtype": "Select",
