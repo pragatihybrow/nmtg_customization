@@ -16,8 +16,6 @@ class TechnicalEvaluation(Document):
         self.sync_items_to_opportunity()
 
     def set_version(self):
-        """Auto-increment version when multiple Technical Evaluations
-        are created against the same Opportunity."""
         if not self.opportunity_no:
             self.version = "V1"
             return
@@ -26,7 +24,7 @@ class TechnicalEvaluation(Document):
             "Technical Evaluation",
             filters={
                 "opportunity_no": self.opportunity_no,
-                "docstatus": ["!=", 2],  # exclude cancelled
+                "docstatus": ["!=", 2], 
             },
         )
 
@@ -37,8 +35,6 @@ class TechnicalEvaluation(Document):
             row.request_no = f"R-{idx:03d}"
 
     def sync_items_to_opportunity(self):
-        """Push Technical Evaluation Item data onto the linked
-        Opportunity's items table, creating rows if they don't exist yet."""
         if not self.opportunity_no:
             return
 

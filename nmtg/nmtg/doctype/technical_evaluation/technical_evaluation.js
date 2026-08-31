@@ -42,6 +42,12 @@ frappe.ui.form.on("Technical Evaluation Item", {
         set_nmtg_model_from_competitor_model(frm, cdt, cdn);
     },
 
+    // NEW: the dynamic required-fields block should only appear once
+    // NMTG Model has actually been resolved/selected on the row.
+    nmtg_model(frm, cdt, cdn) {
+        render_dynamic_required_fields(frm, cdt, cdn);
+    },
+
     clarification_required: function(frm, cdt, cdn) {
         toggle_questionary_visibility(frm);
     },
@@ -266,6 +272,10 @@ function set_nmtg_model_from_competitor_model(frm, cdt, cdn) {
         );
         if (match) {
             frappe.model.set_value(cdt, cdn, "nmtg_model", match.model);
+        } else {
+            // No match resolved -> make sure nmtg_model is cleared so the
+            // dynamic fields block hides again via the nmtg_model trigger.
+            frappe.model.set_value(cdt, cdn, "nmtg_model", "");
         }
     });
 }
@@ -417,12 +427,20 @@ function get_or_create_status_wrapper(grid_row) {
     return $status;
 }
 
-function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {
-    let complete = fieldnames.every(fn =>
-        values[fn] !== undefined && values[fn] !== null && values[fn] !== ""
-    );
+// NOTE: nmtg_model lives on the "Technical Evaluation Item" child row.
+// The corresponding field on the "Item" doctype is custom_sub_product_group
+// (e.g. nmtg_model "N7012" == Item.custom_sub_product_group "N7012").
+const ITEM_MODEL_FIELDNAME = "custom_sub_product_group";
 
+function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {
     let row = locals[cdt][cdn];
+
+    let complete =
+        !!row.nmtg_model &&
+        fieldnames.every(fn =>
+            values[fn] !== undefined && values[fn] !== null && values[fn] !== ""
+        );
+
     let grid_row = frm.open_grid_row();
     let $status = get_or_create_status_wrapper(grid_row);
 
@@ -433,6 +451,7 @@ function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {
 
     let filters = {};
     fieldnames.forEach(fn => { filters[fn] = values[fn]; });
+    filters[ITEM_MODEL_FIELDNAME] = row.nmtg_model;
 
     frappe.call({
         method: "frappe.client.get_list",
@@ -449,9 +468,12 @@ function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {
                 if (row.item_code !== matches[0].name) {
                     frappe.model.set_value(cdt, cdn, "item_code", matches[0].name);
                 }
+                if (row.item_name !== matches[0].item_name) {
+                    frappe.model.set_value(cdt, cdn, "item_name", matches[0].item_name);
+                }
                 if ($status) {
                     $status.html(
-                        `<div style="font-size:12px;color:var(--text-success,green);">✓ Matched: ${frappe.utils.escape_html(matches[0].name)}</div>`
+                        `<div style="font-size:12px;color:var(--text-success,green);">✓ Matched: ${frappe.utils.escape_html(matches[0].name)} — ${frappe.utils.escape_html(matches[0].item_name || "")}</div>`
                     );
                 }
             } else if (matches.length > 1) {
@@ -483,6 +505,14 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
     $wrapper.empty();
 
     if (!row.product_group) {
+        return;
+    }
+
+    // NEW: keep the block hidden entirely until NMTG Model has been resolved.
+    if (!row.nmtg_model) {
+        $wrapper.append(
+            `<div class="text-muted" style="font-size:12px;">Select Competitor Name / Competitor Model to resolve an NMTG Model before entering required fields.</div>`
+        );
         return;
     }
 
