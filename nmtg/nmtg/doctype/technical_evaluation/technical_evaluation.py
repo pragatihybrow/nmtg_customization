@@ -268,8 +268,8 @@ EMAIL_BODY_TEMPLATE = """
             <td>{{ item.product_group or "" }}</td>
             <td>{{ item.nmtg_model or "" }}</td>
             <td>{{ get_formatted_size(item.required_feilds) }}</td>
-            <td>{{ item.customer_material_code or item.item_code or "" }}</td>
-            <td>{{ item.remark or item.item_name or "" }}</td>
+            <td>{{ item.customer_material_code }}</td>
+            <td>{{ item.remark }}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -297,28 +297,22 @@ EMAIL_BODY_TEMPLATE = """
 """
 
 
-def _get_formatted_size(required_feilds_json):
-	"""required_feilds is stored as a JSON string, e.g. {"custom_id":50,"custom_od":40,"custom_tl":20}"""
-	if not required_feilds_json:
-		return ""
+def _get_formatted_size(required_fields_json, doctype="Item"):
+    if not required_fields_json:
+        return ""
 
-	try:
-		dims = json.loads(required_feilds_json)
-	except (TypeError, ValueError):
-		return ""
+    try:
+        data = json.loads(required_fields_json)
+    except Exception:
+        return ""
 
-	label_map = {
-		"custom_id": "ID",
-		"custom_od": "OD",
-		"custom_tl": "TL",
-	}
+    values = []
 
-	parts = []
-	for fieldname, label in label_map.items():
-		if fieldname in dims and dims.get(fieldname) not in (None, ""):
-			parts.append(f"{label} {dims.get(fieldname)} mm")
+    for key, value in data.items():
+        if value not in (None, ""):
+            values.append(str(value))
 
-	return " x ".join(parts)
+    return " x ".join(values)
 
 
 def _get_recipients(doc):
