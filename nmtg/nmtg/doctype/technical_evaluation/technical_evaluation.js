@@ -128,7 +128,8 @@ frappe.ui.form.on("Technical Evaluation Item", {
                 }
             }
         });
-    }
+    },
+    
 });
 
 frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
@@ -139,6 +140,48 @@ frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
         });
         toggle_questionary_visibility(frm);
         set_request_no_options(frm);
+        
+        if (frm.is_new()) return;
+
+        let has_pending = (frm.doc.items || []).some(
+            it => it.drawing_approval_required === "Yes" && !it.drawing_email_sent
+        );
+
+        if (has_pending) {
+            frm.add_custom_button("Send Drawing Verification Emails", function() {
+                frappe.confirm(
+                    "Send drawing verification emails for all pending items in this document?",
+                    () => {
+                        frappe.call({
+                            method: "nmtg.nmtg.doctype.technical_evaluation.technical_evaluation.send_drawing_verification_emails_for_doc",
+                            args: { docname: frm.doc.name },
+                            freeze: true,
+                            freeze_message: "Sending emails...",
+                            callback: function(r) {
+                                if (!r.exc && r.message) {
+                                    let sent = r.message.sent || [];
+                                    let skipped = r.message.skipped || [];
+
+                                    let summary = `<b>Sent:</b> ${sent.length}`;
+                                    if (skipped.length) {
+                                        summary += `<br><b>Skipped (no recipient/attachment):</b> ${skipped.length}<br>${skipped.join("<br>")}`;
+                                    }
+
+                                    frappe.msgprint({
+                                        title: "Drawing Verification Emails",
+                                        message: summary,
+                                        indicator: sent.length ? "green" : "orange"
+                                    });
+
+                                    frm.reload_doc();
+                                }
+                            }
+                        });
+                    }
+                );
+            }).addClass("btn-primary");
+        }
+    
     },
 
     items_add: function(frm) {
@@ -503,7 +546,6 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
         return;
     }
 
-    // NEW: keep the block hidden entirely until NMTG Model has been resolved.
     if (!row.nmtg_model) {
         $wrapper.append(
             `<div class="text-muted" style="font-size:12px;">Select Competitor Name / Competitor Model to resolve an NMTG Model before entering required fields.</div>`
@@ -542,6 +584,8 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
                 $wrapper.append($grid);
 
                 let controls = {};
+               
+                let restore_promises = [];
 
                 function save_values() {
                     let values = {};
@@ -577,15 +621,18 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
                     control.refresh();
 
                     if (saved_values[fn] !== undefined) {
-                        control.set_value(saved_values[fn]);
+                        
+                        restore_promises.push(
+                            Promise.resolve(control.set_value(saved_values[fn]))
+                        );
                     }
 
                     control.$input && control.$input.on("change", save_values);
                     controls[fn] = control;
                 });
 
-                // Run once on open in case all fields were already filled from a previous session
-                save_values();
+            
+                Promise.all(restore_promises).then(save_values);
             });
         }
     );

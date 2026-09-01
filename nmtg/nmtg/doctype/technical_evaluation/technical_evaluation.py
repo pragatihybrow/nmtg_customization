@@ -2,6 +2,8 @@
 # For license information, please see license.txt
 
 import frappe
+import json
+from frappe.utils.file_manager import get_file
 from frappe.model.document import Document
 
 
@@ -226,4 +228,224 @@ class TechnicalEvaluation(Document):
             return None
 
 
-    
+
+EMAIL_SUBJECT_TEMPLATE = "Drawing / Technical Document Verification Required – {opportunity_no}"
+
+EMAIL_BODY_TEMPLATE = """
+<p>Dear {{ doc.customer }},</p>
+
+<p>Greetings from NMTG Mechtrans Techniques Pvt. Ltd.</p>
+
+<p>
+    With reference to your enquiry and the technically selected product, please find
+    the relevant drawing / technical document submitted for your review and
+    verification.
+</p>
+
+<p><b>Selected Product Details:</b></p>
+
+<table border="1"
+       cellpadding="6"
+       cellspacing="0"
+       style="
+           border-collapse:collapse;
+           width:100%;
+           font-family:Arial, sans-serif;
+           font-size:13px;
+       ">
+    <thead style="background-color:#f2f2f2;">
+        <tr>
+            <th>Product</th>
+            <th>NMTG Model</th>
+            <th>Size</th>
+            <th>Customer Material Code</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.product_group or "" }}</td>
+            <td>{{ item.nmtg_model or "" }}</td>
+            <td>{{ get_formatted_size(item.required_feilds) }}</td>
+            <td>{{ item.customer_material_code or item.item_code or "" }}</td>
+            <td>{{ item.remark or item.item_name or "" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<p>
+    Kindly review the submitted drawing / technical document with respect to your
+    application and confirm your approval / acceptance so that we can proceed with
+    the next stage.
+</p>
+
+<p>
+    In case any modification or clarification is required, please share your
+    comments with us for further review.
+</p>
+
+<p>Thank you for your cooperation.</p>
+
+<p>
+    <b>Best Regards,</b><br>
+    <b>NMTG Sales Team</b><br>
+    NMTG Mechtrans Techniques Pvt. Ltd.<br>
+    <a href="https://www.nmtgindia.com">www.nmtgindia.com</a>
+</p>
+"""
+
+
+def _get_formatted_size(required_feilds_json):
+	"""required_feilds is stored as a JSON string, e.g. {"custom_id":50,"custom_od":40,"custom_tl":20}"""
+	if not required_feilds_json:
+		return ""
+
+	try:
+		dims = json.loads(required_feilds_json)
+	except (TypeError, ValueError):
+		return ""
+
+	label_map = {
+		"custom_id": "ID",
+		"custom_od": "OD",
+		"custom_tl": "TL",
+	}
+
+	parts = []
+	for fieldname, label in label_map.items():
+		if fieldname in dims and dims.get(fieldname) not in (None, ""):
+			parts.append(f"{label} {dims.get(fieldname)} mm")
+
+	return " x ".join(parts)
+
+
+def _get_recipients(doc):
+	recipients = []
+
+	if doc.custom_primary_contact_email:
+		recipients.append(doc.custom_primary_contact_email)
+
+	if doc.custom_other_contact_emails:
+		others = [e.strip() for e in doc.custom_other_contact_emails.split(",") if e.strip()]
+		recipients.extend(others)
+
+	seen = set()
+	deduped = []
+	for r in recipients:
+		if r.lower() not in seen:
+			seen.add(r.lower())
+			deduped.append(r)
+
+	return deduped
+
+
+def _get_attachments_for_request_nos(doc, request_nos):
+	"""Return list of (fname, fcontent) dicts for attachment rows matching any of request_nos."""
+	attachments = []
+
+	for att in doc.get("attachment", []):
+		if att.request_no not in request_nos or not att.attachment:
+			continue
+
+		try:
+			filename, filecontent = get_file(att.attachment)
+			attachments.append({"fname": filename, "fcontent": filecontent})
+		except Exception:
+			frappe.log_error(
+				title="Drawing Verification Email - Attachment Fetch Failed",
+				message=frappe.get_traceback(),
+			)
+
+	return attachments
+
+
+@frappe.whitelist()
+def send_drawing_verification_emails_for_doc(docname):
+	doc = frappe.get_doc("Technical Evaluation", docname)
+
+	recipients = _get_recipients(doc)
+
+	pending_items = [
+		item for item in doc.items
+		if item.drawing_approval_required == "Yes" and not item.get("drawing_email_sent")
+	]
+
+	sent = []
+	skipped = []
+
+	if not pending_items:
+		return {"sent": sent, "skipped": ["No pending items found"]}
+
+	if not recipients:
+		return {"sent": sent, "skipped": ["No recipient email configured on the document"]}
+
+	# split pending items into those with attachments vs without, so a single
+	# missing attachment doesn't block the rest of the document
+	request_nos = [item.request_no for item in pending_items]
+	available_attachments = {att.request_no for att in doc.get("attachment", []) if att.attachment}
+
+	items_to_email = []
+	for item in pending_items:
+		if item.request_no in available_attachments:
+			items_to_email.append(item)
+		else:
+			skipped.append(f"{item.request_no}: no attachment found")
+
+	if not items_to_email:
+		return {"sent": sent, "skipped": skipped}
+
+	body = frappe.render_template(
+		EMAIL_BODY_TEMPLATE,
+		{
+			"doc": doc,
+			"items": items_to_email,
+			"get_formatted_size": _get_formatted_size,
+		},
+	)
+
+	subject = EMAIL_SUBJECT_TEMPLATE.format(opportunity_no=doc.opportunity_no or doc.name)
+
+	attachments = _get_attachments_for_request_nos(
+		doc, {item.request_no for item in items_to_email}
+	)
+
+	try:
+		frappe.sendmail(
+			recipients=recipients,
+			subject=subject,
+			message=body,
+			attachments=attachments,
+			reference_doctype=doc.doctype,
+			reference_name=doc.name,
+		)
+	except Exception as e:
+		frappe.log_error(
+			title="Drawing Verification Email - Send Failed",
+			message=frappe.get_traceback(),
+		)
+		skipped.extend(f"{item.request_no}: email send failed - {str(e)}" for item in items_to_email)
+		return {"sent": sent, "skipped": skipped}
+
+	
+	for item in items_to_email:
+		sent.append(item.request_no)
+		try:
+			item.db_set("drawing_email_sent", 1, update_modified=False)
+		except Exception as e:
+			frappe.log_error(
+				title="Drawing Verification Email - Tracking Update Failed",
+				message=frappe.get_traceback(),
+			)
+			skipped.append(f"{item.request_no}: email sent, but failed to mark drawing_email_sent - {str(e)}")
+
+	try:
+		doc.db_set("attachment_email_sent", 1, update_modified=False)
+	except Exception:
+		frappe.log_error(
+			title="Drawing Verification Email - Parent Flag Update Failed",
+			message=frappe.get_traceback(),
+		)
+
+	return {"sent": sent, "skipped": skipped}

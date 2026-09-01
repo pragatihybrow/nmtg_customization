@@ -31,7 +31,8 @@
   "download_apqp",
   "apqp",
   "remark",
-  "required_feilds"
+  "required_feilds",
+  "drawing_email_sent"
  ],
  "fields": [
   {
@@ -202,13 +203,20 @@
    "fieldname": "customer_material_code",
    "fieldtype": "Data",
    "label": "Customer Material code "
+  },
+  {
+   "default": "0",
+   "fieldname": "drawing_email_sent",
+   "fieldtype": "Check",
+   "label": "drawing_email_sent",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-01 12:30:52.371626",
+ "modified": "2026-09-01 16:05:15.939114",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",

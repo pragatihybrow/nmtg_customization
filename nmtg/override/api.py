@@ -1523,7 +1523,7 @@ def get_csrf_token():
     return token
 
 
-def get_formatted_size(required_fields_json, doctype="Item", separator="<br>"):
+def get_formatted_size(required_fields_json, doctype="Item"):
     if not required_fields_json:
         return ""
 
@@ -1532,11 +1532,11 @@ def get_formatted_size(required_fields_json, doctype="Item", separator="<br>"):
     except Exception:
         return ""
 
-    meta = frappe.get_meta(doctype)
-    lines = []
-    for key, value in data.items():
-        df = meta.get_field(key)
-        label = df.label if df else key.replace("custom_", "").replace("_", " ").title()
-        lines.append(f"{label}: {value}")
+    values = []
 
-    return separator.join(lines)
+    for key, value in data.items():
+        if value not in (None, ""):
+            values.append(str(value))
+
+    return " x ".join(values)
+
