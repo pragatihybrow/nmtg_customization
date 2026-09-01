@@ -356,29 +356,62 @@ def _get_expiring_certificates(doc, target_date):
 
 
 def _send_reminder_email(doc, expiring):
-	supplier_name = doc.get("supplier_name") or doc.name
+    supplier_name = doc.get("supplier_name") or doc.name
 
-	cert_lines = "".join(
-		f"<li>{label} — expires on {frappe.utils.formatdate(expiry_date)}</li>"
-		for label, expiry_date in expiring
-	)
+    cert_lines = "".join(
+        f"<li>{label} — expires on {frappe.utils.formatdate(expiry_date)}</li>"
+        for label, expiry_date in expiring
+    )
 
-	message = f"""
-		<p>Dear {supplier_name},</p>
-		<p>This is a reminder that the following certificate(s) submitted with your
-		Supplier Registration Form ({doc.name}) will expire in {REMINDER_DAYS_BEFORE} days:</p>
-		<ul>{cert_lines}</ul>
-		<p>Please arrange to renew and upload the updated certificate(s) at your earliest convenience
-		to avoid any disruption in your supplier status.</p>
-		<p>Regards,<br>Quality Team</p>
-	"""
+    message = f"""
+        <p>Dear <strong>{supplier_name}</strong>,</p>
 
-	frappe.sendmail(
-		recipients=[doc.email_id],
-		subject=f"Certificate Expiry Reminder — {supplier_name} ({doc.name})",
-		message=message,
-		reference_doctype=doc.doctype,
-		reference_name=doc.name,
-	)
+        <p>Greetings from NMTG!</p>
 
-	frappe.logger().info(f"Sent certificate expiry reminder for {doc.name} to {doc.email_id}")
+        <p>
+            This is a reminder that the following certificate(s) submitted as part of your
+            <strong>Supplier Registration</strong> are due to expire within the next
+            <strong>{REMINDER_DAYS_BEFORE} days</strong>:
+        </p>
+
+        <p><strong>Certificate Details:</strong></p>
+
+        <ul>
+            {cert_lines}
+        </ul>
+
+        <p>
+            Kindly arrange to renew the applicable certificate(s) and upload/share the
+            updated copies at the earliest to ensure that your supplier documentation
+            remains valid and up to date.
+        </p>
+
+        <p>
+            If the certificate has already been renewed, please disregard this reminder
+            and share the latest copy with us for record updation.
+        </p>
+
+        <p>
+            Thank you for your prompt attention and continued cooperation.
+        </p>
+
+        <p>
+            <strong>Best Regards,</strong><br>
+            <strong>NMTG Quality Team</strong><br>
+            NMTG Mechtrans Techniques Pvt. Ltd.<br>
+            <a href="http://www.nmtgindia.com">www.nmtgindia.com</a>
+        </p>
+    """
+
+    frappe.sendmail(
+        recipients=[doc.email_id],
+        subject="Reminder: Supplier Certificate Expiring Soon",
+        message=message,
+        reference_doctype=doc.doctype,
+        reference_name=doc.name,
+    )
+
+    frappe.logger().info(
+        f"Sent certificate expiry reminder for {doc.name} to {doc.email_id}"
+    )
+

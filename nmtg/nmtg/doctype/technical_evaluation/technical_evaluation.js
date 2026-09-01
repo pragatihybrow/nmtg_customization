@@ -42,8 +42,6 @@ frappe.ui.form.on("Technical Evaluation Item", {
         set_nmtg_model_from_competitor_model(frm, cdt, cdn);
     },
 
-    // NEW: the dynamic required-fields block should only appear once
-    // NMTG Model has actually been resolved/selected on the row.
     nmtg_model(frm, cdt, cdn) {
         render_dynamic_required_fields(frm, cdt, cdn);
     },
@@ -427,9 +425,6 @@ function get_or_create_status_wrapper(grid_row) {
     return $status;
 }
 
-// NOTE: nmtg_model lives on the "Technical Evaluation Item" child row.
-// The corresponding field on the "Item" doctype is custom_sub_product_group
-// (e.g. nmtg_model "N7012" == Item.custom_sub_product_group "N7012").
 const ITEM_MODEL_FIELDNAME = "custom_sub_product_group";
 
 function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {

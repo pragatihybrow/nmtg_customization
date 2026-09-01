@@ -305,6 +305,10 @@ doc_events = {
 	},
      "Customer": {
         "validate": "nmtg.override.api.set_custom_dealer"
+    },
+     "Opportunity": {
+        "before_insert": "nmtg.override.opportunity.set_contact_recipient_emails",
+        "validate": "nmtg.override.opportunity.set_contact_recipient_emails"
     }
 }
 
@@ -336,3 +340,9 @@ fixtures = [
         ]
     }
 ]
+
+jinja = {
+    "methods": [
+        "nmtg.override.api.get_formatted_size"
+    ]
+}

@@ -928,107 +928,236 @@ DETAIL_FIELDS = [
 	"general_technical_remarks",
 ]
 
-
 @frappe.whitelist()
 def send_technical_evaluation_questionary(technical_evaluation):
-	"""Called from the desk button. Requires a logged-in session with
-	read access to the record (normal desk permissions apply)."""
+    """Send technical evaluation questionnaire email to the customer."""
 
-	doc = frappe.get_doc("Technical Evaluation", technical_evaluation)
+    doc = frappe.get_doc("Technical Evaluation", technical_evaluation)
 
-	if not doc.email:
-		frappe.throw(_("Email is not set on {0}").format(doc.name))
+    if not doc.email:
+        frappe.throw(_("Email is not set on {0}").format(doc.name))
 
-	if not doc.questionary_for_technical_evaluation:
-		frappe.throw(_("No questions found on {0} to send").format(doc.name))
+    if not doc.questionary_for_technical_evaluation:
+        frappe.throw(_("No questions found on {0} to send").format(doc.name))
 
-	link = get_url(f"/questionary-for-technical-evaluation?technical_evaluation={doc.name}")
+    link = get_url(
+        f"/questionary-for-technical-evaluation?technical_evaluation={doc.name}"
+    )
 
-	rows_html = "".join(
-		"<tr>"
-		f"<td style='padding:6px;border:1px solid #ddd;'>{escape_html(row.request_no or '')}</td>"
-		f"<td style='padding:6px;border:1px solid #ddd;'>{escape_html(row.question or '')}</td>"
-		"</tr>"
-		for row in doc.questionary_for_technical_evaluation
-	)
+    # Create mapping of Request No -> Item Name / Customer Requirement
+    item_requirements = {
+        item.request_no: item.item_name or ""
+        for item in doc.items
+        if item.request_no
+    }
 
-	message = f"""
-		<div style="padding:0 0 16px 0;border-bottom:2px solid #000000;margin-bottom:20px;">
-			<h2 style="margin:0;font-family:Arial, Helvetica, sans-serif;color:#000000;font-size:20px;font-weight:700;">
-				NMTG Mechtrans Techniques Pvt. Ltd.
-			</h2>
-		</div>
-		<div style="padding:0 4px 24px;font-family:Arial, Helvetica, sans-serif;color:#1c2b3a;font-size:14px;line-height:1.6;">
-			<p>Dear {escape_html(doc.customer or "Sir/Madam")},</p>
+    rows_html = ""
 
-			<p>
-				Greetings from NMTG Mechtrans Techniques Pvt. Ltd.
-			</p>
+    for row in doc.questionary_for_technical_evaluation:
 
-			<p>
-				With reference to Technical Evaluation <b>{escape_html(doc.name)}</b>, we require certain
-				clarifications from your end to proceed further with our technical assessment. Kindly find
-				the list of queries below.
-			</p>
+        requirement = item_requirements.get(row.request_no, "")
 
-			<table style="border-collapse:collapse;width:100%;margin:16px 0;">
-				<thead>
-					<tr>
-						<th style="padding:8px 10px;border:1px solid #ddd;background:#f2f2f2;text-align:left;">Request No</th>
-						<th style="padding:8px 10px;border:1px solid #ddd;background:#f2f2f2;text-align:left;">Question</th>
-					</tr>
-				</thead>
-				<tbody>
-					{rows_html}
-				</tbody>
-			</table>
+        rows_html += f"""
+            <tr>
+                <td style="
+                    padding:8px 10px;
+                    border:1px solid #ddd;
+                    vertical-align:top;
+                ">
+                    {escape_html(row.request_no or '')}
+                </td>
 
-			<p>
-				We kindly request you to submit your responses at your earliest convenience by clicking on
-				the link below.
-			</p>
+                <td style="
+                    padding:8px 10px;
+                    border:1px solid #ddd;
+                    vertical-align:top;
+                ">
+                    {escape_html(requirement)}
+                </td>
 
-			<table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:24px auto;">
-				<tr>
-					<td style="background-color:#000000;border-radius:4px;" align="center">
-						<a href="{link}"
-						   target="_blank"
-						   style="display:inline-block;padding:12px 28px;font-family:Arial, Helvetica, sans-serif;
-						          font-size:14px;font-weight:600;letter-spacing:.2px;color:#ffffff !important;
-						          text-decoration:none !important;border:1px solid #000000;border-radius:4px;">
-							Click here to answer the questionary
-						</a>
-					</td>
-				</tr>
-			</table>
+                <td style="
+                    padding:8px 10px;
+                    border:1px solid #ddd;
+                    vertical-align:top;
+                ">
+                    {escape_html(row.question or '')}
+                </td>
+            </tr>
+        """
 
-			<p style="font-size:12.5px;color:#5a6b78;">
-				Should the button above not work, please copy and paste the following link into your browser:<br>
-				<a href="{link}" style="color:#0c355a;">{link}</a>
-			</p>
+    message = f"""
+        <div style="
+            padding:0 0 16px 0;
+            border-bottom:2px solid #000000;
+            margin-bottom:20px;
+        ">
+            <h2 style="
+                margin:0;
+                font-family:Arial, Helvetica, sans-serif;
+                color:#000000;
+                font-size:20px;
+                font-weight:700;
+            ">
+                NMTG Mechtrans Techniques Pvt. Ltd.
+            </h2>
+        </div>
 
-			<p>
-				Should you have any queries regarding the above, please feel free to reach out to us.
-			</p>
+        <div style="
+            padding:0 4px 24px;
+            font-family:Arial, Helvetica, sans-serif;
+            color:#1c2b3a;
+            font-size:14px;
+            line-height:1.6;
+        ">
 
-			<p>
-				Thanking you,<br>
-				<b>NMTG Mechtrans Techniques Pvt. Ltd.</b>
-			</p>
-		</div>
-	"""
+            <p>
+                Dear {escape_html(doc.customer or "Sir/Madam")},
+            </p>
 
-	frappe.sendmail(
-		recipients=[doc.email],
-		subject=_("Technical Evaluation Questionary - {0}").format(doc.name),
-		message=message,
-		reference_doctype=doc.doctype,
-		reference_name=doc.name,
-	)
+            <p>
+                Greetings from NMTG Mechtrans Techniques Pvt. Ltd.
+            </p>
 
-	doc.add_comment("Info", _("Questionary email sent to {0}").format(doc.email))
+            <p>
+                With reference to Technical Evaluation
+                <b>{escape_html(doc.name)}</b>, we require certain
+                clarifications from your end to proceed further with our
+                technical assessment. Kindly find the list of queries below.
+            </p>
 
-	return {"sent": True}
+            <p>
+                Kindly review the technical queries mentioned below and provide
+                the required information at your earliest convenience.
+            </p>
+
+            <table style="
+                border-collapse:collapse;
+                width:100%;
+                margin:16px 0;
+                font-family:Arial, Helvetica, sans-serif;
+                font-size:13px;
+            ">
+
+                <thead>
+                    <tr>
+
+                        <th style="
+                            padding:8px 10px;
+                            border:1px solid #ddd;
+                            background:#f2f2f2;
+                            text-align:left;
+                        ">
+                            Request No
+                        </th>
+
+                        <th style="
+                            padding:8px 10px;
+                            border:1px solid #ddd;
+                            background:#f2f2f2;
+                            text-align:left;
+                        ">
+                            Customer Requirement/Brief
+                        </th>
+
+                        <th style="
+                            padding:8px 10px;
+                            border:1px solid #ddd;
+                            background:#f2f2f2;
+                            text-align:left;
+                        ">
+                            Questions
+                        </th>
+
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {rows_html}
+                </tbody>
+
+            </table>
+
+            <table
+                role="presentation"
+                cellpadding="0"
+                cellspacing="0"
+                border="0"
+                align="center"
+                style="margin:24px auto;"
+            >
+                <tr>
+                    <td
+                        style="
+                            background-color:#000000;
+                            border-radius:4px;
+                        "
+                        align="center"
+                    >
+                        <a
+                            href="{link}"
+                            target="_blank"
+                            style="
+                                display:inline-block;
+                                padding:12px 28px;
+                                font-family:Arial, Helvetica, sans-serif;
+                                font-size:14px;
+                                font-weight:600;
+                                letter-spacing:.2px;
+                                color:#ffffff !important;
+                                text-decoration:none !important;
+                                border:1px solid #000000;
+                                border-radius:4px;
+                            "
+                        >
+                            Click here to answer the questionary
+                        </a>
+                    </td>
+                </tr>
+            </table>
+
+            <p style="
+                font-size:12.5px;
+                color:#5a6b78;
+            ">
+                Should the button above not work, please copy and paste the
+                following link into your browser:<br>
+
+                <a
+                    href="{link}"
+                    style="color:#0c355a;"
+                >
+                    {link}
+                </a>
+            </p>
+
+            <p>
+                Should you have any queries regarding the above, please feel
+                free to reach out to us.
+            </p>
+
+            <p>
+                Best regards,<br>
+                <b>NMTG Mechtrans Techniques Pvt. Ltd.</b>
+            </p>
+
+        </div>
+    """
+
+    frappe.sendmail(
+        recipients=[doc.email],
+        subject=_("Technical Evaluation Questionary - {0}").format(doc.name),
+        message=message,
+        reference_doctype=doc.doctype,
+        reference_name=doc.name,
+    )
+
+    doc.add_comment(
+        "Info",
+        _("Questionary email sent to {0}").format(doc.email)
+    )
+
+    return {"sent": True}
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1394,3 +1523,20 @@ def get_csrf_token():
     return token
 
 
+def get_formatted_size(required_fields_json, doctype="Item", separator="<br>"):
+    if not required_fields_json:
+        return ""
+
+    try:
+        data = json.loads(required_fields_json)
+    except Exception:
+        return ""
+
+    meta = frappe.get_meta(doctype)
+    lines = []
+    for key, value in data.items():
+        df = meta.get_field(key)
+        label = df.label if df else key.replace("custom_", "").replace("_", " ").title()
+        lines.append(f"{label}: {value}")
+
+    return separator.join(lines)

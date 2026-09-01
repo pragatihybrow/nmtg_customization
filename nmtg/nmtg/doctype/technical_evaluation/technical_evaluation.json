@@ -13,6 +13,7 @@
   "customer",
   "general_technical_remarks",
   "naming_series",
+  "custom_primary_contact_email",
   "column_break_zzwa",
   "enquiry_reference",
   "amended_from",
@@ -21,6 +22,7 @@
   "email",
   "lead_engineer",
   "version",
+  "custom_other_contact_emails",
   "section_break_qxui",
   "items",
   "section_break_hibi",
@@ -89,7 +91,7 @@
    "fieldname": "overall_technical_status",
    "fieldtype": "Select",
    "label": "Overall Technical Status",
-   "options": "Under Review"
+   "options": "Under Review\nCleared"
   },
   {
    "fieldname": "general_technical_remarks",
@@ -142,13 +144,26 @@
    "hidden": 1,
    "label": "Attachment",
    "options": "Attachment"
+  },
+  {
+   "fieldname": "custom_primary_contact_email",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "custom_primary_contact_email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "custom_other_contact_emails",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "custom_other_contact_emails "
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-25 13:14:33.871221",
+ "modified": "2026-09-01 12:37:06.188313",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",

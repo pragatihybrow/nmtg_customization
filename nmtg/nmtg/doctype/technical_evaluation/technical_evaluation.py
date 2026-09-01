@@ -43,17 +43,6 @@ class TechnicalEvaluation(Document):
             row.request_no = f"R-{idx:03d}"
 
     def update_opportunity_status(self):
-        """
-        Update Opportunity status according to the
-        latest Technical Evaluation version.
-
-        Latest TE Draft:
-            Technical Evaluation Under Review
-
-        Latest TE Submitted:
-            Technical Evaluation Cleared
-        """
-
         if not self.opportunity_no:
             return
 
@@ -224,10 +213,6 @@ class TechnicalEvaluation(Document):
 
     @staticmethod
     def get_version_number(version_str):
-        """
-        Convert V4 -> 4.
-        Returns None for blank/invalid values.
-        """
 
         if not version_str:
             return None
@@ -239,3 +224,6 @@ class TechnicalEvaluation(Document):
 
         except (ValueError, TypeError):
             return None
+
+
+    
