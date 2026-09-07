@@ -45,7 +45,6 @@ class CustomOpportunity(Opportunity):
                 },
             )
 
-# nmtg/override/opportunity.py
 
 import frappe
 
