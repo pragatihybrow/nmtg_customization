@@ -238,7 +238,7 @@ EMAIL_BODY_TEMPLATE = """
 
 <p>
     With reference to your enquiry and the technically selected product, please find
-    the relevant drawing / technical document submitted for your review and
+    the relevant drawing / technical document aginst <strog>Customer RFQ Number:</strog>{{doc.custom_customer_rfq_number}} submitted for your review and
     verification.
 </p>
 

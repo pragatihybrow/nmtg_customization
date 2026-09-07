@@ -14,6 +14,7 @@
   "general_technical_remarks",
   "naming_series",
   "custom_primary_contact_email",
+  "custom_customer_rfq_number",
   "column_break_zzwa",
   "enquiry_reference",
   "amended_from",
@@ -165,13 +166,18 @@
    "fieldtype": "Check",
    "hidden": 1,
    "label": "Attachment Email Sent"
+  },
+  {
+   "fieldname": "custom_customer_rfq_number",
+   "fieldtype": "Data",
+   "label": "Customer RFQ Number"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-01 16:06:33.250332",
+ "modified": "2026-09-07 14:40:36.359037",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",
