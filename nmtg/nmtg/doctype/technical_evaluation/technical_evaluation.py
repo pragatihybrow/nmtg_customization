@@ -206,6 +206,8 @@ class TechnicalEvaluation(Document):
 
             opp_item.custom_version = self.version
 
+            opp_item.custom_customer_material_code =(te_item.customer_material_code)
+
             updated = True
 
         if updated:

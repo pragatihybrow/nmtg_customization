@@ -262,7 +262,8 @@ doctype_js = {
     "Request for Quotation": "public/js/request_for_quotation.js",
     "Lead":"public/js/lead.js",
     "Opportunity":"public/js/opportunity.js",
-    "Prospect":"public/js/prospect.js"
+    "Prospect":"public/js/prospect.js",
+    "Quotation":"public/js/quotation.js"
 
 }
 
@@ -309,7 +310,7 @@ doc_events = {
      "Opportunity": {
         "before_insert": "nmtg.override.opportunity.set_contact_recipient_emails",
         "validate": "nmtg.override.opportunity.set_contact_recipient_emails"
-    }
+    },
 }
 
 scheduler_events = {
