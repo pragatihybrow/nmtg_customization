@@ -290,10 +290,11 @@ doc_events = {
             "nmtg.override.quality_inspection.on_submit",    
         ],
     },
+
     "Supplier Quotation": {
         "before_submit": "nmtg.override.api.validate_quality_category_before_submit",
-        "before_validate": "nmtg.override.supplier_quotation.handle_transportation_item"
-
+        "before_validate": "nmtg.override.supplier_quotation.handle_transportation_item",
+        "validate": "nmtg.override.supplier_quotation.copy_header_fields_to_items"
     },
      "Supplier": {
         "validate": "nmtg.override.supplier.validate"
