@@ -11,19 +11,7 @@ class CustomItem(Item):
     def apply_item_settings(self):
         settings = frappe.get_single("Item Settings")
 
-        matched_row = None
-        for row in settings.item_settings:
-            if (row.item_group == self.item_group and
-                row.product_group == self.custom_product_group and
-                row.sub_product_group == self.custom_sub_product_group):
-
-                if row.material_type:
-                    if row.material_type == self.custom_material_type:
-                        matched_row = row
-                        break
-                else:
-                    matched_row = row
-                    break
+        matched_row = self.find_matching_item_settings_row(settings)
 
         if not matched_row:
             frappe.throw(f"No Item Settings found for: {self.item_group} / {self.custom_product_group} / {self.custom_sub_product_group}")
@@ -77,6 +65,31 @@ class CustomItem(Item):
         self.item_name = apply_pattern(matched_row.name_pattern, ctx)
         self.item_code = code_prefix + next_seq
         self.name = self.item_code
+
+    def find_matching_item_settings_row(self, settings):
+        def material_type_ok(row):
+            if row.material_type:
+                return row.material_type == self.custom_material_type
+            return True
+
+        # Tier 1: exact match on item_group + product_group + sub_product_group
+        for row in settings.item_settings:
+            if (row.item_group == self.item_group and
+                row.product_group == self.custom_product_group and
+                row.sub_product_group == self.custom_sub_product_group and
+                material_type_ok(row)):
+                return row
+
+        # Tier 2: fallback — item_group + product_group only,
+        # matched against a catch-all row with no sub_product_group set
+        for row in settings.item_settings:
+            if (row.item_group == self.item_group and
+                row.product_group == self.custom_product_group and
+                not row.sub_product_group and
+                material_type_ok(row)):
+                return row
+
+        return None
 
     def seed_series_if_missing(self, code_prefix, seq_digits):
         if frappe.db.exists("Series", code_prefix):

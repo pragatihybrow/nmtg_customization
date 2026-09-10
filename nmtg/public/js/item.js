@@ -305,6 +305,31 @@ function get_item_settings(callback) {
     });
 }
 
+function find_matching_item_settings_row(settings, frm) {
+    const material_type_ok = row =>
+        !row.material_type || row.material_type === frm.doc.custom_material_type;
+
+    // Tier 1: exact match on item_group + product_group + sub_product_group
+    if (frm.doc.custom_sub_product_group) {
+        let exact = settings.find(row =>
+            row.item_group === frm.doc.item_group &&
+            row.product_group === frm.doc.custom_product_group &&
+            row.sub_product_group === frm.doc.custom_sub_product_group &&
+            material_type_ok(row)
+        );
+        if (exact) return exact;
+    }
+
+    // Tier 2: fallback — item_group + product_group only, catch-all row
+    // (a settings row with no sub_product_group set)
+    return settings.find(row =>
+        row.item_group === frm.doc.item_group &&
+        row.product_group === frm.doc.custom_product_group &&
+        !row.sub_product_group &&
+        material_type_ok(row)
+    );
+}
+
 function apply_item_settings_fields(frm) {
 
     // Fields always visible
@@ -328,7 +353,8 @@ function apply_item_settings_fields(frm) {
         "custom_only_internal_qc",
         "custom_create_nmtg_code",
         "custom_legacy_item_name",
-        "custom_quality_category_required"
+        "custom_quality_category_required",
+        "custom_mr_level_uom"
     ];
 
     // Show always_visible fields, hide every other dynamic custom field
@@ -346,14 +372,7 @@ function apply_item_settings_fields(frm) {
 
         let settings = settings_doc.item_settings || [];
 
-        let matched_row = settings.find(row => {
-            return (
-                row.item_group === frm.doc.item_group &&
-                row.product_group === frm.doc.custom_product_group &&
-                row.sub_product_group === frm.doc.custom_sub_product_group &&
-                (!row.material_type || row.material_type === frm.doc.custom_material_type)
-            );
-        });
+        let matched_row = find_matching_item_settings_row(settings, frm);
 
         if (matched_row && matched_row.feilds) {
             matched_row.feilds.split(",").forEach(field => {
