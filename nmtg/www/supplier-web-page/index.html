@@ -79,6 +79,15 @@
   table.checksheet td{border:1px solid var(--line);padding:8px;vertical-align:top;}
   table.checksheet tr.item-row:nth-child(4n+1){background:#fafbfc;}
   table.checksheet tr.item-panel-row>td{padding:0;background:#fbfcfd;}
+  table.checksheet td select,
+  table.checksheet td input[type=text],
+  table.checksheet td input[type=number]{
+    width:100%;padding:6px 7px;border:1px solid var(--line);border-radius:var(--radius);
+    font-size:12.5px;background:#fff;color:var(--ink);font-family:inherit;
+  }
+  table.checksheet td input:disabled{
+    background:#eef2f4;color:#9aa7b0;cursor:not-allowed;
+  }
 
   .item-num{width:24px;height:24px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
   .item-cell{display:flex;gap:9px;align-items:flex-start;}
@@ -296,7 +305,7 @@
           <input type="text" id="named-place" placeholder="Named place for the incoterm" />
         </div>
       </div>
-
+<!--
       <div class="section-title conditional-field" id="wrap-international-section-title" style="margin-top:22px;">International Shipment Details</div>
       <div class="section-sub conditional-field" id="wrap-international-section-sub"></div>
       <div class="grid conditional-field" id="wrap-international-shipment-grid" style="margin-top:14px;">
@@ -338,21 +347,228 @@
         </div>
       </div>
     </div>
+-->
+    <!-- ============= PURCHASE TYPE DETAILS ============= -->
+<div class="card">
+  <div class="section-title">Purchase Type Details</div>
+  <div class="section-sub">Fields shown depend on the selected Purchase Type</div>
 
-    <!-- ============= PAYMENT TERMS ============= -->
+  <div class="grid" style="margin-top:14px;">
+
+    <!-- Product / Material -->
+    <div class="field conditional-field" id="wrap-moq">
+      <label>MOQ</label>
+      <input type="text" id="moq" />
+    </div>
+    <div class="field conditional-field" id="wrap-standard-packing-qty">
+      <label>Standard Packing Qty</label>
+      <input type="number" step="0.01" id="standard-packing-qty" />
+    </div>
+    <div class="field conditional-field" id="wrap-product-warranty">
+      <label>Product Warranty</label>
+      <input type="text" id="product-warranty" />
+    </div>
+
+    <!-- Service -->
+    <div class="field conditional-field" id="wrap-service-type">
+      <label>Service Type</label>
+      <select id="service-type">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Repair">Repair</option>
+        <option value="Calibration">Calibration</option>
+        <option value="AMC">AMC</option>
+        <option value="Consultancy">Consultancy</option>
+        <option value="Testing">Testing</option>
+        <option value="Labour">Labour</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-other-service-type">
+      <label>Other Service Type</label>
+      <input type="text" id="other-service-type" />
+    </div>
+    <div class="field conditional-field" id="wrap-manpower-requirement">
+      <label>Manpower Requirement</label>
+      <input type="text" id="manpower-requirement" />
+    </div>
+    <div class="field conditional-field" id="wrap-service-location">
+      <label>Service Location</label>
+      <select id="service-location">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="NMTG">NMTG</option>
+        <option value="Supplier Site">Supplier Site</option>
+        <option value="Customer Site">Customer Site</option>
+        <option value="Online">Online</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-service-duration">
+      <label>Service Duration</label>
+      <select id="service-duration">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Hours">Hours</option>
+        <option value="Days">Days</option>
+        <option value="Months">Months</option>
+        <option value="Yearly">Yearly</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-hours">
+      <label>Hours</label>
+      <input type="text" id="hours" />
+    </div>
+    <div class="field conditional-field" id="wrap-day">
+      <label>Days</label>
+      <input type="text" id="day" />
+    </div>
+    <div class="field conditional-field" id="wrap-months">
+      <label>Months</label>
+      <input type="text" id="months" />
+    </div>
+    <div class="field conditional-field" id="wrap-yearly">
+      <label>Yearly</label>
+      <input type="text" id="yearly" />
+    </div>
+    <div class="field conditional-field" id="wrap-travel-boarding-lodging">
+      <label>Travel / Boarding / Lodging</label>
+      <select id="travel-boarding-lodging">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Included">Included</option>
+        <option value="Actual">Actual</option>
+        <option value="Extra">Extra</option>
+        <option value="NA">NA</option>
+      </select>
+    </div>
+
+    <!-- Asset Purchase -->
+    <div class="field conditional-field" id="wrap-amc-service-support">
+      <label>AMC / Service Support</label>
+      <select id="amc-service-support">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Available">Available</option>
+        <option value="Not Available">Not Available</option>
+        <option value="Optional">Optional</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-training-required">
+      <label>Training Required</label>
+      <select id="training-required">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+        <option value="Included">Included</option>
+        <option value="Extra">Extra</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-installation-required">
+      <label>Installation Required</label>
+      <select id="installation-required">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-commissioning-required">
+      <label>Commissioning Required</label>
+      <select id="commissioning-required">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Yes">Yes</option>
+        <option value="No">No</option>
+      </select>
+    </div>
+
+    <!-- Subcontracting -->
+    <div class="field conditional-field" id="wrap-fixture-tooling-responsibility">
+      <label>Fixture / Tooling Responsibility</label>
+      <select id="fixture-tooling-responsibility">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Supplier">Supplier</option>
+        <option value="NMTG">NMTG</option>
+        <option value="Shared">Shared</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-input-material-wip-return">
+      <label>Input Material / WIP Return</label>
+      <select id="input-material-wip-return">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="NMTG Scope">NMTG Scope</option>
+        <option value="Supplier Scope">Supplier Scope</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-return-lead-time">
+      <label>Return Lead Time</label>
+      <input type="text" id="return-lead-time" />
+    </div>
+    <div class="field conditional-field" id="wrap-scrap-rejection-responsibility">
+      <label>Scrap / Rejection Responsibility</label>
+      <select id="scrap-rejection-responsibility">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Supplier">Supplier</option>
+        <option value="NMTG">NMTG</option>
+        <option value="As Per Agreement">As Per Agreement</option>
+      </select>
+    </div>
+
+    <!-- Rate Contract -->
+    <div class="field conditional-field" id="wrap-estimated-monthly-value">
+      <label>Estimated Monthly Value</label>
+      <input type="number" step="0.01" id="estimated-monthly-value" />
+    </div>
+    <div class="field conditional-field" id="wrap-estimated-monthly-qty">
+      <label>Estimated Monthly Qty</label>
+      <input type="number" step="1" id="estimated-monthly-qty" />
+    </div>
+    <div class="field conditional-field" id="wrap-minimum-commitment-qty">
+      <label>Minimum Commitment Qty</label>
+      <select id="minimum-commitment-qty">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Only On Qty">Only On Qty</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-order-release-method">
+      <label>Order Release Method</label>
+      <select id="order-release-method">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="As Per PO">As Per PO</option>
+        <option value="Monthly Schedule">Monthly Schedule</option>
+        <option value="Call-Off">Call-Off</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-termination-notice-period">
+      <label>Termination Notice Period</label>
+      <select id="termination-notice-period">
+        <option value="">&mdash; Select &mdash;</option>
+        <option value="Days">Days</option>
+        <option value="N/A">N/A</option>
+      </select>
+    </div>
+    <div class="field conditional-field" id="wrap-days">
+      <label>Days</label>
+      <input type="text" id="days" />
+    </div>
+
+  </div>
+</div>
+
+
+    <!-- ============= PAYMENT TERMS ============= 
     <div class="card">
       <div class="section-title">Payment Terms</div>
       <div class="section-sub">Add one row per payment milestone / term</div>
       <div id="payment-terms-rows-container" style="margin-top:14px;"></div>
       <p class="item-tab-empty" id="payment-terms-empty-note">No payment terms added yet.</p>
       <button type="button" class="btn" onclick="addPaymentTermRow()">+ Add Payment Term</button>
-    </div>
+    </div> -->
 
     <!-- ============= ITEMS & PRICING ============= -->
     <div class="card">
       <div class="section-title">Items &amp; Pricing</div>
       <div class="section-sub" id="item-count-label">Loading items&hellip;</div>
       <table class="checksheet" id="items-table">
+        <thead id="items-thead"></thead>
+        <tbody id="items-tbody"></tbody>
+      </table>
+    <!--  <table class="checksheet" id="items-table">
         <thead>
           <tr>
             <th style="width:32px">#</th>
@@ -365,13 +581,66 @@
           </tr>
         </thead>
         <tbody id="items-tbody"></tbody>
-      </table>
+      </table>-->
 
       <div class="totals-box">
         <div class="totals-row"><span>Items Subtotal</span><span id="items-subtotal-note">Enter prices above to calculate</span></div>
         <div class="totals-row grand"><span>Subtotal</span><span id="items-subtotal">&mdash;</span></div>
       </div>
     </div>
+
+
+
+    <!-- ============= ADDITIONAL DISCOUNT ============= -->
+  <div class="card">
+  <div class="section-title">Additional Discount</div>
+  <div class="section-sub">Optional — choose what the discount is applied on</div>
+  <div class="grid" style="margin-top:14px;">
+    <div class="field">
+      <label>Apply Discount On</label>
+      <select id="apply-discount-on" onchange="updateTotals()">
+        <option value="Grand Total" selected>Grand Total</option>
+        <option value="Net Total">Net Total</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>Discount (%)</label>
+      <input type="number" id="additional-discount-percentage" min="0" max="100" step="0.01" placeholder="0.00" oninput="lastDiscountEdit='percentage'; updateTotals();" />
+    </div>
+     <div class="field">
+  <label>Discount Amount</label>
+  <input type="number" id="additional-discount-amount" min="0" step="0.01" placeholder="0.00" oninput="lastDiscountEdit='amount'; updateTotals();" />
+</div>
+      </div>
+      <div class="totals-box">
+        <div class="totals-row"><span>Grand Total (before discount)</span><span id="discount-pre-total">&mdash;</span></div>
+        <div class="totals-row"><span>Discount</span><span id="discount-value">&mdash;</span></div>
+        <div class="totals-row grand"><span>Final Total</span><span id="final-total">&mdash;</span></div>
+      </div>
+    </div>
+
+    <!-- ============= PAYMENT TERMS =============  -->
+
+  <div class="card">
+  <div class="section-title">Payment Terms</div>
+  <div class="section-sub">Add one row per payment milestone / term</div>
+  <table class="checksheet" id="payment-terms-table" style="margin-top:14px;">
+    <thead>
+      <tr>
+        <th style="width:32px">#</th>
+        <th>Terms</th>
+        <th style="width:110px">Percentage (%)</th>
+        <th style="width:120px">Amount</th>
+        <th style="width:100px">Days</th>
+        <th style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody id="payment-terms-tbody"></tbody>
+  </table>
+  <p class="item-tab-empty" id="payment-terms-empty-note">No payment terms added yet.</p>
+  <button type="button" class="btn" onclick="addPaymentTermRow()">+ Add Payment Term</button>
+</div>
+
 
     <!-- ============= TAXES & CHARGES ============= -->
     <div class="card conditional-field show" id="wrap-tax-settings-card">
@@ -389,7 +658,7 @@
         </div>
       </div>
     </div>
-
+ <!--
     <div class="card conditional-field show" id="wrap-tax-rows-card">
       <div class="section-title">Tax / Charge Rows</div>
       <div class="section-sub"></div>
@@ -402,7 +671,37 @@
         <div class="totals-row"><span>Total Tax / Charges</span><span id="summary-tax">&mdash;</span></div>
         <div class="totals-row grand"><span>Grand Total</span><span id="grand-total">&mdash;</span></div>
       </div>
-    </div>
+    </div>-->
+
+    <div class="card conditional-field show" id="wrap-tax-rows-card">
+  <div class="section-title">Tax / Charge Rows</div>
+  <div class="section-sub"></div>
+  <table class="checksheet" id="taxes-table" style="margin-top:14px;">
+    <thead>
+      <tr>
+        <th style="width:30px">#</th>
+        <th style="width:120px">Category</th>
+        <th style="width:95px">Add/Deduct</th>
+        <th style="width:150px">Type</th>
+        <th style="width:80px">Ref Row#</th>
+        <th style="width:130px">Account Head <span class="req">*</span></th>
+        <th>Description <span class="req">*</span></th>
+        <th style="width:100px">Rate/Amount</th>
+        <th class="right" style="width:100px">Computed</th>
+        <th style="width:70px"></th>
+      </tr>
+    </thead>
+    <tbody id="taxes-tbody"></tbody>
+  </table>
+  <p class="item-tab-empty" id="taxes-empty-note"></p>
+  <button type="button" class="btn" onclick="addTaxRow()">+ Add Tax Row</button>
+
+  <div class="totals-box">
+    <div class="totals-row"><span>Items Subtotal</span><span id="summary-subtotal">&mdash;</span></div>
+    <div class="totals-row"><span>Total Tax / Charges</span><span id="summary-tax">&mdash;</span></div>
+    <div class="totals-row grand"><span>Grand Total</span><span id="grand-total">&mdash;</span></div>
+  </div>
+</div>
 
     
 
@@ -424,7 +723,7 @@
     </div>
 
     <!-- ============= CONTACT & SIGN-OFF ============= -->
-   
+   <!--
     <div class="card">
       <div class="section-title">Declarations &amp; Authorization</div>
       <div class="section-sub">Please confirm the following before submitting</div>
@@ -442,6 +741,12 @@
         <label for="quotation-correctness-declaration">Prices, GST, freight and charges are correct <span class="req">*</span></label>
       </div>
       <span class="err-inline" id="err-declarations">Please accept all three declarations above before submitting.</span>
+    -->
+    <div class="checkbox-row">
+      <input type="checkbox" id="general-terms-acceptance" />
+      <label for="general-terms-acceptance">I confirm that this quotation is accurate and complete, all applicable prices, taxes, freight and additional charges have been disclosed, and I accept NMTG's RFQ Terms &amp; Conditions. <span class="req">*</span></label>
+    </div>
+    <span class="err-inline" id="err-declarations">Please accept the declaration above before submitting.</span>
 
       <div class="grid" style="margin-top:16px;">
         <div class="field">
@@ -675,6 +980,7 @@ function renderField(f, idx) {
   return '<div class="' + wrapClasses + '"' + wrapIdAttr + '>' + labelHtml + inputHtml + '</div>';
 }
 
+/*
 function renderItemDetailPanel(idx) {
   var active = getActiveTypeSection();
   var commonFieldsHtml = ITEM_FIELD_SECTIONS.common.fields.map(function(f) { return renderField(f, idx); }).join('');
@@ -695,6 +1001,40 @@ function renderItemDetailPanel(idx) {
     '<div class="grid">' + typeFieldsHtml + '</div>' +
   '</div>';
 }
+*/
+
+function renderItemDetailPanel(idx) {
+  var active = getActiveTypeSection();
+  var inlineFields = getInlineFieldNames();
+
+  var commonFields = ITEM_FIELD_SECTIONS.common.fields.filter(function(f) {
+    return inlineFields.indexOf(f.name) === -1;
+  });
+  var commonFieldsHtml = commonFields.map(function(f) { return renderField(f, idx); }).join('');
+
+  var typeTabLabel = active ? active.key : 'Type Details';
+  var typeFields = active
+    ? active.section.fields.filter(function(f) { return inlineFields.indexOf(f.name) === -1; })
+    : [];
+  var typeFieldsHtml = active
+    ? (typeFields.length
+        ? typeFields.map(function(f) { return renderField(f, idx); }).join('')
+        : '<p class="item-tab-empty">All fields for this Purchase Type are already shown in the table above.</p>')
+    : '<p class="item-tab-empty">Select a <strong>Purchase Type</strong> above to see fields specific to that type for this item.</p>';
+
+  return '' +
+  '<div class="item-tabs">' +
+    '<button type="button" class="item-tab-btn active" data-item-idx="' + idx + '" data-item-tab="common">Common</button>' +
+    '<button type="button" class="item-tab-btn" data-item-idx="' + idx + '" data-item-tab="type">' + typeTabLabel + '</button>' +
+  '</div>' +
+  '<div class="item-tab-panel active" data-item-idx="' + idx + '" data-item-tab="common">' +
+    '<div class="grid">' + commonFieldsHtml + '</div>' +
+  '</div>' +
+  '<div class="item-tab-panel" data-item-idx="' + idx + '" data-item-tab="type">' +
+    '<div class="grid">' + typeFieldsHtml + '</div>' +
+  '</div>';
+}
+
 
 function wireItemDetailPanel(idx) {
   var panel = document.getElementById('item-panel-' + idx);
@@ -933,7 +1273,7 @@ function showApiNotice() {
   document.getElementById('api-notice-rfq').textContent = RFQ.name;
   el.classList.add('show');
 }
-
+/*
 function prefillPurchaseDetails(doc) {
   if (!doc) return;
   if (doc.custom_purchase_type) {
@@ -941,6 +1281,19 @@ function prefillPurchaseDetails(doc) {
     pt.value = doc.custom_purchase_type;
     toggleConditionalFields();
     refreshAllItemPanels();
+  }
+  if (doc.custom_rfq_nature) {
+    document.getElementById('rfq-nature').value = doc.custom_rfq_nature;
+  }
+}*/
+
+
+function prefillPurchaseDetails(doc) {
+  if (!doc) return;
+  if (doc.custom_purchase_type) {
+    const pt = document.getElementById('purchase-type');
+    pt.value = doc.custom_purchase_type;
+    toggleConditionalFields();
   }
   if (doc.custom_rfq_nature) {
     document.getElementById('rfq-nature').value = doc.custom_rfq_nature;
@@ -954,7 +1307,7 @@ function initValidityDate() {
   validEl.min = min.toISOString().split('T')[0];
   if (RFQ.schedule_date) validEl.value = RFQ.schedule_date;
 }
-
+/*
 function renderItems() {
   document.getElementById('loading-screen').style.display = 'none';
   document.getElementById('form-wrap').style.display = 'block';
@@ -1016,7 +1369,50 @@ function renderItems() {
 
   initValidityDate();
   updateTotals();
+} 
+*/
+
+
+function renderItems() {
+  document.getElementById('loading-screen').style.display = 'none';
+  document.getElementById('form-wrap').style.display = 'block';
+
+  buildItemsHeader();
+  var cols = getActiveColumns();
+
+  const tbody = document.getElementById('items-tbody');
+  tbody.innerHTML = '';
+  document.getElementById('item-count-label').textContent =
+    RFQ.items.length + ' item' + (RFQ.items.length > 1 ? 's' : '') + ' requested \u2014 enter your unit price for each';
+
+  RFQ.items.forEach(function(item, idx) {
+    const tr = document.createElement('tr');
+    tr.className = 'item-row';
+    var cellsHtml = '<td><div class="item-num">' + item.idx + '</div></td>';
+    cols.forEach(function(col) {
+      cellsHtml += '<td' + (col.key === 'total' ? ' class="right"' : '') + '>' + renderItemColumnCell(col, item, idx) + '</td>';
+    });
+    tr.innerHTML = cellsHtml;
+    tbody.appendChild(tr);
+  });
+
+  RFQ.items.forEach(function(_, idx) {
+    var priceEl = document.getElementById('price-' + idx);
+    if (priceEl) priceEl.addEventListener('input', function() {
+      priceEl.classList.remove('invalid');
+      document.getElementById('err-price-' + idx).classList.remove('show');
+    });
+    var leadEl = document.getElementById('lead-' + idx);
+    if (leadEl) leadEl.addEventListener('input', function() {
+      leadEl.classList.remove('invalid');
+      document.getElementById('err-lead-' + idx).classList.remove('show');
+    });
+  });
+
+  initValidityDate();
+  updateTotals();
 }
+
 
 function toggleItemPanel(idx) {
   const row = document.getElementById('item-panel-row-' + idx);
@@ -1057,7 +1453,7 @@ function taxValueLabel(chargeType) {
   if (chargeType === 'On Item Quantity') return 'Rate per Unit (\u20B9)';
   return 'Rate (%)';
 }
-
+/*
 function addTaxRow() {
   taxRowCounter++;
   var idx = taxRowCounter;
@@ -1141,9 +1537,68 @@ function onTaxTypeChange(idx) {
   if (valueLabel) valueLabel.textContent = taxValueLabel(type);
   updateTotals();
 }
+  */
+
+  function addTaxRow() {
+  taxRowCounter++;
+  var idx = taxRowCounter;
+  var tbody = document.getElementById('taxes-tbody');
+
+  var tr = document.createElement('tr');
+  tr.className = 'tax-row';
+  tr.id = 'tax-row-' + idx;
+  tr.dataset.idx = idx;
+  tr.innerHTML =
+    '<td>' + idx + '</td>' +
+    '<td><select id="tax-row-category-' + idx + '">' +
+      '<option value="Total" selected>Total</option>' +
+      '<option value="Valuation">Valuation</option>' +
+      '<option value="Valuation and Total">Valuation and Total</option>' +
+    '</select></td>' +
+    '<td><select id="tax-add-deduct-' + idx + '" onchange="updateTotals()">' +
+      '<option value="Add" selected>Add</option>' +
+      '<option value="Deduct">Deduct</option>' +
+    '</select></td>' +
+    '<td><select id="tax-charge-type-' + idx + '" onchange="onTaxTypeChange(' + idx + ')">' +
+      TAX_CHARGE_TYPES.map(function(t) {
+        return '<option value="' + t + '"' + (t === 'On Net Total' ? ' selected' : '') + '>' + t + '</option>';
+      }).join('') +
+    '</select></td>' +
+    '<td><input type="number" id="tax-row-id-' + idx + '" min="1" step="1" oninput="updateTotals()" disabled placeholder="prev" /></td>' +
+    '<td><input type="text" id="tax-account-' + idx + '" placeholder="e.g. CGST" /></td>' +
+    '<td><input type="text" id="tax-desc-' + idx + '" placeholder="e.g. CGST @ 9%" /></td>' +
+    '<td><input type="number" id="tax-value-' + idx + '" step="0.01" placeholder="Rate (%)" oninput="updateTotals()" /></td>' +
+    '<td class="right"><span class="qty-badge tax-amount-badge" id="tax-amount-display-' + idx + '" data-raw="0">\u20B90.00</span></td>' +
+    '<td><button type="button" class="details-toggle-btn tax-remove-btn" onclick="removeTaxRow(' + idx + ')">Remove</button></td>';
+  tbody.appendChild(tr);
+
+  document.getElementById('taxes-empty-note').style.display = 'none';
+  updateTotals();
+}
+
+function removeTaxRow(idx) {
+  var el = document.getElementById('tax-row-' + idx);
+  if (el) el.remove();
+  if (document.getElementById('taxes-tbody').children.length === 0) {
+    document.getElementById('taxes-empty-note').style.display = 'block';
+  }
+  updateTotals();
+}
+
+function onTaxTypeChange(idx) {
+  var type = document.getElementById('tax-charge-type-' + idx).value;
+  var refInput = document.getElementById('tax-row-id-' + idx);
+  var valueInput = document.getElementById('tax-value-' + idx);
+  var showRef = (type === 'On Previous Row Amount' || type === 'On Previous Row Total');
+  if (refInput) { refInput.disabled = !showRef; if (!showRef) refInput.value = ''; }
+  if (valueInput) valueInput.placeholder = taxValueLabel(type);
+  updateTotals();
+}
+
 
 function calcTaxTable(netTotal, totalQty) {
-  var rows = Array.from(document.querySelectorAll('.tax-row-card'));
+  //var rows = Array.from(document.querySelectorAll('.tax-row-card'));
+  var rows = Array.from(document.querySelectorAll('#taxes-tbody .tax-row'));
   var runningTotal = netTotal;
   var totalTaxSigned = 0;
   var computed = [];
@@ -1189,7 +1644,8 @@ function calcTaxTable(netTotal, totalQty) {
 }
 
 function collectTaxRows() {
-  var rows = Array.from(document.querySelectorAll('.tax-row-card'));
+ // var rows = Array.from(document.querySelectorAll('.tax-row-card'));
+  var rows = Array.from(document.querySelectorAll('#taxes-tbody .tax-row'));
   return rows.map(function(rowEl, i) {
     var idx = rowEl.dataset.idx;
     var chargeType = document.getElementById('tax-charge-type-' + idx).value;
@@ -1227,7 +1683,7 @@ async function loadTaxesTemplates() {
     }
   } catch (_) { /* field still works as free text if this fails */ }
 }
-
+/*
 async function onTaxesTemplateChange() {
   var val = document.getElementById('taxes-and-charges-template').value.trim();
   var match = TAXES_TEMPLATES.find(function(t) { return t.name === val; });
@@ -1265,15 +1721,50 @@ async function onTaxesTemplateChange() {
     showToast('Error loading tax template: ' + err.message, 'error', 8000);
   }
 }
+*/
 
-/* ================================================================
-   PAYMENT TERMS (child table: "Supplier Payment Terms CT")
-   Fields: terms (Select), percentage (Percent), amount (Float),
-   days (Data, shown only when terms === "Against GRN").
-   ================================================================ */
+async function onTaxesTemplateChange() {
+  var val = document.getElementById('taxes-and-charges-template').value.trim();
+  var match = TAXES_TEMPLATES.find(function(t) { return t.name === val; });
+  if (!match) return;
+
+  showToast('Loading tax template\u2026', 'loading');
+  try {
+    var res = await fetch('/api/method/nmtg.override.api.get_taxes_template_details?template=' + encodeURIComponent(val), { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) { showToast('Could not load tax template.', 'error'); return; }
+    var data = await res.json();
+    var msg = data.message;
+    if (!msg) { showToast('Tax template returned no data.', 'error'); return; }
+
+    document.getElementById('taxes-tbody').innerHTML = '';
+    taxRowCounter = 0;
+    (msg.taxes || []).forEach(function(row) {
+      addTaxRow();
+      var idx = taxRowCounter;
+      document.getElementById('tax-row-category-' + idx).value = row.category || 'Total';
+      document.getElementById('tax-add-deduct-' + idx).value = row.add_deduct_tax || 'Add';
+      document.getElementById('tax-charge-type-' + idx).value = row.charge_type || 'On Net Total';
+      document.getElementById('tax-account-' + idx).value = row.account_head || '';
+      document.getElementById('tax-desc-' + idx).value = row.description || '';
+      document.getElementById('tax-value-' + idx).value = row.rate || 0;
+      onTaxTypeChange(idx);
+    });
+    if (document.querySelectorAll('#taxes-tbody .tax-row').length === 0) {
+      document.getElementById('taxes-empty-note').style.display = 'block';
+    }
+    if (msg.tax_category) document.getElementById('tax-category').value = msg.tax_category;
+
+    showToast('Tax template loaded \u2014 review the rows below.', 'success');
+    updateTotals();
+  } catch (err) {
+    showToast('Error loading tax template: ' + err.message, 'error', 8000);
+  }
+}
+
+
 var paymentTermRowCounter = 0;
 const PAYMENT_TERM_TYPES = ['Advance', 'Against Proforma / Dispatch', 'Against GRN'];
-
+/* 
 function addPaymentTermRow() {
   paymentTermRowCounter++;
   var idx = paymentTermRowCounter;
@@ -1327,7 +1818,51 @@ function onPaymentTermTypeChange(idx) {
   var daysWrap = document.getElementById('wrap-payment-term-days-' + idx);
   if (daysWrap) daysWrap.classList.toggle('show', type === 'Against GRN');
 }
+*/
 
+
+function addPaymentTermRow() {
+  paymentTermRowCounter++;
+  var idx = paymentTermRowCounter;
+  var tbody = document.getElementById('payment-terms-tbody');
+
+  var tr = document.createElement('tr');
+  tr.className = 'payment-term-row';
+  tr.id = 'payment-term-row-' + idx;
+  tr.dataset.idx = idx;
+  tr.innerHTML =
+    '<td>' + idx + '</td>' +
+    '<td><select id="payment-term-terms-' + idx + '" onchange="onPaymentTermTypeChange(' + idx + ')">' +
+      '<option value="">&mdash; Select &mdash;</option>' +
+      PAYMENT_TERM_TYPES.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
+    '</select></td>' +
+    '<td><input type="number" id="payment-term-percentage-' + idx + '" min="0" max="100" step="0.01" placeholder="0.00" /></td>' +
+    '<td><input type="number" id="payment-term-amount-' + idx + '" min="0" step="0.01" placeholder="0.00" /></td>' +
+    '<td><input type="text" id="payment-term-days-' + idx + '" placeholder="N/A" disabled /></td>' +
+    '<td><button type="button" class="details-toggle-btn tax-remove-btn" onclick="removePaymentTermRow(' + idx + ')">Remove</button></td>';
+  tbody.appendChild(tr);
+
+  document.getElementById('payment-terms-empty-note').style.display = 'none';
+}
+
+function removePaymentTermRow(idx) {
+  var el = document.getElementById('payment-term-row-' + idx);
+  if (el) el.remove();
+  if (document.getElementById('payment-terms-tbody').children.length === 0) {
+    document.getElementById('payment-terms-empty-note').style.display = 'block';
+  }
+}
+
+function onPaymentTermTypeChange(idx) {
+  var type = document.getElementById('payment-term-terms-' + idx).value;
+  var daysEl = document.getElementById('payment-term-days-' + idx);
+  var isGRN = type === 'Against GRN';
+  daysEl.disabled = !isGRN;
+  daysEl.placeholder = isGRN ? 'e.g. 30' : 'N/A';
+  if (!isGRN) daysEl.value = '';
+}
+
+/*
 function collectPaymentTerms() {
   var rows = Array.from(document.querySelectorAll('#payment-terms-rows-container .tax-row-card'));
   return rows.map(function(rowEl, i) {
@@ -1341,8 +1876,114 @@ function collectPaymentTerms() {
       days:       terms === 'Against GRN' ? (document.getElementById('payment-term-days-' + idx).value || '') : ''
     };
   });
+} */
+
+
+function collectPaymentTerms() {
+  var rows = Array.from(document.querySelectorAll('#payment-terms-tbody .payment-term-row'));
+  return rows.map(function(rowEl, i) {
+    var idx = rowEl.dataset.idx;
+    var terms = document.getElementById('payment-term-terms-' + idx).value || '';
+    return {
+      idx:        i + 1,
+      terms:      terms,
+      percentage: parseFloat(document.getElementById('payment-term-percentage-' + idx).value) || 0,
+      amount:     parseFloat(document.getElementById('payment-term-amount-' + idx).value) || 0,
+      days:       terms === 'Against GRN' ? (document.getElementById('payment-term-days-' + idx).value || '') : ''
+    };
+  });
 }
 
+var lastDiscountEdit = 'percentage'; 
+function updateTotals() {
+  var subtotal = 0, allFilled = true, totalQty = 0;
+
+  RFQ.items.forEach(function(item, idx) {
+    var price = parseFloat(document.getElementById('price-' + idx).value) || 0;
+    var line  = price * item.qty;
+    var ltEl  = document.getElementById('line-total-' + idx);
+    if (price > 0) {
+      ltEl.textContent = inr(line);
+      ltEl.classList.remove('muted');
+      subtotal += line;
+    } else {
+      ltEl.textContent = '\u2014';
+      ltEl.classList.add('muted');
+      allFilled = false;
+    }
+    totalQty += item.qty;
+  });
+
+  document.getElementById('items-subtotal').textContent = subtotal > 0 ? inr(subtotal) : '\u2014';
+  document.getElementById('items-subtotal-note').textContent = subtotal > 0
+    ? (allFilled ? 'Subtotal for ' + RFQ.items.length + ' items' : 'Partial subtotal (fill all prices)')
+    : 'Enter prices above to calculate';
+
+  var applyOnEl = document.getElementById('apply-discount-on');
+  var applyOn = applyOnEl ? applyOnEl.value : 'Grand Total';
+
+  var discountPctInput = document.getElementById('additional-discount-percentage');
+  var discountAmtInput = document.getElementById('additional-discount-amount');
+
+  var discountAmount = 0, discountPct = 0, preDiscountTotal = 0, finalTotal = 0, taxResult;
+
+  if (applyOn === 'Net Total') {
+    // Discount is applied to the items subtotal BEFORE tax is calculated
+    var basis = subtotal;
+
+    if (lastDiscountEdit === 'amount') {
+      discountAmount = parseFloat(discountAmtInput.value) || 0;
+      if (discountAmount > basis) discountAmount = basis; // don't discount past zero
+      discountPct = basis > 0 ? (discountAmount / basis * 100) : 0;
+      if (subtotal > 0) discountPctInput.value = discountPct.toFixed(2);
+    } else {
+      discountPct = parseFloat(discountPctInput.value) || 0;
+      discountAmount = basis > 0 ? (basis * discountPct / 100) : 0;
+      if (subtotal > 0) discountAmtInput.value = discountAmount.toFixed(2);
+    }
+
+    var netForTax = subtotal > 0 ? (subtotal - discountAmount) : subtotal;
+    taxResult = calcTaxTable(netForTax, totalQty);
+
+    preDiscountTotal = subtotal;
+    finalTotal = subtotal > 0 ? taxResult.grandTotal : 0;
+
+  } else {
+    // Grand Total mode: tax is calculated on the full subtotal, discount taken off the tax-inclusive total
+    taxResult = calcTaxTable(subtotal, totalQty);
+    var basisGrand = taxResult.grandTotal;
+
+    if (lastDiscountEdit === 'amount') {
+      discountAmount = parseFloat(discountAmtInput.value) || 0;
+      if (discountAmount > basisGrand) discountAmount = basisGrand;
+      discountPct = basisGrand > 0 ? (discountAmount / basisGrand * 100) : 0;
+      if (subtotal > 0) discountPctInput.value = discountPct.toFixed(2);
+    } else {
+      discountPct = parseFloat(discountPctInput.value) || 0;
+      discountAmount = subtotal > 0 ? (basisGrand * discountPct / 100) : 0;
+      if (subtotal > 0) discountAmtInput.value = discountAmount.toFixed(2);
+    }
+
+    preDiscountTotal = basisGrand;
+    finalTotal = preDiscountTotal - discountAmount;
+  }
+
+  document.getElementById('summary-subtotal').textContent = subtotal > 0 ? inr(subtotal) : '\u2014';
+  document.getElementById('summary-tax').textContent = (subtotal > 0 || taxResult.totalTaxSigned !== 0) ? inr(taxResult.totalTaxSigned) : '\u2014';
+  document.getElementById('grand-total').textContent = subtotal > 0 ? inr(taxResult.grandTotal) : '\u2014';
+
+  document.getElementById('discount-pre-total').textContent = subtotal > 0 ? inr(preDiscountTotal) : '\u2014';
+  document.getElementById('discount-value').textContent = subtotal > 0 ? inr(discountAmount) : '\u2014';
+  document.getElementById('final-total').textContent = subtotal > 0 ? inr(finalTotal) : '\u2014';
+
+  if (subtotal <= 0) {
+    discountAmtInput.value = '';
+  }
+
+  updateInternationalLandingCostPreview(subtotal);
+}
+
+/*
 function updateTotals() {
   var subtotal = 0, allFilled = true, totalQty = 0;
 
@@ -1373,18 +2014,19 @@ function updateTotals() {
   document.getElementById('summary-tax').textContent = (subtotal > 0 || taxResult.totalTaxSigned !== 0) ? inr(taxResult.totalTaxSigned) : '\u2014';
   document.getElementById('grand-total').textContent = subtotal > 0 ? inr(taxResult.grandTotal) : '\u2014';
 
+  var discountPct = parseFloat(document.getElementById('additional-discount-percentage').value) || 0;
+  var preDiscountTotal = taxResult.grandTotal;
+  var discountAmount = subtotal > 0 ? (preDiscountTotal * discountPct / 100) : 0;
+  var finalTotal = preDiscountTotal - discountAmount;
+
+  document.getElementById('additional-discount-amount').value = subtotal > 0 ? inr(discountAmount) : '';
+  document.getElementById('discount-pre-total').textContent = subtotal > 0 ? inr(preDiscountTotal) : '\u2014';
+  document.getElementById('discount-value').textContent = subtotal > 0 ? inr(discountAmount) : '\u2014';
+  document.getElementById('final-total').textContent = subtotal > 0 ? inr(finalTotal) : '\u2014';
+
   updateInternationalLandingCostPreview(subtotal);
 }
-
-/* ================================================================
-   INTERNATIONAL LANDING COST PREVIEW
-   Client-side preview only (labelled "system calculated" in the UI).
-   The authoritative values are recomputed server-side on submit by
-   nmtg.override.api.submit_supplier_quotation, matching the doctype's
-   Gross Amount / Custom Duty Amount / Social Welfare Fund Amount /
-   Total Landing Cost / Per Unit Landing Cost fields (all read-only,
-   depends_on: custom_supplier_scope == "International").
-   ================================================================ */
+*/
 function updateInternationalLandingCostPreview(itemsSubtotal) {
   var isInternational = document.getElementById('supplier-scope').value === 'International';
   var grossEl   = document.getElementById('gross-amount');
@@ -1426,19 +2068,7 @@ function setConditional(id, shouldShow) {
   wrap.classList.toggle('show', !!shouldShow);
 }
 
-/* ================================================================
-   SUPPLIER SCOPE TOGGLE
-   Mirrors handle_transportation_item() in the Supplier Quotation
-   controller: for an International supplier, the domestic GST
-   tax_category / taxes_and_charges template do not apply (they are
-   cleared server-side), and instead custom duty / social welfare
-   fund / custom clearance / sea-air freight (the "International
-   Shipment Details" fields) feed the landed cost calculation.
-   Gross Amount / Custom Duty Amount / Social Welfare Fund Amount /
-   Total Landing Cost / Per Unit Landing Cost live inside the same
-   "international-shipment-grid" wrapper, so they hide/show together
-   with the rest of the International Shipment Details section.
-   ================================================================ */
+
 function toggleSupplierScopeFields() {
   var scope = document.getElementById('supplier-scope').value;
   var isInternational = scope === 'International';
@@ -1462,6 +2092,7 @@ function toggleSupplierScopeFields() {
   updateTotals();
 }
 
+
 function toggleConditionalFields() {
   var purchaseType     = document.getElementById('purchase-type').value;
   var transportArrangeBy = document.getElementById('transportation-arrange-by').value;
@@ -1471,13 +2102,159 @@ function toggleConditionalFields() {
   setConditional('other-purchase-type', purchaseType === 'Other');
   setConditional('warranty', ['Product / Material', 'Service', 'Asset Purchase'].indexOf(purchaseType) !== -1);
   setConditional('payment-milestone', ['Rate Contract', 'Service', 'Asset Purchase'].indexOf(purchaseType) !== -1);
-  setConditional('transportation-mode', transportArrangeBy === 'Supplier');
-  setConditional('transportation-cost', transportArrangeBy === 'Supplier');
+  // setConditional('transportation-mode', transportArrangeBy === 'Supplier');
+  // setConditional('transportation-cost', transportArrangeBy === 'Supplier');
+  setConditional('transportation-mode', !!transportArrangeBy);
+  setConditional('transportation-cost', !!transportArrangeBy);
   setConditional('additional-charges-details', additionalCharges === 'Yes');
   setConditional('total-additional-charges', additionalCharges === 'Yes');
   setConditional('named-place', !!incotermVal);
+
+  togglePurchaseTypeDetailFields();
 }
 
+function validate() {
+  var valid = true;
+  var firstInvalidEl = null;
+
+  RFQ.items.forEach(function(_, idx) {
+    var priceEl = document.getElementById('price-' + idx);
+    var leadEl  = document.getElementById('lead-' + idx);
+
+    if (priceEl) {
+      if (!priceEl.value || parseFloat(priceEl.value) <= 0) {
+        priceEl.classList.add('invalid');
+        var errPriceEl = document.getElementById('err-price-' + idx);
+        if (errPriceEl) errPriceEl.classList.add('show');
+        valid = false; firstInvalidEl = firstInvalidEl || priceEl;
+      } else {
+        priceEl.classList.remove('invalid');
+        var errPriceEl2 = document.getElementById('err-price-' + idx);
+        if (errPriceEl2) errPriceEl2.classList.remove('show');
+      }
+    }
+
+    if (leadEl) {
+      if (!leadEl.value || parseInt(leadEl.value) <= 0) {
+        leadEl.classList.add('invalid');
+        var errLeadEl = document.getElementById('err-lead-' + idx);
+        if (errLeadEl) errLeadEl.classList.add('show');
+        valid = false; firstInvalidEl = firstInvalidEl || leadEl;
+      } else {
+        leadEl.classList.remove('invalid');
+        var errLeadEl2 = document.getElementById('err-lead-' + idx);
+        if (errLeadEl2) errLeadEl2.classList.remove('show');
+      }
+    }
+  });
+
+  var supplierScopeEl = document.getElementById('supplier-scope');
+  var errSupplierScope = document.getElementById('err-supplier-scope');
+  if (!supplierScopeEl.value) {
+    supplierScopeEl.classList.add('invalid');
+    errSupplierScope.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || supplierScopeEl;
+  } else {
+    supplierScopeEl.classList.remove('invalid');
+    errSupplierScope.classList.remove('show');
+  }
+
+  var purchaseTypeEl = document.getElementById('purchase-type');
+  var errPurchaseType = document.getElementById('err-purchase-type');
+  if (!purchaseTypeEl.value) {
+    purchaseTypeEl.classList.add('invalid');
+    errPurchaseType.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || purchaseTypeEl;
+  } else {
+    purchaseTypeEl.classList.remove('invalid');
+    errPurchaseType.classList.remove('show');
+  }
+
+  var priceValidityEl  = document.getElementById('price-validity');
+  var errPriceValidity = document.getElementById('err-price-validity');
+  if (!priceValidityEl.value || parseFloat(priceValidityEl.value) < 0) {
+    priceValidityEl.classList.add('invalid');
+    errPriceValidity.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || priceValidityEl;
+  } else {
+    priceValidityEl.classList.remove('invalid');
+    errPriceValidity.classList.remove('show');
+  }
+
+  var isInternationalScope = supplierScopeEl.value === 'International';
+  document.querySelectorAll('#taxes-tbody .tax-row').forEach(function(rowEl) {
+    if (isInternationalScope) return; // GST rows don't apply for International scope
+    var idx = rowEl.dataset.idx;
+    var accEl  = document.getElementById('tax-account-' + idx);
+    var descEl = document.getElementById('tax-desc-' + idx);
+    if (!accEl) return;
+    if (!accEl.value.trim()) {
+      accEl.classList.add('invalid');
+      valid = false; firstInvalidEl = firstInvalidEl || accEl;
+    } else {
+      accEl.classList.remove('invalid');
+    }
+    if (!descEl.value.trim()) {
+      descEl.classList.add('invalid');
+      valid = false; firstInvalidEl = firstInvalidEl || descEl;
+    } else {
+      descEl.classList.remove('invalid');
+    }
+  });
+
+  var validTill = document.getElementById('valid-till');
+  var errValid  = document.getElementById('err-valid');
+  if (!validTill.value) {
+    errValid.textContent = 'Please enter a validity date.';
+    validTill.classList.add('invalid');
+    errValid.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || validTill;
+  } else if (validTill.min && validTill.value < validTill.min) {
+    errValid.textContent = 'Valid until date must be on or after ' + validTill.min + '.';
+    validTill.classList.add('invalid');
+    errValid.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || validTill;
+  } else {
+    validTill.classList.remove('invalid');
+    errValid.classList.remove('show');
+  }
+
+  var authorizedNameEl  = document.getElementById('authorized-person-name');
+  var errAuthorizedName = document.getElementById('err-authorized-person');
+  if (!authorizedNameEl.value.trim()) {
+    authorizedNameEl.classList.add('invalid');
+    errAuthorizedName.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || authorizedNameEl;
+  } else {
+    authorizedNameEl.classList.remove('invalid');
+    errAuthorizedName.classList.remove('show');
+  }
+
+  var declarationIds = ['general-terms-acceptance'];
+  var errDeclarations = document.getElementById('err-declarations');
+  var declarationsOk = true;
+  declarationIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el || !el.checked) {
+      if (el) el.classList.add('invalid');
+      declarationsOk = false;
+    } else {
+      el.classList.remove('invalid');
+    }
+  });
+
+  if (!declarationsOk) {
+    errDeclarations.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || document.getElementById('general-terms-acceptance');
+  } else {
+    errDeclarations.classList.remove('show');
+  }
+
+  if (!valid && firstInvalidEl) firstInvalidEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return valid;
+}
+
+/*
 function validate() {
   var valid = true;
   var firstInvalidEl = null;
@@ -1529,7 +2306,7 @@ function validate() {
     priceValidityEl.classList.remove('invalid');
     errPriceValidity.classList.remove('show');
   }
-
+/*
   var isInternationalScope = supplierScopeEl.value === 'International';
   document.querySelectorAll('.tax-row-card').forEach(function(rowEl) {
     if (isInternationalScope) return; // GST rows don't apply for International scope
@@ -1550,7 +2327,29 @@ function validate() {
     } else {
       descEl.classList.remove('invalid');
     }
-  });
+  });*/
+
+/*
+  var isInternationalScope = supplierScopeEl.value === 'International';
+  document.querySelectorAll('#taxes-tbody .tax-row').forEach(function(rowEl) {
+  if (isInternationalScope) return; // GST rows don't apply for International scope
+  var idx = rowEl.dataset.idx;
+  var accEl  = document.getElementById('tax-account-' + idx);
+  var descEl = document.getElementById('tax-desc-' + idx);
+  if (!accEl) return;
+  if (!accEl.value.trim()) {
+    accEl.classList.add('invalid');
+    valid = false; firstInvalidEl = firstInvalidEl || accEl;
+  } else {
+    accEl.classList.remove('invalid');
+  }
+  if (!descEl.value.trim()) {
+    descEl.classList.add('invalid');
+    valid = false; firstInvalidEl = firstInvalidEl || descEl;
+  } else {
+    descEl.classList.remove('invalid');
+  }
+});
 
   var validTill = document.getElementById('valid-till');
   var errValid  = document.getElementById('err-valid');
@@ -1579,7 +2378,7 @@ function validate() {
     authorizedNameEl.classList.remove('invalid');
     errAuthorizedName.classList.remove('show');
   }
-
+/*
   var declarationIds = ['general-terms-acceptance', 'no-hidden-charges-declaration', 'quotation-correctness-declaration'];
   var errDeclarations = document.getElementById('err-declarations');
   var declarationsOk = true;
@@ -1592,6 +2391,21 @@ function validate() {
       el.classList.remove('invalid');
     }
   });
+  */
+/*
+  var declarationIds = ['general-terms-acceptance'];
+  var errDeclarations = document.getElementById('err-declarations');
+  var declarationsOk = true;
+  declarationIds.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el.checked) {
+      el.classList.add('invalid');
+      declarationsOk = false;
+    } else {
+      el.classList.remove('invalid');
+    }
+});
+
   if (!declarationsOk) {
     errDeclarations.classList.add('show');
     valid = false; firstInvalidEl = firstInvalidEl || document.getElementById('general-terms-acceptance');
@@ -1601,7 +2415,7 @@ function validate() {
 
   if (!valid && firstInvalidEl) firstInvalidEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   return valid;
-}
+}*/
 
 function showToast(msg, type, duration) {
   duration = duration || 5000;
@@ -1676,13 +2490,15 @@ async function submitQuotation() {
   var isInternationalScope = document.getElementById('supplier-scope').value === 'International';
 
   var itemRows = RFQ.items.map(function(item, idx) {
+    var priceEl = document.getElementById('price-' + idx);
+    var leadEl  = document.getElementById('lead-' + idx);
     var base = {
       item_code:             item.item_code,
       qty:                   item.qty,
       uom:                   item.uom,
       warehouse:             item.warehouse || RFQ.set_warehouse || '',
-      rate:                  parseFloat(document.getElementById('price-' + idx).value),
-      lead_time_days:        parseInt(document.getElementById('lead-' + idx).value),
+      rate:                  priceEl ? parseFloat(priceEl.value) : 0,
+      lead_time_days:        leadEl ? parseInt(leadEl.value) : 0,
       material_request:      item.material_request      || '',
       material_request_item: item.material_request_item || ''
     };
@@ -1693,52 +2509,85 @@ async function submitQuotation() {
   var payload = {
     supplier:               RFQ.supplier,
     company:                RFQ.company,
-    valid_till:             document.getElementById('valid-till').value,
+    valid_till:             fieldValue('valid-till'),
     rfq:                    RFQ.name,
     items:                  itemRows,
-    terms:                  document.getElementById('notes').value || '',
+    terms:                  fieldValue('notes'),
     custom_payement_terms:  collectPaymentTerms(),
 
-    tax_category:           isInternationalScope ? '' : (document.getElementById('tax-category').value || ''),
-    taxes_and_charges:      isInternationalScope ? '' : (document.getElementById('taxes-and-charges-template').value || ''),
+    tax_category:           isInternationalScope ? '' : fieldValue('tax-category'),
+    taxes_and_charges:      isInternationalScope ? '' : fieldValue('taxes-and-charges-template'),
     taxes:                  isInternationalScope ? [] : collectTaxRows(),
 
-    custom_supplier_scope:                         document.getElementById('supplier-scope').value || '',
-    custom_purchase_type:                         document.getElementById('purchase-type').value || '',
-    custom_other_purchase_type:                   document.getElementById('other-purchase-type').value || '',
-    custom_quality_category:                      document.getElementById('quality-category').value || '',
-    custom_rfq_nature:                             document.getElementById('rfq-nature').value || '',
-    custom_price_validity:                         parseFloat(document.getElementById('price-validity').value) || 0,
-    custom_warranty__guarantee:                    document.getElementById('warranty').value || '',
-    custom_payment_milestone:                      document.getElementById('payment-milestone').value || '',
-    custom_retention__security_deposit_:           parseFloat(document.getElementById('retention-percent').value) || 0,
-    custom_retention__security_deposit_amount:     parseFloat(document.getElementById('retention-amount').value) || 0,
+    custom_supplier_scope:                         fieldValue('supplier-scope'),
+    custom_purchase_type:                         fieldValue('purchase-type'),
+    custom_other_purchase_type:                   fieldValue('other-purchase-type'),
+    custom_quality_category:                      fieldValue('quality-category'),
+    custom_rfq_nature:                             fieldValue('rfq-nature'),
+    custom_price_validity:                         fieldFloat('price-validity'),
+    custom_warranty__guarantee:                    fieldValue('warranty'),
+    custom_payment_milestone:                      fieldValue('payment-milestone'),
+    custom_retention__security_deposit_:           fieldFloat('retention-percent'),
+    custom_retention__security_deposit_amount:     fieldFloat('retention-amount'),
 
-    custom_transportation_arrange_by:              document.getElementById('transportation-arrange-by').value || '',
-    custom_transportation_mode:                    document.getElementById('transportation-mode').value || '',
-    custom_transportation_cost:                    parseFloat(document.getElementById('transportation-cost').value) || 0,
-    custom_additional_charges:                     document.getElementById('additional-charges').value || '',
-    custom_details:                                document.getElementById('additional-charges-details').value || '',
-    custom_total_additional_charges:               parseFloat(document.getElementById('total-additional-charges').value) || 0,
-    shipping_rule:                                 document.getElementById('shipping-rule').value || '',
-    incoterm:                                      document.getElementById('incoterm').value || '',
-    named_place:                                   document.getElementById('named-place').value || '',
+    custom_transportation_arrange_by:              fieldValue('transportation-arrange-by'),
+    custom_transportation_mode:                    fieldValue('transportation-mode'),
+    custom_transportation_cost:                    fieldFloat('transportation-cost'),
+    custom_additional_charges:                     fieldValue('additional-charges'),
+    custom_details:                                fieldValue('additional-charges-details'),
+    custom_total_additional_charges:               fieldFloat('total-additional-charges'),
+    shipping_rule:                                 fieldValue('shipping-rule'),
+    incoterm:                                      fieldValue('incoterm'),
+    named_place:                                   fieldValue('named-place'),
 
-    custom_custom_duty_percentage:                 isInternationalScope ? (parseFloat(document.getElementById('custom-duty-percentage').value) || 0) : 0,
-    custom_social_welfare_fund_percentage:         isInternationalScope ? (parseFloat(document.getElementById('social-welfare-fund-percentage').value) || 0) : 0,
-    custom_custom_clearence:                       isInternationalScope ? (parseFloat(document.getElementById('custom-clearance').value) || 0) : 0,
-    custom_seaair_to_port_to_nmtg_works__freight:  isInternationalScope ? (parseFloat(document.getElementById('seaair-freight').value) || 0) : 0,
+    custom_custom_duty_percentage:                 0,
+    custom_social_welfare_fund_percentage:         0,
+    custom_custom_clearence:                       0,
+    custom_seaair_to_port_to_nmtg_works__freight:  0,
 
-    custom_supplier_contact_person: document.getElementById('supplier-contact-person').value || '',
-    custom_supplier_email:          document.getElementById('supplier-contact-email').value || '',
-    custom_supplier_mobile:         document.getElementById('supplier-contact-mobile').value || '',
+    custom_moq:                            fieldValue('moq'),
+    custom_standard_packing_qty:           fieldFloat('standard-packing-qty'),
+    custom_product_warranty:               fieldValue('product-warranty'),
 
-    custom_general_terms_acceptance:           document.getElementById('general-terms-acceptance').checked ? 1 : 0,
-    custom_no_hidden_charges_declaration:      document.getElementById('no-hidden-charges-declaration').checked ? 1 : 0,
-    custom_quotation_correctness_declaration:  document.getElementById('quotation-correctness-declaration').checked ? 1 : 0,
-    custom_authorized_person_name:             document.getElementById('authorized-person-name').value || '',
-    custom_designation:                        document.getElementById('designation').value || '',
-    custom__contact_number:                    document.getElementById('authorized-contact-number').value || ''
+    custom_service_type:                   fieldValue('service-type'),
+    custom_other_service_type:             fieldValue('other-service-type'),
+    custom_manpower_requirement:           fieldValue('manpower-requirement'),
+    custom_service_location:               fieldValue('service-location'),
+    custom_service_duration:               fieldValue('service-duration'),
+    custom_hours:                          fieldValue('hours'),
+    custom_day:                            fieldValue('day'),
+    custom_months:                         fieldValue('months'),
+    custom_yearly:                         fieldValue('yearly'),
+    custom_travel__boarding__lodging:      fieldValue('travel-boarding-lodging'),
+
+    custom_amc__service_support:           fieldValue('amc-service-support'),
+    custom_training_required:              fieldValue('training-required'),
+    custom_installation_required:          fieldValue('installation-required'),
+    custom_commissioning_required:         fieldValue('commissioning-required'),
+
+    custom_fixture__tooling_responsibility: fieldValue('fixture-tooling-responsibility'),
+    custom_input_material__wip_return:      fieldValue('input-material-wip-return'),
+    custom_return_lead_time:                fieldValue('return-lead-time'),
+    custom_scrap__rejection_responsibility: fieldValue('scrap-rejection-responsibility'),
+
+    custom_estimated_monthly_value:        fieldFloat('estimated-monthly-value'),
+    custom_estimated_monthly_qty:          fieldInt('estimated-monthly-qty'),
+    custom_minimum_commitment_qty:         fieldValue('minimum-commitment-qty'),
+    custom_order_release_method:           fieldValue('order-release-method'),
+    custom_termination_notice_period:      fieldValue('termination-notice-period'),
+    custom_days:                           fieldValue('days'),
+
+    custom_supplier_contact_person: fieldValue('supplier-contact-person'),
+    custom_supplier_email:          fieldValue('supplier-contact-email'),
+    custom_supplier_mobile:         fieldValue('supplier-contact-mobile'),
+
+    custom_condition:                          fieldChecked('general-terms-acceptance') ? 1 : 0,
+    apply_discount_on:                         fieldValue('apply-discount-on', 'Grand Total'),
+    additional_discount_percentage:            fieldFloat('additional-discount-percentage'),
+    discount_amount:                           fieldFloat('additional-discount-amount'),
+    custom_authorized_person_name:             fieldValue('authorized-person-name'),
+    custom_designation:                        fieldValue('designation'),
+    custom__contact_number:                    fieldValue('authorized-contact-number')
   };
 
   var csrfToken = await getFrappeCSRF();
@@ -1771,10 +2620,6 @@ async function submitQuotation() {
   }
 }
 
-document.getElementById('successModalClose').addEventListener('click', function() {
-  document.getElementById('successModal').hidden = true;
-});
-
 
 function toLocalISODate(date) {
   var year = date.getFullYear();
@@ -1798,22 +2643,33 @@ function initValidityDate() {
 
 function initConditionalFieldListeners() {
   document.getElementById('purchase-type').addEventListener('change', function() {
-    toggleConditionalFields();
-    refreshAllItemPanels();
-  });
+  toggleConditionalFields();
+  rebuildItemsTable();
+});
+
+  // document.getElementById('transportation-arrange-by').addEventListener('change', toggleConditionalFields);
+  // document.getElementById('transportation-arrange-by').addEventListener('change', updateTotals);
+  // document.getElementById('transportation-cost').addEventListener('input', updateTotals);
+  // document.getElementById('custom-duty-percentage').addEventListener('input', updateTotals);
+  // document.getElementById('social-welfare-fund-percentage').addEventListener('input', updateTotals);
+  // document.getElementById('custom-clearance').addEventListener('input', updateTotals);
+  // document.getElementById('seaair-freight').addEventListener('input', updateTotals);
+  // document.getElementById('additional-charges').addEventListener('change', toggleConditionalFields);
   document.getElementById('transportation-arrange-by').addEventListener('change', toggleConditionalFields);
   document.getElementById('transportation-arrange-by').addEventListener('change', updateTotals);
   document.getElementById('transportation-cost').addEventListener('input', updateTotals);
-  document.getElementById('custom-duty-percentage').addEventListener('input', updateTotals);
-  document.getElementById('social-welfare-fund-percentage').addEventListener('input', updateTotals);
-  document.getElementById('custom-clearance').addEventListener('input', updateTotals);
-  document.getElementById('seaair-freight').addEventListener('input', updateTotals);
   document.getElementById('additional-charges').addEventListener('change', toggleConditionalFields);
   document.getElementById('incoterm').addEventListener('input', toggleConditionalFields);
   document.getElementById('taxes-and-charges-template').addEventListener('change', onTaxesTemplateChange);
+
+  document.getElementById('service-type').addEventListener('change', toggleServiceTypeDetailFields);
+  document.getElementById('service-duration').addEventListener('change', toggleServiceDurationDetailFields);
+  document.getElementById('termination-notice-period').addEventListener('change', toggleTerminationNoticeDetailFields);
+
   toggleConditionalFields();
   toggleSupplierScopeFields();
 }
+
 
 (async function init() {
   var hasItems = loadFromParams();
@@ -1834,6 +2690,238 @@ function initConditionalFieldListeners() {
 
   showError('Invalid or missing link', 'No RFQ identifier found in the URL. Please use the link from your email.');
 })();
+
+function togglePurchaseTypeDetailFields() {
+  var pt = document.getElementById('purchase-type').value;
+
+  setConditional('moq', pt === 'Product / Material');
+  setConditional('standard-packing-qty', pt === 'Product / Material');
+  setConditional('product-warranty', pt === 'Product / Material');
+
+  setConditional('service-type', pt === 'Service');
+  setConditional('service-location', pt === 'Service');
+  setConditional('service-duration', pt === 'Service');
+  setConditional('travel-boarding-lodging', pt === 'Service');
+
+  setConditional('amc-service-support', pt === 'Asset Purchase');
+  setConditional('training-required', pt === 'Asset Purchase');
+  setConditional('installation-required', pt === 'Asset Purchase');
+  setConditional('commissioning-required', pt === 'Asset Purchase');
+
+  setConditional('fixture-tooling-responsibility', pt === 'Subcontracting');
+  setConditional('input-material-wip-return', pt === 'Subcontracting');
+  setConditional('return-lead-time', pt === 'Subcontracting');
+  setConditional('scrap-rejection-responsibility', pt === 'Subcontracting');
+
+  setConditional('estimated-monthly-value', pt === 'Rate Contract');
+  setConditional('estimated-monthly-qty', pt === 'Rate Contract');
+  setConditional('minimum-commitment-qty', pt === 'Rate Contract');
+  setConditional('order-release-method', pt === 'Rate Contract');
+  setConditional('termination-notice-period', pt === 'Rate Contract');
+
+  // re-evaluate nested (2nd-level) dependencies after parents are set
+  toggleServiceTypeDetailFields();
+  toggleServiceDurationDetailFields();
+  toggleTerminationNoticeDetailFields();
+}
+
+function toggleServiceTypeDetailFields() {
+  var st = document.getElementById('service-type').value;
+  setConditional('other-service-type', st === 'Other');
+  setConditional('manpower-requirement', st === 'Other');
+}
+
+function toggleServiceDurationDetailFields() {
+  var sd = document.getElementById('service-duration').value;
+  setConditional('hours', sd === 'Hours');
+  setConditional('day', sd === 'Days');
+  setConditional('months', sd === 'Months');
+  setConditional('yearly', sd === 'Yearly');
+}
+
+function toggleTerminationNoticeDetailFields() {
+  var tnp = document.getElementById('termination-notice-period').value;
+  setConditional('days', tnp === 'Days');
+}
+
+const PURCHASE_TYPE_COLUMNS = {
+  'Product / Material': [
+    { key: 'item',  label: 'Item / Code' },
+    { key: 'qty',   label: 'Qty / UOM' },
+    { key: 'price', label: 'Unit Price *' },
+    { key: 'field', label: 'Price Basis', field: 'custom_price_basis', type: 'select',
+      options: ['Unit Rate','Lump Sum','Rate Contract','Per Qty','Per Kg','Per Hour','Per Day','Per Month','Per Job'] },
+    { key: 'lead',  label: 'Lead Time *' },
+    { key: 'field', label: 'HSN Code', field: 'custom_hsn_code', type: 'text' },
+    { key: 'field', label: 'Shelf life / Expiry', field: 'custom_shelf_life__expiry', type: 'text' },
+    { key: 'field', label: 'Make', field: 'custom_offered_make__brand', type: 'text' },
+    { key: 'total', label: 'Total' }
+  ],
+
+  'Service': [
+    { key: 'item',  label: 'Item / Code' },
+    { key: 'qty',   label: 'Qty / UOM' },
+    { key: 'price', label: 'Unit Price *' },
+    { key: 'field', label: 'Service Rate Basis', field: 'custom_service_rate_basis', type: 'select',
+      options: ['Per visit','Per day','Per hour','Per month','Lump sum'] },
+    { key: 'total', label: 'Total' }
+  ],
+
+  'Rate Contract': [
+    { key: 'item',  label: 'Item / Code' },
+    { key: 'qty',   label: 'Qty / UOM' },
+    { key: 'field', label: 'Rate Basis', field: 'custom_rate_basis', type: 'select',
+      options: ['Per Qty','Per Kg','Per Hour','Per Day','Per Month','Per Job'] },
+    { key: 'price', label: 'Unit Price *' },
+    { key: 'total', label: 'Total' }
+  ],
+
+  'Subcontracting': [
+    { key: 'item',  label: 'Item / Code' },
+    { key: 'field', label: 'Job work / Process name', field: 'custom_job_work__process_name', type: 'select',
+      options: ['Machining','Grinding','Coating','Heat Treatment'] },
+    { key: 'field', label: 'Job Work Rate Basis', field: 'custom_job_work_rate_basis', type: 'select',
+      options: ['Per Qty','Per Kg','Per Operation','Lump Sum'] },
+    { key: 'qty',   label: 'Qty / UOM' },
+    { key: 'price', label: 'Unit Price *' },
+    { key: 'total', label: 'Total' }
+  ],
+
+  'Asset Purchase': [
+    { key: 'item',  label: 'Item / Code' },
+    { key: 'field', label: 'Asset Type', field: 'custom_asset_type', type: 'select',
+      options: ['Machine','Equipment','Instrument','Software','Hardware','Other'] },
+    { key: 'qty',   label: 'Qty / UOM' },
+    { key: 'price', label: 'Unit Price *' },
+    { key: 'field', label: 'Warranty Period', field: 'custom_warranty_period', type: 'select',
+      options: ['Months','Years'] },
+    { key: 'total', label: 'Total' }
+  ],
+
+  default: [
+    { key: 'item',  label: 'Item / Code' },
+    { key: 'qty',   label: 'Qty / UOM' },
+    { key: 'price', label: 'Unit Price *' },
+    { key: 'lead',  label: 'Lead Time *' },
+    { key: 'field', label: 'Expected Delivery', field: 'expected_delivery_date', type: 'date' },
+    { key: 'total', label: 'Total' }
+  ]
+};
+
+function getActiveColumns() {
+  var pt = document.getElementById('purchase-type').value;
+  return PURCHASE_TYPE_COLUMNS[pt] || PURCHASE_TYPE_COLUMNS.default;
+}
+
+function getInlineFieldNames() {
+  return getActiveColumns().filter(function(c) { return c.field; }).map(function(c) { return c.field; });
+}
+/*
+function buildItemsHeader() {
+  var cols = getActiveColumns();
+  var html = '<tr><th style="width:32px">#</th>';
+  cols.forEach(function(c) {
+    html += '<th' + (c.key === 'total' ? ' class="right" style="width:105px"' : '') + '>' + c.label + '</th>';
+  });
+  html += '<th style="width:105px"></th></tr>';
+  document.getElementById('items-thead').innerHTML = html;
+}*/
+
+function buildItemsHeader() {
+  var cols = getActiveColumns();
+  var html = '<tr><th style="width:32px">#</th>';
+  cols.forEach(function(c) {
+    html += '<th' + (c.key === 'total' ? ' class="right" style="width:105px"' : '') + '>' + c.label + '</th>';
+  });
+  html += '</tr>';
+  document.getElementById('items-thead').innerHTML = html;
+}
+
+function renderItemColumnCell(col, item, idx) {
+  switch (col.key) {
+    case 'item':
+      return '<div class="item-cell">' +
+        (item.img
+          ? '<img class="item-thumb-sm" src="' + item.img + '" alt="" onerror="this.style.display=\'none\'" />'
+          : '<div class="item-thumb-sm"></div>') +
+        '<div><div class="item-cell-name">' + item.item_name + '</div>' +
+        '<div class="item-cell-meta">' + item.item_code + (item.item_group ? ' &middot; ' + item.item_group : '') + '</div>' +
+        (item.tds ? '<div style="margin-top:5px"><a href="' + item.tds + '" target="_blank" style="font-size:11.5px;color:var(--accent);">Download TDS / Spec Sheet</a></div>' : '') +
+        '</div></div>';
+
+    case 'qty':
+      return '<span class="qty-badge">' + item.qty + ' ' + item.uom + '</span>';
+
+    case 'price':
+      return '<div class="price-input-wrap"><span class="price-pfx">\u20B9</span>' +
+        '<input type="number" id="price-' + idx + '" placeholder="0.00" min="0.01" step="0.01" oninput="updateTotals()" data-idx="' + idx + '" /></div>' +
+        '<div class="err-inline" id="err-price-' + idx + '">Required</div>';
+
+    case 'lead':
+      return '<input type="number" class="lead-input" id="lead-' + idx + '" placeholder="days" min="1" step="1" data-idx="' + idx + '" />' +
+        '<div class="err-inline" id="err-lead-' + idx + '">Required</div>';
+
+    case 'total':
+      return '<div class="line-total muted" id="line-total-' + idx + '">&mdash;</div>';
+
+    case 'field':
+    default:
+      var id = col.field + '-' + idx;
+      if (col.type === 'select') {
+        return '<select id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '">' +
+          '<option value="">&mdash;</option>' +
+          col.options.map(function(o) { return '<option value="' + o + '">' + o + '</option>'; }).join('') +
+          '</select>';
+      }
+      if (col.type === 'date') {
+        return '<input type="date" id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '" />';
+      }
+      return '<input type="text" id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '" />';
+  }
+}
+
+function rebuildItemsTable() {
+  var savedPrices = {}, savedLeads = {};
+  RFQ.items.forEach(function(_, idx) {
+    var p = document.getElementById('price-' + idx);
+    var l = document.getElementById('lead-' + idx);
+    if (p) savedPrices[idx] = p.value;
+    if (l) savedLeads[idx] = l.value;
+  });
+
+  renderItems();
+
+  RFQ.items.forEach(function(_, idx) {
+    var p = document.getElementById('price-' + idx);
+    var l = document.getElementById('lead-' + idx);
+    if (p && savedPrices[idx]) p.value = savedPrices[idx];
+    if (l && savedLeads[idx]) l.value = savedLeads[idx];
+  });
+
+  updateTotals();
+}
+
+function fieldValue(id, fallback) {
+  var el = document.getElementById(id);
+  return el ? el.value : (fallback !== undefined ? fallback : '');
+}
+
+function fieldFloat(id, fallback) {
+  var el = document.getElementById(id);
+  var n = el ? parseFloat(el.value) : NaN;
+  return isNaN(n) ? (fallback !== undefined ? fallback : 0) : n;
+}
+
+function fieldInt(id, fallback) {
+  var el = document.getElementById(id);
+  var n = el ? parseInt(el.value, 10) : NaN;
+  return isNaN(n) ? (fallback !== undefined ? fallback : 0) : n;
+}
+
+function fieldChecked(id) {
+  var el = document.getElementById(id);
+  return !!(el && el.checked);
+}
 
 </script>
 </body>
