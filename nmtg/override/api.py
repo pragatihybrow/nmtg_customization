@@ -145,6 +145,73 @@ HEADER_CUSTOM_FIELDS = [
 #     frappe.db.commit()
 #     return {"name": doc.name, "status": "created"}
 
+# ---- fields that actually exist on Supplier Quotation and are sent by the portal ----
+CUSTOM_HEADER_FIELDS = [
+    "custom_purchase_type",
+    "custom_other_purchase_type",
+    "custom_quality_category",
+    "custom_rfq_nature",
+
+    # Purchase Type Details
+    "custom_moq",
+    "custom_standard_packing_qty",
+    "custom_product_warranty",
+    "custom_service_type",
+    "custom_other_service_type",
+    "custom_manpower_requirement",
+    "custom_service_location",
+    "custom_service_duration",
+    "custom_hours",
+    "custom_day",
+    "custom_months",
+    "custom_yearly",
+    "custom_travel__boarding__lodging",
+    "custom_amc__service_support",
+    "custom_training_required",
+    "custom_installation_required",
+    "custom_commissioning_required",
+    "custom_fixture__tooling_responsibility",
+    "custom_input_material__wip_return",
+    "custom_return_lead_time",
+    "custom_scrap__rejection_responsibility",
+    "custom_estimated_monthly_value",
+    "custom_estimated_monthly_qty",
+    "custom_minimum_commitment_qty",
+    "custom_order_release_method",
+    "custom_termination_notice_period",
+    "custom_days",
+
+    # Transportation & additional charges
+    "custom_transportation_arrange_by",
+    "custom_transportation_mode",
+    "custom_transportation_cost",
+    "custom_additional_charges",
+    "custom_details",
+    "custom_total_additional_charges",
+
+    # Supplier contact / sign-off
+    "custom_supplier_contact_person",
+    "custom_supplier_email",
+    "custom_supplier_mobile",
+    "custom_authorized_person_name",
+    "custom_designation",
+    "custom__contact_number",
+    "custom_condition",
+
+    # NOTE: custom_price_validity must be created on the doctype first — see Step 2
+    "custom_price_validity",
+]
+
+# standard (non "custom_") fields that also come from the portal
+STANDARD_HEADER_FIELDS = [
+    "shipping_rule",
+    "incoterm",
+    "named_place",
+    "apply_discount_on",
+    "additional_discount_percentage",
+    "discount_amount",
+]
+
 
 @frappe.whitelist(allow_guest=True)
 def submit_supplier_quotation(data):
@@ -197,8 +264,8 @@ def submit_supplier_quotation(data):
     if data.get('taxes_and_charges'):
         doc.taxes_and_charges = data['taxes_and_charges']
 
-    # ---- header-level custom fields ----
-    for fieldname in HEADER_CUSTOM_FIELDS:
+    # ---- header-level custom + standard fields ----
+    for fieldname in CUSTOM_HEADER_FIELDS + STANDARD_HEADER_FIELDS:
         if fieldname in data:
             doc.set(fieldname, data[fieldname])
 
@@ -221,6 +288,15 @@ def submit_supplier_quotation(data):
                 row[key] = value
 
         doc.append("items", row)
+
+    # ---- payment terms child table ----
+    for term in data.get('custom_payement_terms', []):
+        doc.append("custom_payement_terms", {
+            "terms": term.get('terms', ''),
+            "percentage": term.get('percentage', 0),
+            "amount": term.get('amount', 0),
+            "days": term.get('days', ''),
+        })
 
     # ---- taxes and charges table ----
     for tax in data.get('taxes', []):
@@ -248,6 +324,7 @@ def submit_supplier_quotation(data):
         frappe.flags.ignore_permissions = original_ignore_permissions
 
     return {"name": doc.name, "status": "created"}
+
 
     
 @frappe.whitelist(allow_guest=True)
@@ -1645,3 +1722,41 @@ def get_formatted_size(required_fields_json, doctype="Item"):
 
     return " x ".join(values)
 
+
+@frappe.whitelist(allow_guest=True)
+def get_incoterms():
+    return frappe.get_all("Incoterm", fields=["name"], order_by="name asc", limit_page_length=0)
+
+@frappe.whitelist(allow_guest=True)
+def get_shipping_rules(company=None):
+    filters = {"company": company} if company else {}
+    return frappe.get_all("Shipping Rule", filters=filters, fields=["name"], order_by="name asc", limit_page_length=0)
+
+
+import frappe
+from erpnext.setup.utils import get_exchange_rate as erp_get_exchange_rate
+
+@frappe.whitelist(allow_guest=True)
+def get_currencies():
+    return frappe.get_all(
+        "Currency",
+        filters={"enabled": 1},
+        fields=["name", "currency_name"],
+        order_by="name"
+    )
+
+@frappe.whitelist(allow_guest=True)
+def get_exchange_rate(currency, company=None, transaction_date=None):
+    if not currency:
+        return None
+
+    company_currency = (
+        frappe.db.get_value("Company", company, "default_currency")
+        if company else frappe.defaults.get_global_default("currency")
+    )
+
+    if currency == company_currency:
+        return 1.0
+
+    rate = erp_get_exchange_rate(currency, company_currency, transaction_date)
+    return rate or None

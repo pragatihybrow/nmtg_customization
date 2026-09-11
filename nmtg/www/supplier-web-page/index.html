@@ -250,6 +250,17 @@
           <input type="number" id="price-validity" min="0" step="1" placeholder="e.g. 30" />
           <span class="err-inline" id="err-price-validity">Please enter price validity in days.</span>
         </div>
+        <div class="field">
+          <label>Quotation Currency <span class="req">*</span></label>
+          <input type="text" id="quotation-currency" list="currency-list" autocomplete="off" placeholder="Start typing to search&hellip;" />
+          <datalist id="currency-list"></datalist>
+          <span class="err-inline" id="err-quotation-currency">Please select a valid currency from the list.</span>
+        </div>
+        <div class="field">
+          <label>Exchange Rate <span class="req">*</span> <span class="hint">(auto-fetched)</span></label>
+          <input type="number" id="exchange-rate" min="0" step="0.000001" placeholder="Auto-fetched on currency selection" />
+          <span class="err-inline" id="err-exchange-rate">Please enter a valid exchange rate.</span>
+        </div>
         
       </div>
 
@@ -292,14 +303,16 @@
           <label>Total additional charges</label>
           <input type="number" id="total-additional-charges" min="0" step="0.01" />
         </div>
-        <div class="field">
-          <label>Shipping rule <span class="hint"></span></label>
-          <input type="text" id="shipping-rule" placeholder="Shipping Rule name" />
-        </div>
-        <div class="field">
-          <label>Incoterm <span class="hint"></span></label>
-          <input type="text" id="incoterm" placeholder="e.g. FOB, CIF, EXW" />
-        </div>
+       <!-- <div class="field">
+        <label>Shipping rule <span class="hint"></span></label>
+        <input type="text" id="shipping-rule" list="shipping-rule-list" autocomplete="off" placeholder="Start typing to search…" />
+        <datalist id="shipping-rule-list"></datalist>
+      </div> -->
+      <div class="field">
+        <label>Incoterm <span class="hint"></span></label>
+        <input type="text" id="incoterm" list="incoterm-list" autocomplete="off" placeholder="Start typing to search…" />
+        <datalist id="incoterm-list"></datalist>
+      </div>
         <div class="field conditional-field" id="wrap-named-place">
           <label>Named place</label>
           <input type="text" id="named-place" placeholder="Named place for the incoterm" />
@@ -621,9 +634,9 @@
 
     <!-- ============= PAYMENT TERMS =============  -->
 
-  <div class="card">
-  <div class="section-title">Payment Terms</div>
-  <div class="section-sub">Add one row per payment milestone / term</div>
+ <div class="card">
+  <div class="section-title">Payment Terms <span class="req">*</span></div>
+  <div class="section-sub">Add one row per payment milestone / term — required, must total 100%</div>
   <table class="checksheet" id="payment-terms-table" style="margin-top:14px;">
     <thead>
       <tr>
@@ -638,6 +651,7 @@
     <tbody id="payment-terms-tbody"></tbody>
   </table>
   <p class="item-tab-empty" id="payment-terms-empty-note">No payment terms added yet.</p>
+  <span class="err-inline" id="err-payment-terms">Please add at least one Payment Term.</span>
   <button type="button" class="btn" onclick="addPaymentTermRow()">+ Add Payment Term</button>
 </div>
 
@@ -1670,6 +1684,74 @@ function collectTaxRows() {
 
 var TAXES_TEMPLATES = [];
 
+var INCOTERMS = [];
+var SHIPPING_RULES = [];
+var CURRENCIES = [];
+
+async function loadCurrencies() {
+  try {
+    var res = await fetch('/api/method/nmtg.override.api.get_currencies', { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      var data = await res.json();
+      CURRENCIES = data.message || [];
+      document.getElementById('currency-list').innerHTML =
+        CURRENCIES.map(function(c) { return '<option value="' + c.name + '">' + (c.currency_name ? c.currency_name : '') + '</option>'; }).join('');
+    }
+  } catch (_) { /* field still works as free text if this fails */ }
+}
+
+async function fetchExchangeRate(currency) {
+  var rateEl = document.getElementById('exchange-rate');
+  if (!currency) return;
+  showToast('Fetching exchange rate\u2026', 'loading');
+  try {
+    var qs = '?currency=' + encodeURIComponent(currency) +
+      (RFQ.company ? '&company=' + encodeURIComponent(RFQ.company) : '') +
+      (RFQ.transaction_date ? '&transaction_date=' + encodeURIComponent(RFQ.transaction_date) : '');
+    var res = await fetch('/api/method/nmtg.override.api.get_exchange_rate' + qs, { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      var data = await res.json();
+      var rate = data.message;
+      if (rate) {
+        rateEl.value = parseFloat(rate).toFixed(6);
+        document.getElementById('err-quotation-currency').classList.remove('show');
+        document.getElementById('quotation-currency').classList.remove('invalid');
+        document.getElementById('toast').className = 'toast';
+        return;
+      }
+    }
+  } catch (_) { /* fall through to the toast below */ }
+  showToast('Could not auto-fetch the exchange rate for ' + currency + '. Please enter it manually.', 'error', 6000);
+}
+
+
+
+async function loadIncoterms() {
+  try {
+    var res = await fetch('/api/method/nmtg.override.api.get_incoterms', { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      var data = await res.json();
+      INCOTERMS = data.message || [];
+      document.getElementById('incoterm-list').innerHTML =
+        INCOTERMS.map(function(t) { return '<option value="' + t.name + '">'; }).join('');
+    }
+  } catch (_) { /* field still works as free text if this fails */ }
+}
+
+async function loadShippingRules() {
+  try {
+    var qs = RFQ.company ? ('?company=' + encodeURIComponent(RFQ.company)) : '';
+    var res = await fetch('/api/method/nmtg.override.api.get_shipping_rules' + qs, { headers: { 'Accept': 'application/json' } });
+    if (res.ok) {
+      var data = await res.json();
+      SHIPPING_RULES = data.message || [];
+      document.getElementById('shipping-rule-list').innerHTML =
+        SHIPPING_RULES.map(function(t) { return '<option value="' + t.name + '">'; }).join('');
+    }
+  } catch (_) { /* field still works as free text if this fails */ }
+}
+
+
 async function loadTaxesTemplates() {
   try {
     var qs = RFQ.company ? ('?company=' + encodeURIComponent(RFQ.company)) : '';
@@ -1683,6 +1765,56 @@ async function loadTaxesTemplates() {
     }
   } catch (_) { /* field still works as free text if this fails */ }
 }
+
+// (async function init() {
+//   var hasItems = loadFromParams();
+//   initConditionalFieldListeners();
+
+//   if (hasItems) {
+//     renderItems();
+//     loadTaxesTemplates();
+//     loadIncoterms();
+//     loadShippingRules();
+//     return;
+//   }
+
+//   if (RFQ.name) {
+//     var fetched = await fetchRFQFromAPI(RFQ.name);
+//     if (fetched) renderItems();
+//     loadTaxesTemplates();
+//     loadIncoterms();
+//     loadShippingRules();
+//     return;
+//   }
+
+//   showError('Invalid or missing link', 'No RFQ identifier found in the URL. Please use the link from your email.');
+// })();
+
+(async function init() {
+  var hasItems = loadFromParams();
+  initConditionalFieldListeners();
+
+  if (hasItems) {
+    renderItems();
+    loadTaxesTemplates();
+    loadIncoterms();
+    loadShippingRules();
+    loadCurrencies();
+    return;
+  }
+
+  if (RFQ.name) {
+    var fetched = await fetchRFQFromAPI(RFQ.name);
+    if (fetched) renderItems();
+    loadTaxesTemplates();
+    loadIncoterms();
+    loadShippingRules();
+    loadCurrencies();
+    return;
+  }
+
+  showError('Invalid or missing link', 'No RFQ identifier found in the URL. Please use the link from your email.');
+})();
 /*
 async function onTaxesTemplateChange() {
   var val = document.getElementById('taxes-and-charges-template').value.trim();
@@ -1836,14 +1968,17 @@ function addPaymentTermRow() {
       '<option value="">&mdash; Select &mdash;</option>' +
       PAYMENT_TERM_TYPES.map(function(t) { return '<option value="' + t + '">' + t + '</option>'; }).join('') +
     '</select></td>' +
-    '<td><input type="number" id="payment-term-percentage-' + idx + '" min="0" max="100" step="0.01" placeholder="0.00" /></td>' +
-    '<td><input type="number" id="payment-term-amount-' + idx + '" min="0" step="0.01" placeholder="0.00" /></td>' +
+    '<td><input type="number" id="payment-term-percentage-' + idx + '" min="0" max="100" step="0.01" placeholder="0.00" oninput="onPaymentTermPercentageChange(' + idx + ')" /></td>' +
+    '<td><input type="number" id="payment-term-amount-' + idx + '" min="0" step="0.01" placeholder="0.00" oninput="onPaymentTermAmountChange(' + idx + ')" /></td>' +
     '<td><input type="text" id="payment-term-days-' + idx + '" placeholder="N/A" disabled /></td>' +
     '<td><button type="button" class="details-toggle-btn tax-remove-btn" onclick="removePaymentTermRow(' + idx + ')">Remove</button></td>';
   tbody.appendChild(tr);
 
   document.getElementById('payment-terms-empty-note').style.display = 'none';
+  clearPaymentTermsError();
+  recalculatePaymentTermAmounts();
 }
+
 
 function removePaymentTermRow(idx) {
   var el = document.getElementById('payment-term-row-' + idx);
@@ -1851,7 +1986,9 @@ function removePaymentTermRow(idx) {
   if (document.getElementById('payment-terms-tbody').children.length === 0) {
     document.getElementById('payment-terms-empty-note').style.display = 'block';
   }
+  clearPaymentTermsError();
 }
+
 
 function onPaymentTermTypeChange(idx) {
   var type = document.getElementById('payment-term-terms-' + idx).value;
@@ -1895,6 +2032,8 @@ function collectPaymentTerms() {
 }
 
 var lastDiscountEdit = 'percentage'; 
+var currentGrandTotal = 0;
+var lastDiscountEdit = 'percentage'; 
 function updateTotals() {
   var subtotal = 0, allFilled = true, totalQty = 0;
 
@@ -1928,12 +2067,11 @@ function updateTotals() {
   var discountAmount = 0, discountPct = 0, preDiscountTotal = 0, finalTotal = 0, taxResult;
 
   if (applyOn === 'Net Total') {
-    // Discount is applied to the items subtotal BEFORE tax is calculated
     var basis = subtotal;
 
     if (lastDiscountEdit === 'amount') {
       discountAmount = parseFloat(discountAmtInput.value) || 0;
-      if (discountAmount > basis) discountAmount = basis; // don't discount past zero
+      if (discountAmount > basis) discountAmount = basis;
       discountPct = basis > 0 ? (discountAmount / basis * 100) : 0;
       if (subtotal > 0) discountPctInput.value = discountPct.toFixed(2);
     } else {
@@ -1949,7 +2087,6 @@ function updateTotals() {
     finalTotal = subtotal > 0 ? taxResult.grandTotal : 0;
 
   } else {
-    // Grand Total mode: tax is calculated on the full subtotal, discount taken off the tax-inclusive total
     taxResult = calcTaxTable(subtotal, totalQty);
     var basisGrand = taxResult.grandTotal;
 
@@ -1980,7 +2117,59 @@ function updateTotals() {
     discountAmtInput.value = '';
   }
 
+  // --- NEW: track grand total and keep payment term amounts in sync ---
+  currentGrandTotal = subtotal > 0 ? taxResult.grandTotal : 0;
+  recalculatePaymentTermAmounts();
+  // --- END NEW ---
+
   updateInternationalLandingCostPreview(subtotal);
+}
+
+function recalculatePaymentTermAmounts() {
+  document.querySelectorAll('#payment-terms-tbody .payment-term-row').forEach(function(rowEl) {
+    var idx = rowEl.dataset.idx;
+    var pctEl = document.getElementById('payment-term-percentage-' + idx);
+    var amtEl = document.getElementById('payment-term-amount-' + idx);
+    if (!pctEl || !amtEl) return;
+    var pct = parseFloat(pctEl.value) || 0;
+    if (pct > 0 && currentGrandTotal > 0) {
+      amtEl.value = (currentGrandTotal * pct / 100).toFixed(2);
+    }
+  });
+}
+
+function onPaymentTermPercentageChange(idx) {
+  var pctEl = document.getElementById('payment-term-percentage-' + idx);
+  var amtEl = document.getElementById('payment-term-amount-' + idx);
+  var pct = parseFloat(pctEl.value) || 0;
+
+  if (pct > 100) {
+    pct = 100;
+    pctEl.value = 100;
+  }
+
+  if (currentGrandTotal > 0) {
+    amtEl.value = (currentGrandTotal * pct / 100).toFixed(2);
+  }
+
+  clearPaymentTermsError();
+}
+
+function onPaymentTermAmountChange(idx) {
+  var pctEl = document.getElementById('payment-term-percentage-' + idx);
+  var amtEl = document.getElementById('payment-term-amount-' + idx);
+  var amt = parseFloat(amtEl.value) || 0;
+
+  if (currentGrandTotal > 0) {
+    pctEl.value = (amt / currentGrandTotal * 100).toFixed(2);
+  }
+
+  clearPaymentTermsError();
+}
+
+function clearPaymentTermsError() {
+  var err = document.getElementById('err-payment-terms');
+  if (err) err.classList.remove('show');
 }
 
 /*
@@ -2076,19 +2265,6 @@ function toggleSupplierScopeFields() {
   ['international-section-title', 'international-section-sub', 'international-shipment-grid'].forEach(function(id) {
     setConditional(id, isInternational);
   });
-
-  var taxSettingsCard = document.getElementById('wrap-tax-settings-card');
-  var taxRowsCard = document.getElementById('wrap-tax-rows-card');
-  var intlTaxNote = document.getElementById('wrap-international-tax-note');
-  if (taxSettingsCard) taxSettingsCard.classList.toggle('show', !isInternational);
-  if (taxRowsCard) taxRowsCard.classList.toggle('show', !isInternational);
-  if (intlTaxNote) intlTaxNote.classList.toggle('show', isInternational);
-
-  if (isInternational) {
-    document.getElementById('tax-category').value = '';
-    document.getElementById('taxes-and-charges-template').value = '';
-  }
-
   updateTotals();
 }
 
@@ -2112,6 +2288,7 @@ function toggleConditionalFields() {
 
   togglePurchaseTypeDetailFields();
 }
+
 
 function validate() {
   var valid = true;
@@ -2181,9 +2358,101 @@ function validate() {
     errPriceValidity.classList.remove('show');
   }
 
-  var isInternationalScope = supplierScopeEl.value === 'International';
+  // --- Quotation Currency / Exchange Rate ---
+  var currencyEl = document.getElementById('quotation-currency');
+  var errCurrency = document.getElementById('err-quotation-currency');
+  if (!currencyEl.value.trim() || (CURRENCIES.length && !CURRENCIES.some(function(c) { return c.name === currencyEl.value; }))) {
+    currencyEl.classList.add('invalid');
+    errCurrency.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || currencyEl;
+  } else {
+    currencyEl.classList.remove('invalid');
+    errCurrency.classList.remove('show');
+  }
+
+  var exchangeRateEl = document.getElementById('exchange-rate');
+  var errExchangeRate = document.getElementById('err-exchange-rate');
+  if (!exchangeRateEl.value || parseFloat(exchangeRateEl.value) <= 0) {
+    exchangeRateEl.classList.add('invalid');
+    errExchangeRate.classList.add('show');
+    valid = false; firstInvalidEl = firstInvalidEl || exchangeRateEl;
+  } else {
+    exchangeRateEl.classList.remove('invalid');
+    errExchangeRate.classList.remove('show');
+  }
+  // --- END Quotation Currency / Exchange Rate ---
+
+  // Incoterm / Shipping Rule must match a real record if typed
+  var incotermEl = document.getElementById('incoterm');
+  if (incotermEl.value && INCOTERMS.length && !INCOTERMS.some(function(t) { return t.name === incotermEl.value; })) {
+    incotermEl.classList.add('invalid');
+    valid = false; firstInvalidEl = firstInvalidEl || incotermEl;
+  } else {
+    incotermEl.classList.remove('invalid');
+  }
+
+  var shippingRuleEl = document.getElementById('shipping-rule');
+  if (shippingRuleEl.value && SHIPPING_RULES.length && !SHIPPING_RULES.some(function(t) { return t.name === shippingRuleEl.value; })) {
+    shippingRuleEl.classList.add('invalid');
+    valid = false; firstInvalidEl = firstInvalidEl || shippingRuleEl;
+  } else {
+    shippingRuleEl.classList.remove('invalid');
+  }
+
+  // --- Payment Terms: mandatory — at least one row required, must total 100% ---
+  var paymentTermRows = document.querySelectorAll('#payment-terms-tbody .payment-term-row');
+  var errPaymentTerms = document.getElementById('err-payment-terms');
+
+  if (paymentTermRows.length === 0) {
+    errPaymentTerms.textContent = 'Please add at least one Payment Term.';
+    errPaymentTerms.classList.add('show');
+    valid = false;
+    firstInvalidEl = firstInvalidEl || document.getElementById('payment-terms-tbody');
+  } else {
+    var totalPct = 0;
+    var rowsOk = true;
+    paymentTermRows.forEach(function(rowEl) {
+      var idx = rowEl.dataset.idx;
+      var termsEl = document.getElementById('payment-term-terms-' + idx);
+      var pctEl = document.getElementById('payment-term-percentage-' + idx);
+
+      if (!termsEl.value) {
+        termsEl.classList.add('invalid');
+        rowsOk = false;
+        firstInvalidEl = firstInvalidEl || termsEl;
+      } else {
+        termsEl.classList.remove('invalid');
+      }
+
+      var pct = parseFloat(pctEl.value) || 0;
+      if (pct <= 0) {
+        pctEl.classList.add('invalid');
+        rowsOk = false;
+        firstInvalidEl = firstInvalidEl || pctEl;
+      } else {
+        pctEl.classList.remove('invalid');
+      }
+
+      totalPct += pct;
+    });
+
+    if (!rowsOk) {
+      errPaymentTerms.textContent = 'Please select a Term and enter a Percentage greater than 0 for every Payment Term row.';
+      errPaymentTerms.classList.add('show');
+      valid = false;
+    } else if (Math.abs(totalPct - 100) > 0.01) {
+      errPaymentTerms.textContent = 'Total Payment Terms percentage must equal exactly 100%. Current total is ' + totalPct.toFixed(2) + '%.';
+      errPaymentTerms.classList.add('show');
+      valid = false;
+      firstInvalidEl = firstInvalidEl || document.getElementById('payment-terms-tbody');
+    } else {
+      errPaymentTerms.classList.remove('show');
+    }
+  }
+  // --- END Payment Terms ---
+
+  // Tax rows are now validated for ALL supplier scopes, including International.
   document.querySelectorAll('#taxes-tbody .tax-row').forEach(function(rowEl) {
-    if (isInternationalScope) return; // GST rows don't apply for International scope
     var idx = rowEl.dataset.idx;
     var accEl  = document.getElementById('tax-account-' + idx);
     var descEl = document.getElementById('tax-desc-' + idx);
@@ -2253,6 +2522,7 @@ function validate() {
   if (!valid && firstInvalidEl) firstInvalidEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
   return valid;
 }
+
 
 /*
 function validate() {
@@ -2480,6 +2750,146 @@ function extractFrappeErrorMessage(data) {
   return 'Submission failed.';
 }
 
+// async function submitQuotation() {
+//   if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
+//   var btn = document.getElementById('submit-btn');
+//   btn.disabled = true;
+//   showToast('Submitting your quotation\u2026', 'loading');
+
+//   var isInternationalScope = document.getElementById('supplier-scope').value === 'International';
+
+//   var itemRows = RFQ.items.map(function(item, idx) {
+//     var priceEl = document.getElementById('price-' + idx);
+//     var leadEl  = document.getElementById('lead-' + idx);
+//     var base = {
+//       item_code:             item.item_code,
+//       qty:                   item.qty,
+//       uom:                   item.uom,
+//       warehouse:             item.warehouse || RFQ.set_warehouse || '',
+//       rate:                  priceEl ? parseFloat(priceEl.value) : 0,
+//       lead_time_days:        leadEl ? parseInt(leadEl.value) : 0,
+//       material_request:      item.material_request      || '',
+//       material_request_item: item.material_request_item || ''
+//     };
+//     var customFields = collectItemCustomFields(idx);
+//     return Object.assign(base, customFields);
+//   });
+
+//   var payload = {
+//     supplier:               RFQ.supplier,
+//     company:                RFQ.company,
+//     valid_till:             fieldValue('valid-till'),
+//     rfq:                    RFQ.name,
+//     items:                  itemRows,
+//     terms:                  fieldValue('notes'),
+//     custom_payement_terms:  collectPaymentTerms(),
+
+//     // Taxes are now sent for ALL supplier scopes, including International.
+//     tax_category:           fieldValue('tax-category'),
+//     taxes_and_charges:      fieldValue('taxes-and-charges-template'),
+//     taxes:                  collectTaxRows(),
+
+//     custom_supplier_scope:                         fieldValue('supplier-scope'),
+//     custom_purchase_type:                         fieldValue('purchase-type'),
+//     custom_other_purchase_type:                   fieldValue('other-purchase-type'),
+//     custom_quality_category:                      fieldValue('quality-category'),
+//     custom_rfq_nature:                             fieldValue('rfq-nature'),
+//     custom_price_validity:                         fieldFloat('price-validity'),
+//     custom_warranty__guarantee:                    fieldValue('warranty'),
+//     custom_payment_milestone:                      fieldValue('payment-milestone'),
+//     custom_retention__security_deposit_:           fieldFloat('retention-percent'),
+//     custom_retention__security_deposit_amount:     fieldFloat('retention-amount'),
+
+//     custom_transportation_arrange_by:              fieldValue('transportation-arrange-by'),
+//     custom_transportation_mode:                    fieldValue('transportation-mode'),
+//     custom_transportation_cost:                    fieldFloat('transportation-cost'),
+//     custom_additional_charges:                     fieldValue('additional-charges'),
+//     custom_details:                                fieldValue('additional-charges-details'),
+//     custom_total_additional_charges:               fieldFloat('total-additional-charges'),
+//     shipping_rule:                                 fieldValue('shipping-rule'),
+//     incoterm:                                      fieldValue('incoterm'),
+//     named_place:                                   fieldValue('named-place'),
+
+//     custom_custom_duty_percentage:                 0,
+//     custom_social_welfare_fund_percentage:         0,
+//     custom_custom_clearence:                       0,
+//     custom_seaair_to_port_to_nmtg_works__freight:  0,
+
+//     custom_moq:                            fieldValue('moq'),
+//     custom_standard_packing_qty:           fieldFloat('standard-packing-qty'),
+//     custom_product_warranty:               fieldValue('product-warranty'),
+
+//     custom_service_type:                   fieldValue('service-type'),
+//     custom_other_service_type:             fieldValue('other-service-type'),
+//     custom_manpower_requirement:           fieldValue('manpower-requirement'),
+//     custom_service_location:               fieldValue('service-location'),
+//     custom_service_duration:               fieldValue('service-duration'),
+//     custom_hours:                          fieldValue('hours'),
+//     custom_day:                            fieldValue('day'),
+//     custom_months:                         fieldValue('months'),
+//     custom_yearly:                         fieldValue('yearly'),
+//     custom_travel__boarding__lodging:      fieldValue('travel-boarding-lodging'),
+
+//     custom_amc__service_support:           fieldValue('amc-service-support'),
+//     custom_training_required:              fieldValue('training-required'),
+//     custom_installation_required:          fieldValue('installation-required'),
+//     custom_commissioning_required:         fieldValue('commissioning-required'),
+
+//     custom_fixture__tooling_responsibility: fieldValue('fixture-tooling-responsibility'),
+//     custom_input_material__wip_return:      fieldValue('input-material-wip-return'),
+//     custom_return_lead_time:                fieldValue('return-lead-time'),
+//     custom_scrap__rejection_responsibility: fieldValue('scrap-rejection-responsibility'),
+
+//     custom_estimated_monthly_value:        fieldFloat('estimated-monthly-value'),
+//     custom_estimated_monthly_qty:          fieldInt('estimated-monthly-qty'),
+//     custom_minimum_commitment_qty:         fieldValue('minimum-commitment-qty'),
+//     custom_order_release_method:           fieldValue('order-release-method'),
+//     custom_termination_notice_period:      fieldValue('termination-notice-period'),
+//     custom_days:                           fieldValue('days'),
+
+//     custom_supplier_contact_person: fieldValue('supplier-contact-person'),
+//     custom_email:          fieldValue('supplier-contact-email'),
+//     custom_supplier_mobile:         fieldValue('supplier-contact-mobile'),
+
+//     custom_condition:                          fieldChecked('general-terms-acceptance') ? 1 : 0,
+//     apply_discount_on:                         fieldValue('apply-discount-on', 'Grand Total'),
+//     additional_discount_percentage:            fieldFloat('additional-discount-percentage'),
+//     discount_amount:                           fieldFloat('additional-discount-amount'),
+//     custom_authorized_person_name:             fieldValue('authorized-person-name'),
+//     custom_designation:                        fieldValue('designation'),
+//     custom__contact_number:                    fieldValue('authorized-contact-number')
+//   };
+
+//   var csrfToken = await getFrappeCSRF();
+//   if (!csrfToken) {
+//     showToast('Could not establish a secure session for submission. Please refresh the page and try again.', 'error', 8000);
+//     btn.disabled = false;
+//     return;
+//   }
+
+//   try {
+//     var res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
+//       method:  'POST',
+//       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
+//       body: JSON.stringify({ data: JSON.stringify(payload) })
+//     });
+//     var data = await res.json();
+//     if (res.ok && data.message && data.message.name) {
+//       document.getElementById('toast').className = 'toast';
+//       document.getElementById('statusBar').innerHTML = '<div class="msg ok">Quotation submitted. Reference: ' + data.message.name + '</div>';
+//       document.getElementById('successModalText').textContent =
+//         'Thank you. Your quotation has been recorded as ' + data.message.name + ' and our team will review it shortly.';
+//       document.getElementById('successModal').hidden = false;
+//     } else {
+//       console.error('Supplier Quotation submission failed. Full server response:', data);
+//       throw new Error(extractFrappeErrorMessage(data));
+//     }
+//   } catch (err) {
+//     showToast('Error: ' + err.message, 'error', 8000);
+//     btn.disabled = false;
+//   }
+// }
+
 
 async function submitQuotation() {
   if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
@@ -2511,13 +2921,16 @@ async function submitQuotation() {
     company:                RFQ.company,
     valid_till:             fieldValue('valid-till'),
     rfq:                    RFQ.name,
+    currency:                fieldValue('quotation-currency'),
+    conversion_rate:         fieldFloat('exchange-rate', 1),
     items:                  itemRows,
     terms:                  fieldValue('notes'),
     custom_payement_terms:  collectPaymentTerms(),
 
-    tax_category:           isInternationalScope ? '' : fieldValue('tax-category'),
-    taxes_and_charges:      isInternationalScope ? '' : fieldValue('taxes-and-charges-template'),
-    taxes:                  isInternationalScope ? [] : collectTaxRows(),
+    // Taxes are now sent for ALL supplier scopes, including International.
+    tax_category:           fieldValue('tax-category'),
+    taxes_and_charges:      fieldValue('taxes-and-charges-template'),
+    taxes:                  collectTaxRows(),
 
     custom_supplier_scope:                         fieldValue('supplier-scope'),
     custom_purchase_type:                         fieldValue('purchase-type'),
@@ -2578,7 +2991,7 @@ async function submitQuotation() {
     custom_days:                           fieldValue('days'),
 
     custom_supplier_contact_person: fieldValue('supplier-contact-person'),
-    custom_supplier_email:          fieldValue('supplier-contact-email'),
+    custom_email:          fieldValue('supplier-contact-email'),
     custom_supplier_mobile:         fieldValue('supplier-contact-mobile'),
 
     custom_condition:                          fieldChecked('general-terms-acceptance') ? 1 : 0,
@@ -2643,24 +3056,24 @@ function initValidityDate() {
 
 function initConditionalFieldListeners() {
   document.getElementById('purchase-type').addEventListener('change', function() {
-  toggleConditionalFields();
-  rebuildItemsTable();
-});
+    toggleConditionalFields();
+    rebuildItemsTable();
+  });
 
-  // document.getElementById('transportation-arrange-by').addEventListener('change', toggleConditionalFields);
-  // document.getElementById('transportation-arrange-by').addEventListener('change', updateTotals);
-  // document.getElementById('transportation-cost').addEventListener('input', updateTotals);
-  // document.getElementById('custom-duty-percentage').addEventListener('input', updateTotals);
-  // document.getElementById('social-welfare-fund-percentage').addEventListener('input', updateTotals);
-  // document.getElementById('custom-clearance').addEventListener('input', updateTotals);
-  // document.getElementById('seaair-freight').addEventListener('input', updateTotals);
-  // document.getElementById('additional-charges').addEventListener('change', toggleConditionalFields);
   document.getElementById('transportation-arrange-by').addEventListener('change', toggleConditionalFields);
   document.getElementById('transportation-arrange-by').addEventListener('change', updateTotals);
   document.getElementById('transportation-cost').addEventListener('input', updateTotals);
   document.getElementById('additional-charges').addEventListener('change', toggleConditionalFields);
   document.getElementById('incoterm').addEventListener('input', toggleConditionalFields);
   document.getElementById('taxes-and-charges-template').addEventListener('change', onTaxesTemplateChange);
+
+  document.getElementById('quotation-currency').addEventListener('input', function() {
+    var val = this.value.trim();
+    var match = CURRENCIES.find(function(c) { return c.name === val; });
+    this.classList.remove('invalid');
+    document.getElementById('err-quotation-currency').classList.remove('show');
+    if (match) fetchExchangeRate(val);
+  });
 
   document.getElementById('service-type').addEventListener('change', toggleServiceTypeDetailFields);
   document.getElementById('service-duration').addEventListener('change', toggleServiceDurationDetailFields);
@@ -2671,25 +3084,26 @@ function initConditionalFieldListeners() {
 }
 
 
-(async function init() {
-  var hasItems = loadFromParams();
-  initConditionalFieldListeners();
 
-  if (hasItems) {
-    renderItems();
-    loadTaxesTemplates();
-    return;
-  }
+// (async function init() {
+//   var hasItems = loadFromParams();
+//   initConditionalFieldListeners();
 
-  if (RFQ.name) {
-    var fetched = await fetchRFQFromAPI(RFQ.name);
-    if (fetched) renderItems();
-    loadTaxesTemplates();
-    return;
-  }
+//   if (hasItems) {
+//     renderItems();
+//     loadTaxesTemplates();
+//     return;
+//   }
 
-  showError('Invalid or missing link', 'No RFQ identifier found in the URL. Please use the link from your email.');
-})();
+//   if (RFQ.name) {
+//     var fetched = await fetchRFQFromAPI(RFQ.name);
+//     if (fetched) renderItems();
+//     loadTaxesTemplates();
+//     return;
+//   }
+
+//   showError('Invalid or missing link', 'No RFQ identifier found in the URL. Please use the link from your email.');
+// })();
 
 function togglePurchaseTypeDetailFields() {
   var pt = document.getElementById('purchase-type').value;
