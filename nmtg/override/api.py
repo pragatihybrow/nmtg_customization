@@ -1760,3 +1760,30 @@ def get_exchange_rate(currency, company=None, transaction_date=None):
 
     rate = erp_get_exchange_rate(currency, company_currency, transaction_date)
     return rate or None
+
+
+@frappe.whitelist(allow_guest=True)
+def get_default_charge_accounts(company=None):
+    if not company:
+        return {"freight": "", "additional": ""}
+
+    abbr = frappe.db.get_value("Company", company, "abbr")
+    if not abbr:
+        return {"freight": "", "additional": ""}
+
+    def resolve(name_like, canonical_name):
+        computed = f"{canonical_name} - {abbr}"
+        if frappe.db.exists("Account", computed):
+            return computed
+        # fall back to a fuzzy match in case it exists under a slightly different name
+        found = frappe.db.get_value(
+            "Account",
+            {"account_name": ["like", f"%{name_like}%"], "company": company, "is_group": 0},
+            "name",
+        )
+        return found or computed
+
+    return {
+        "freight": resolve("Freight and Forwarding", "Freight and Forwarding Charges"),
+        "additional": resolve("Additional Charges", "Additional Charges"),
+    }
