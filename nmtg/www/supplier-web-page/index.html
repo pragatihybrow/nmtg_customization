@@ -211,40 +211,52 @@
           <span class="err-inline" id="err-supplier-scope">Could not determine supplier scope automatically. Please contact NMTG procurement.</span>
         </div>
         <div class="field">
-          <label>Purchase type <span class="req">*</span></label>
-          <select id="purchase-type">
-            <option value="">&mdash; Select &mdash;</option>
-            <option value="Product / Material">Product / Material</option>
-            <option value="Service">Service</option>
-            <option value="Rate Contract">Rate Contract</option>
-            <option value="Subcontracting">Subcontracting</option>
-            <option value="Asset Purchase">Asset Purchase</option>
-            <option value="One-time Purchase">One-time Purchase</option>
-            <option value="Other">Other</option>
-          </select>
-          <span class="err-inline" id="err-purchase-type">Please select a purchase type.</span>
-        </div>
+      <label>Purchase type <span class="req">*</span></label>
+      <select id="purchase-type" tabindex="-1">
+        <option value="">— Select —</option>
+        <option value="Product / Material">Product / Material</option>
+        <option value="Service">Service</option>
+        <option value="Rate Contract">Rate Contract</option>
+        <option value="Subcontracting">Subcontracting</option>
+        <option value="Asset Purchase">Asset Purchase</option>
+        <option value="One-time Purchase">One-time Purchase</option>
+        <option value="Other">Other</option>
+      </select>
+      <span class="err-inline" id="err-purchase-type">
+        Please select a purchase type.
+      </span>
+    </div>
         <div class="field conditional-field" id="wrap-other-purchase-type">
           <label>Please specify purchase type</label>
           <input type="text" id="other-purchase-type" placeholder="Describe purchase type" />
         </div>
-        <div class="field">
-          <label>Quality category</label>
-          <select id="quality-category">
-            <option value="">&mdash; Select &mdash;</option>
-            <option value="T1">T1</option>
-            <option value="T2">T2</option>
-            <option value="T3">T3</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>RFQ nature</label>
-          <select id="rfq-nature">
-            <option value="">&mdash; Select &mdash;</option>
-            <option value="One-time">One-time</option>
-            <option value="Rate Contract">Rate Contract</option>
-          </select>
-        </div>
+       
+    <div class="field">
+      <label>Quality category</label>
+      <select id="quality-category">
+        <option value="">— Select —</option>
+        <option value="T1">T1</option>
+        <option value="T2">T2</option>
+        <option value="T3">T3</option>
+      </select>
+    </div>
+
+    <script>
+      document.getElementById("quality-category").addEventListener("mousedown", function(e) {
+        e.preventDefault();
+      });
+      document.getElementById("purchase-type").addEventListener("mousedown", function (e) {
+          e.preventDefault();
+      });
+    </script>
+    <div class="field">
+      <label>RFQ nature</label>
+      <select id="rfq-nature" disabled>
+        <option value="">— Select —</option>
+        <option value="One-time">One-time</option>
+        <option value="Rate Contract">Rate Contract</option>
+      </select>
+    </div>
         <div class="field">
           <label>Price validity (days) <span class="req">*</span></label>
           <input type="number" id="price-validity" min="0" step="1" placeholder="e.g. 30" />
@@ -310,30 +322,39 @@
         <datalist id="incoterm-list"></datalist>
       </div>
       </div>
-        <div class="field">
-          <label>Gross amount <span class="hint">(system calculated)</span></label>
-          <input type="text" id="gross-amount" readonly placeholder="Calculated after submission" />
-        </div>
-        <div class="field">
-          <label>Gross amount (company currency) <span class="hint">(auto-converted)</span></label>
-          <input type="text" id="gross-amount-base" readonly placeholder="Calculated after submission" />
-        </div>
-        <div class="field">
+       <div style="display: flex; gap: 20px;">
+  
+  <div class="field" style="flex: 1;">
+    <label>
+      Gross amount <span class="hint">(system calculated)</span>
+    </label>
+    <input type="text" id="gross-amount" readonly placeholder="Calculated after submission" />
+  </div>
+
+  <div class="field" style="flex: 1;">
+    <label>
+      Gross amount (company currency) <span class="hint">(auto-converted)</span>
+    </label>
+    <input type="text" id="gross-amount-base" readonly placeholder="Calculated after submission" />
+  </div>
+
+</div>
+        <!-- <div class="field">
           <label>Total landing cost <span class="hint">(system calculated)</span></label>
           <input type="text" id="total-landing-cost" readonly placeholder="Calculated after submission" />
         </div>
         <div class="field">
           <label>Total landing cost (company currency) <span class="hint">(auto-converted)</span></label>
           <input type="text" id="total-landing-cost-base" readonly placeholder="Calculated after submission" />
-        </div>
-        <div class="field">
+        </div> -->
+        <!-- <div class="field">
           <label>Per unit landing cost <span class="hint">(system calculated)</span></label>
           <input type="text" id="per-unit-landing-cost" readonly placeholder="Calculated after submission" />
         </div>
         <div class="field">
           <label>Per unit landing cost (company currency) <span class="hint">(auto-converted)</span></label>
           <input type="text" id="per-unit-landing-cost-base" readonly placeholder="Calculated after submission" />
-        </div>
+        </div> -->
 
     <!-- ============= PURCHASE TYPE DETAILS ============= -->
 <div class="card">
@@ -969,7 +990,7 @@ function fillInfoStrip() {
   var supplierNameEl = document.getElementById('supplier-name-display');
   if (supplierNameEl) supplierNameEl.value = RFQ.supplier || '';
 }
-
+/*
 function loadFromParams() {
   const p = new URLSearchParams(window.location.search);
   if (p.get('rfq'))           RFQ.name             = p.get('rfq');
@@ -1020,7 +1041,136 @@ function loadFromParams() {
     return true;
   }
   return false;
+}*/
+
+
+const RFQ_TO_FORM_FIELD_MAP = {
+  custom_purchase_type: 'purchase-type',
+  custom_other_purchase_type: 'other-purchase-type',
+  custom_rfq_nature: 'rfq-nature',
+  incoterm: 'incoterm',
+  custom_transportation_arrange_by: 'transportation-arrange-by',
+  custom_transportation_mode: 'transportation-mode',
+  custom_service_type: 'service-type',
+  custom_other_service_type: 'other-service-type',
+  custom_service_location: 'service-location',
+  custom_service_duration: 'service-duration',
+  custom_hours: 'hours',
+  custom_day: 'day',
+  custom_months: 'months',
+  custom_yearly: 'yearly',
+  custom_manpower_requirement: 'manpower-requirement',
+  custom_travel__boarding__lodging: 'travel-boarding-lodging',
+  custom_installation_required: 'installation-required',
+  custom_commissioning_required: 'commissioning-required',
+  custom_training_required: 'training-required',
+  custom_fixture__tooling_responsibility: 'fixture-tooling-responsibility',
+  custom_input_material__wip_return: 'input-material-wip-return',
+  custom_return_lead_time: 'return-lead-time',
+  custom_scrap__rejection_responsibility: 'scrap-rejection-responsibility',
+  custom_estimated_monthly_qty: 'estimated-monthly-qty',
+  custom_order_release_method: 'order-release-method',
+  custom_termination_notice_period: 'termination-notice-period',
+  custom_days: 'days'
+};
+
+function applyRfqDetailsToForm(data) {
+  if (!data) return;
+  Object.keys(RFQ_TO_FORM_FIELD_MAP).forEach(function(rfqField) {
+    var value = data[rfqField];
+    if (value === undefined || value === null || value === '') return;
+    var el = document.getElementById(RFQ_TO_FORM_FIELD_MAP[rfqField]);
+    if (el) el.value = value;
+  });
+  // Re-run visibility/cascade logic now that values are set
+  toggleConditionalFields();
 }
+
+
+function loadFromParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('rfq'))           RFQ.name             = p.get('rfq');
+  if (p.get('company'))       RFQ.company          = p.get('company');
+  if (p.get('date'))          RFQ.transaction_date = p.get('date');
+  if (p.get('due'))           RFQ.schedule_date    = p.get('due');
+  if (p.get('supplier')) {    RFQ.supplier         = p.get('supplier');
+                               RFQ.supplier_id      = p.get('supplier'); }
+  if (p.get('email'))         RFQ.supplier_email   = p.get('email');
+  if (p.get('set_warehouse')) RFQ.set_warehouse    = p.get('set_warehouse');
+  fillInfoStrip();
+  fetchSupplierScope(RFQ.supplier_id);
+
+  // ---- Purchase Type Details / other RFQ header fields carried via URL ----
+  const rfqDetails = {
+    custom_purchase_type:                   p.get('purchase_type')               || '',
+    custom_other_purchase_type:             p.get('other_purchase_type')         || '',
+    custom_rfq_nature:                      p.get('rfq_nature')                  || '',
+    incoterm:                               p.get('incoterm')                    || '',
+    custom_transportation_arrange_by:       p.get('transport_arrange_by')        || '',
+    custom_transportation_mode:             p.get('transport_mode')              || '',
+    custom_service_type:                    p.get('service_type')                || '',
+    custom_other_service_type:              p.get('other_service_type')          || '',
+    custom_service_location:                p.get('service_location')            || '',
+    custom_service_duration:                p.get('service_duration')            || '',
+    custom_hours:                           p.get('hours')                       || '',
+    custom_day:                             p.get('day')                         || '',
+    custom_months:                          p.get('months')                      || '',
+    custom_yearly:                          p.get('yearly')                      || '',
+    custom_manpower_requirement:            p.get('manpower_requirement')        || '',
+    custom_travel__boarding__lodging:       p.get('travel_boarding_lodging')     || '',
+    custom_installation_required:           p.get('installation_required')       || '',
+    custom_commissioning_required:          p.get('commissioning_required')      || '',
+    custom_training_required:               p.get('training_required')           || '',
+    custom_fixture__tooling_responsibility: p.get('fixture_tooling_responsibility') || '',
+    custom_input_material__wip_return:      p.get('input_material_wip_return')   || '',
+    custom_return_lead_time:                p.get('return_lead_time')            || '',
+    custom_scrap__rejection_responsibility: p.get('scrap_rejection_responsibility') || '',
+    custom_estimated_monthly_qty:           p.get('estimated_monthly_qty')       || '',
+    custom_order_release_method:            p.get('order_release_method')        || '',
+    custom_termination_notice_period:       p.get('termination_notice_period')   || '',
+    custom_days:                            p.get('days')                        || ''
+  };
+  applyRfqDetailsToForm(rfqDetails);
+
+  const fromParams = [];
+  let i = 0;
+  while (p.get(`items[${i}][item_code]`)) {
+    fromParams.push({
+      idx:                   i + 1,
+      item_code:             p.get(`items[${i}][item_code]`)  || '',
+      item_name:             p.get(`items[${i}][item_name]`)  || '',
+      item_group:            p.get(`items[${i}][item_group]`) || '',
+      qty:                   parseFloat(p.get(`items[${i}][qty]`)) || 1,
+      uom:                   p.get(`items[${i}][uom]`)        || 'Nos',
+      img:                   p.get(`items[${i}][img]`)        || '',
+      tds:                   p.get(`items[${i}][tds]`)        || '',
+      warehouse:             p.get(`items[${i}][warehouse]`)  || '',
+      material_request:      p.get(`items[${i}][mr]`)         || '',
+      material_request_item: p.get(`items[${i}][mr_item]`)    || ''
+    });
+    i++;
+  }
+  if (fromParams.length > 0) { RFQ.items = fromParams; return true; }
+
+  if (p.get('item_code')) {
+    RFQ.items = [{
+      idx: 1,
+      item_code:             p.get('item_code')   || '',
+      item_name:             p.get('item_name')   || '',
+      item_group:            p.get('item_group')  || '',
+      qty:                   parseFloat(p.get('qty')) || 1,
+      uom:                   p.get('uom')         || 'Nos',
+      img:                   p.get('img')         || '',
+      tds:                   p.get('tds')         || '',
+      warehouse:             p.get('warehouse')   || '',
+      material_request:      p.get('mr')          || '',
+      material_request_item: p.get('mr_item')     || ''
+    }];
+    return true;
+  }
+  return false;
+}
+
 
 function mapFrappeItem(it, index) {
   const base = window.location.origin;
@@ -1171,16 +1321,20 @@ function showApiNotice() {
   el.classList.add('show');
 }
 
+// function prefillPurchaseDetails(doc) {
+//   if (!doc) return;
+//   if (doc.custom_purchase_type) {
+//     const pt = document.getElementById('purchase-type');
+//     pt.value = doc.custom_purchase_type;
+//     toggleConditionalFields();
+//   }
+//   if (doc.custom_rfq_nature) {
+//     document.getElementById('rfq-nature').value = doc.custom_rfq_nature;
+//   }
+// }
+
 function prefillPurchaseDetails(doc) {
-  if (!doc) return;
-  if (doc.custom_purchase_type) {
-    const pt = document.getElementById('purchase-type');
-    pt.value = doc.custom_purchase_type;
-    toggleConditionalFields();
-  }
-  if (doc.custom_rfq_nature) {
-    document.getElementById('rfq-nature').value = doc.custom_rfq_nature;
-  }
+  applyRfqDetailsToForm(doc);
 }
 
 function initValidityDate() {
@@ -2718,6 +2872,8 @@ function fieldChecked(id) {
   var el = document.getElementById(id);
   return !!(el && el.checked);
 }
+
+
 
 </script>
 </body>

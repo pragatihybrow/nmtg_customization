@@ -327,19 +327,92 @@ def submit_supplier_quotation(data):
 
 
     
+# @frappe.whitelist(allow_guest=True)
+# def get_rfq_for_supplier(rfq, supplier):
+#     doc = frappe.get_doc("Request for Quotation", rfq)
+#     return {
+#         "rfq": {
+#             "name": doc.name,
+#             "company": doc.company,
+#             "transaction_date": str(doc.transaction_date),
+#             "schedule_date": str(doc.schedule_date),
+#             "supplier_name": supplier,
+#             # "set_warehouse": doc.set_warehouse,
+#             "custom_purchase_type": getattr(doc, "custom_purchase_type", ""),
+#             "custom_rfq_nature": getattr(doc, "custom_rfq_nature", ""),
+#         },
+#         "items": [{
+#             "idx": it.idx,
+#             "item_code": it.item_code,
+#             "item_name": it.item_name,
+#             "item_group": it.item_group,
+#             "qty": it.qty,
+#             "uom": it.uom,
+#             "warehouse": it.warehouse,
+#             "material_request": it.material_request,
+#             "material_request_item": it.material_request_item,
+#             "custom_tds_attachment": it.custom_tds_attachment,
+#             "image": it.image
+#         } for it in doc.items]
+#     }
+
+
+
 @frappe.whitelist(allow_guest=True)
 def get_rfq_for_supplier(rfq, supplier):
     doc = frappe.get_doc("Request for Quotation", rfq)
+
+    supplier_name = frappe.db.get_value("Supplier", supplier, "supplier_name") or supplier
+
     return {
         "rfq": {
             "name": doc.name,
             "company": doc.company,
             "transaction_date": str(doc.transaction_date),
             "schedule_date": str(doc.schedule_date),
-            "supplier_name": supplier,
-            # "set_warehouse": doc.set_warehouse,
+            "supplier": supplier,
+            "supplier_name": supplier_name,
+            "set_warehouse": doc.set_warehouse,
+
             "custom_purchase_type": getattr(doc, "custom_purchase_type", ""),
+            "custom_other_purchase_type": getattr(doc, "custom_other_purchase_type", ""),
             "custom_rfq_nature": getattr(doc, "custom_rfq_nature", ""),
+            "incoterm": getattr(doc, "incoterm", ""),
+            "custom_transportation_arrange_by": getattr(doc, "custom_transportation_arrange_by", ""),
+            "custom_transportation_mode": getattr(doc, "custom_transportation_mode", ""),
+
+            # Service
+            "custom_service_type": getattr(doc, "custom_service_type", ""),
+            "custom_other_service_type": getattr(doc, "custom_other_service_type", ""),
+            "custom_service_location": getattr(doc, "custom_service_location", ""),
+            "custom_service_duration": getattr(doc, "custom_service_duration", ""),
+            "custom_hours": getattr(doc, "custom_hours", ""),
+            "custom_day": getattr(doc, "custom_day", ""),
+            "custom_months": getattr(doc, "custom_months", ""),
+            "custom_yearly": getattr(doc, "custom_yearly", ""),
+            "custom_manpower_requirement": getattr(doc, "custom_manpower_requirement", ""),
+            "custom_travel__boarding__lodging": getattr(doc, "custom_travel__boarding__lodging", ""),
+
+            # Asset Purchase (RFQ only stores these three — not AMC/warranty)
+            "custom_asset_type": getattr(doc, "custom_asset_type", ""),
+            "custom_installation_required": getattr(doc, "custom_installation_required", ""),
+            "custom_commissioning_required": getattr(doc, "custom_commissioning_required", ""),
+            "custom_training_required": getattr(doc, "custom_training_required", ""),
+
+            # Subcontracting
+            "custom_job_work__process_name": getattr(doc, "custom_job_work__process_name", ""),
+            "custom_job_work_rate_basis": getattr(doc, "custom_job_work_rate_basis", ""),
+            "custom_fixture__tooling_responsibility": getattr(doc, "custom_fixture__tooling_responsibility", ""),
+            "custom_input_material__wip_return": getattr(doc, "custom_input_material__wip_return", ""),
+            "custom_return_lead_time": getattr(doc, "custom_return_lead_time", ""),
+            "custom_scrap__rejection_responsibility": getattr(doc, "custom_scrap__rejection_responsibility", ""),
+            "custom_inspection_report_required": getattr(doc, "custom_inspection_report_required", ""),
+
+            # Rate Contract (RFQ only stores these four)
+            "custom_estimated_monthly_qty": getattr(doc, "custom_estimated_monthly_qty", ""),
+            "custom_order_release_method": getattr(doc, "custom_order_release_method", ""),
+            "custom_termination_notice_period": getattr(doc, "custom_termination_notice_period", ""),
+            "custom_days": getattr(doc, "custom_days", ""),
         },
         "items": [{
             "idx": it.idx,
@@ -355,8 +428,7 @@ def get_rfq_for_supplier(rfq, supplier):
             "image": it.image
         } for it in doc.items]
     }
-
-
+    
 
 
 @frappe.whitelist(allow_guest=True)
