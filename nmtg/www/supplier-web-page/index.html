@@ -240,6 +240,11 @@
         <option value="T3">T3</option>
       </select>
     </div>
+      <div class="field">
+    <label>Attachment <span class="hint"></span></label>
+    <input type="file" id="custom-attachment" />
+    <span class="err-inline" id="err-custom-attachment"></span>
+  </div>
 
     <script>
       document.getElementById("quality-category").addEventListener("mousedown", function(e) {
@@ -990,59 +995,46 @@ function fillInfoStrip() {
   var supplierNameEl = document.getElementById('supplier-name-display');
   if (supplierNameEl) supplierNameEl.value = RFQ.supplier || '';
 }
-/*
-function loadFromParams() {
-  const p = new URLSearchParams(window.location.search);
-  if (p.get('rfq'))           RFQ.name             = p.get('rfq');
-  if (p.get('company'))       RFQ.company          = p.get('company');
-  if (p.get('date'))          RFQ.transaction_date = p.get('date');
-  if (p.get('due'))           RFQ.schedule_date    = p.get('due');
-  if (p.get('supplier')) {    RFQ.supplier         = p.get('supplier');
-                               RFQ.supplier_id      = p.get('supplier'); }
-  if (p.get('email'))         RFQ.supplier_email   = p.get('email');
-  if (p.get('set_warehouse')) RFQ.set_warehouse    = p.get('set_warehouse');
-  fillInfoStrip();
-  fetchSupplierScope(RFQ.supplier_id);
 
-  const fromParams = [];
-  let i = 0;
-  while (p.get(`items[${i}][item_code]`)) {
-    fromParams.push({
-      idx:                   i + 1,
-      item_code:             p.get(`items[${i}][item_code]`)  || '',
-      item_name:             p.get(`items[${i}][item_name]`)  || '',
-      item_group:            p.get(`items[${i}][item_group]`) || '',
-      qty:                   parseFloat(p.get(`items[${i}][qty]`)) || 1,
-      uom:                   p.get(`items[${i}][uom]`)        || 'Nos',
-      img:                   p.get(`items[${i}][img]`)        || '',
-      tds:                   p.get(`items[${i}][tds]`)        || '',
-      warehouse:             p.get(`items[${i}][warehouse]`)  || '',
-      material_request:      p.get(`items[${i}][mr]`)         || '',
-      material_request_item: p.get(`items[${i}][mr_item]`)    || ''
+
+async function uploadAttachmentIfAny(csrfToken) {
+  var fileInput = document.getElementById('custom-attachment');
+  if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+    console.log('[attachment] no file selected');
+    return '';
+  }
+
+  var formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  formData.append('is_private', 0);
+
+  try {
+    var res = await fetch('/api/method/upload_file', {
+      method: 'POST',
+      headers: { 'X-Frappe-CSRF-Token': csrfToken },
+      body: formData
     });
-    i++;
+    var data = await res.json();
+    console.log('[attachment] upload_file response:', data);
+    if (res.ok && data.message && data.message.file_url) {
+      return data.message.file_url;
+    }
+    showToast('Attachment upload failed: ' + extractFrappeErrorMessage(data), 'error', 8000);
+    return '';
+  } catch (err) {
+    console.error('[attachment] upload error:', err);
+    showToast('Attachment upload error: ' + err.message, 'error', 8000);
+    return '';
   }
-  if (fromParams.length > 0) { RFQ.items = fromParams; return true; }
+}
 
-  if (p.get('item_code')) {
-    RFQ.items = [{
-      idx: 1,
-      item_code:             p.get('item_code')   || '',
-      item_name:             p.get('item_name')   || '',
-      item_group:            p.get('item_group')  || '',
-      qty:                   parseFloat(p.get('qty')) || 1,
-      uom:                   p.get('uom')         || 'Nos',
-      img:                   p.get('img')         || '',
-      tds:                   p.get('tds')         || '',
-      warehouse:             p.get('warehouse')   || '',
-      material_request:      p.get('mr')          || '',
-      material_request_item: p.get('mr_item')     || ''
-    }];
-    return true;
-  }
-  return false;
-}*/
-
+document.getElementById('successModalClose').addEventListener('click', function () {
+  window.open('', '_self');
+  window.close();
+  setTimeout(function () {
+    window.location.href = 'https://www.google.com';
+  }, 300);
+});
 
 const RFQ_TO_FORM_FIELD_MAP = {
   custom_purchase_type: 'purchase-type',
@@ -1086,7 +1078,7 @@ function applyRfqDetailsToForm(data) {
   toggleConditionalFields();
 }
 
-
+/*
 function loadFromParams() {
   const p = new URLSearchParams(window.location.search);
   if (p.get('rfq'))           RFQ.name             = p.get('rfq');
@@ -1169,8 +1161,114 @@ function loadFromParams() {
     return true;
   }
   return false;
-}
+}*/
 
+function loadFromParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('rfq'))           RFQ.name             = p.get('rfq');
+  if (p.get('company'))       RFQ.company          = p.get('company');
+  if (p.get('date'))          RFQ.transaction_date = p.get('date');
+  if (p.get('due'))           RFQ.schedule_date    = p.get('due');
+  if (p.get('supplier')) {    RFQ.supplier         = p.get('supplier');
+                               RFQ.supplier_id      = p.get('supplier'); }
+  if (p.get('email'))         RFQ.supplier_email   = p.get('email');
+  if (p.get('set_warehouse')) RFQ.set_warehouse    = p.get('set_warehouse');
+  fillInfoStrip();
+  fetchSupplierScope(RFQ.supplier_id);
+
+  const rfqDetails = {
+    custom_purchase_type:                   p.get('purchase_type')               || '',
+    custom_other_purchase_type:             p.get('other_purchase_type')         || '',
+    custom_rfq_nature:                      p.get('rfq_nature')                  || '',
+    incoterm:                               p.get('incoterm')                    || '',
+    custom_transportation_arrange_by:       p.get('transport_arrange_by')        || '',
+    custom_transportation_mode:             p.get('transport_mode')              || '',
+    custom_service_type:                    p.get('service_type')                || '',
+    custom_other_service_type:              p.get('other_service_type')          || '',
+    custom_service_location:                p.get('service_location')            || '',
+    custom_service_duration:                p.get('service_duration')            || '',
+    custom_hours:                           p.get('hours')                       || '',
+    custom_day:                             p.get('day')                         || '',
+    custom_months:                          p.get('months')                      || '',
+    custom_yearly:                          p.get('yearly')                      || '',
+    custom_manpower_requirement:            p.get('manpower_requirement')        || '',
+    custom_travel__boarding__lodging:       p.get('travel_boarding_lodging')     || '',
+    custom_installation_required:           p.get('installation_required')       || '',
+    custom_commissioning_required:          p.get('commissioning_required')      || '',
+    custom_training_required:               p.get('training_required')           || '',
+    custom_fixture__tooling_responsibility: p.get('fixture_tooling_responsibility') || '',
+    custom_input_material__wip_return:      p.get('input_material_wip_return')   || '',
+    custom_return_lead_time:                p.get('return_lead_time')            || '',
+    custom_scrap__rejection_responsibility: p.get('scrap_rejection_responsibility') || '',
+    custom_estimated_monthly_qty:           p.get('estimated_monthly_qty')       || '',
+    custom_order_release_method:            p.get('order_release_method')        || '',
+    custom_termination_notice_period:       p.get('termination_notice_period')   || '',
+    custom_days:                            p.get('days')                        || ''
+  };
+  applyRfqDetailsToForm(rfqDetails);
+
+  // Header-level fields that are rendered as per-ITEM columns/fields (Job Work, Asset Type, etc.)
+  // — read once here and stamped onto every item row below, since RFQ Item itself doesn't carry them.
+  const perItemHeaderDefaults = {
+    custom_job_work__process_name:    p.get('job_work_process_name')       || '',
+    custom_job_work_rate_basis:       p.get('job_work_rate_basis')         || '',
+    custom_asset_type:                p.get('asset_type')                  || '',
+    custom_other_purchase_type:       p.get('other_purchase_type')         || '',
+    custom_estimated_monthly_qty:     p.get('estimated_monthly_qty')       || '',
+    custom_order_release_method:      p.get('order_release_method')        || '',
+    custom_termination_notice_period: p.get('termination_notice_period')   || '',
+    custom_days:                      p.get('days')                        || ''
+  };
+
+  const fromParams = [];
+  let i = 0;
+  while (p.get(`items[${i}][item_code]`)) {
+    const perItemOverride = {
+      custom_job_work__process_name:    p.get(`items[${i}][custom_job_work__process_name]`),
+      custom_job_work_rate_basis:       p.get(`items[${i}][custom_job_work_rate_basis]`),
+      custom_asset_type:                p.get(`items[${i}][custom_asset_type]`),
+      custom_other_purchase_type:       p.get(`items[${i}][custom_other_purchase_type]`),
+      custom_estimated_monthly_qty:     p.get(`items[${i}][custom_estimated_monthly_qty]`),
+      custom_order_release_method:      p.get(`items[${i}][custom_order_release_method]`),
+      custom_termination_notice_period: p.get(`items[${i}][custom_termination_notice_period]`),
+      custom_days:                      p.get(`items[${i}][custom_days]`)
+    };
+
+    fromParams.push(Object.assign({}, perItemHeaderDefaults, {
+      idx:                   i + 1,
+      item_code:             p.get(`items[${i}][item_code]`)  || '',
+      item_name:             p.get(`items[${i}][item_name]`)  || '',
+      item_group:            p.get(`items[${i}][item_group]`) || '',
+      qty:                   parseFloat(p.get(`items[${i}][qty]`)) || 1,
+      uom:                   p.get(`items[${i}][uom]`)        || 'Nos',
+      img:                   p.get(`items[${i}][img]`)        || '',
+      tds:                   p.get(`items[${i}][tds]`)        || '',
+      warehouse:             p.get(`items[${i}][warehouse]`)  || '',
+      material_request:      p.get(`items[${i}][mr]`)         || '',
+      material_request_item: p.get(`items[${i}][mr_item]`)    || ''
+    }, Object.fromEntries(Object.entries(perItemOverride).filter(function(e) { return e[1] !== null && e[1] !== ''; }))));
+    i++;
+  }
+  if (fromParams.length > 0) { RFQ.items = fromParams; return true; }
+
+  if (p.get('item_code')) {
+    RFQ.items = [Object.assign({}, perItemHeaderDefaults, {
+      idx: 1,
+      item_code:             p.get('item_code')   || '',
+      item_name:             p.get('item_name')   || '',
+      item_group:            p.get('item_group')  || '',
+      qty:                   parseFloat(p.get('qty')) || 1,
+      uom:                   p.get('uom')         || 'Nos',
+      img:                   p.get('img')         || '',
+      tds:                   p.get('tds')         || '',
+      warehouse:             p.get('warehouse')   || '',
+      material_request:      p.get('mr')          || '',
+      material_request_item: p.get('mr_item')     || ''
+    })];
+    return true;
+  }
+  return false;
+}
 
 function mapFrappeItem(it, index) {
   const base = window.location.origin;
@@ -1222,6 +1320,25 @@ function showError(title, detail) {
     </div>`;
 }
 
+
+
+function seedItemsWithHeaderCustomFields(doc) {
+  if (!doc || !Array.isArray(RFQ.items)) return;
+  var defaults = {
+    custom_job_work__process_name:    doc.custom_job_work__process_name    || '',
+    custom_job_work_rate_basis:       doc.custom_job_work_rate_basis       || '',
+    custom_asset_type:                doc.custom_asset_type                || '',
+    custom_other_purchase_type:       doc.custom_other_purchase_type       || '',
+    custom_estimated_monthly_qty:     doc.custom_estimated_monthly_qty     || '',
+    custom_order_release_method:      doc.custom_order_release_method      || '',
+    custom_termination_notice_period: doc.custom_termination_notice_period || '',
+    custom_days:                      doc.custom_days                      || ''
+  };
+  RFQ.items = RFQ.items.map(function(item) {
+    return Object.assign({}, defaults, item);
+  });
+}
+
 async function fetchRFQFromAPI(rfqName) {
   document.getElementById('form-wrap').style.display = 'none';
   document.getElementById('loading-screen').style.display = 'block';
@@ -1232,6 +1349,9 @@ async function fetchRFQFromAPI(rfqName) {
       'name','company','transaction_date','schedule_date','supplier','supplier_name',
       'set_warehouse',
       'custom_purchase_type','custom_rfq_nature',
+      'custom_job_work__process_name','custom_job_work_rate_basis','custom_asset_type',
+      'custom_other_purchase_type','custom_estimated_monthly_qty','custom_order_release_method',
+      'custom_termination_notice_period','custom_days',
       'items.item_code','items.item_name','items.item_group','items.qty','items.uom',
       'items.warehouse','items.material_request','items.material_request_item',
       'items.custom_tds_attachment','items.image'
@@ -1254,6 +1374,7 @@ async function fetchRFQFromAPI(rfqName) {
         RFQ.supplier_id      = doc.supplier         || RFQ.supplier_id;
         RFQ.set_warehouse    = doc.set_warehouse    || RFQ.set_warehouse;
         RFQ.items            = doc.items.map(mapFrappeItem);
+        seedItemsWithHeaderCustomFields(doc);
         fillInfoStrip();
         prefillPurchaseDetails(doc);
         fetchSupplierScope(RFQ.supplier_id);
@@ -1285,6 +1406,7 @@ async function fetchRFQFromAPI(rfqName) {
           RFQ.set_warehouse    = msg.rfq.set_warehouse    || RFQ.set_warehouse;
         }
         RFQ.items = msg.items.map(mapFrappeItem);
+        seedItemsWithHeaderCustomFields(msg.rfq || {});
         fillInfoStrip();
         prefillPurchaseDetails(msg.rfq || {});
         fetchSupplierScope(RFQ.supplier_id);
@@ -2157,8 +2279,10 @@ function toggleConditionalFields() {
   setConditional('payment-milestone', ['Rate Contract', 'Service', 'Asset Purchase'].indexOf(purchaseType) !== -1);
   // setConditional('transportation-mode', transportArrangeBy === 'Supplier');
   // setConditional('transportation-cost', transportArrangeBy === 'Supplier');
-  setConditional('transportation-mode', !!transportArrangeBy);
-  setConditional('transportation-cost', !!transportArrangeBy);
+  // setConditional('transportation-mode', !!transportArrangeBy);
+  setConditional('transportation-mode', transportArrangeBy === 'Supplier');
+  setConditional('transportation-cost', transportArrangeBy === 'Supplier');
+  // setConditional('transportation-cost', !!transportArrangeBy);
   setConditional('additional-charges-details', additionalCharges === 'Yes');
   setConditional('total-additional-charges', additionalCharges === 'Yes');
   setConditional('named-place', !!incotermVal);
@@ -2457,6 +2581,146 @@ function extractFrappeErrorMessage(data) {
 }
 
 
+// async function submitQuotation() {
+//   if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
+//   var btn = document.getElementById('submit-btn');
+//   btn.disabled = true;
+//   showToast('Submitting your quotation\u2026', 'loading');
+
+//   var isInternationalScope = document.getElementById('supplier-scope').value === 'International';
+
+//   var itemRows = RFQ.items.map(function(item, idx) {
+//     var priceEl = document.getElementById('price-' + idx);
+//     var leadEl  = document.getElementById('lead-' + idx);
+//     var base = {
+//       item_code:             item.item_code,
+//       qty:                   item.qty,
+//       uom:                   item.uom,
+//       warehouse:             item.warehouse || RFQ.set_warehouse || '',
+//       rate:                  priceEl ? parseFloat(priceEl.value) : 0,
+//       lead_time_days:        leadEl ? parseInt(leadEl.value) : 0,
+//       material_request:      item.material_request      || '',
+//       material_request_item: item.material_request_item || ''
+//     };
+//     var customFields = collectItemCustomFields(idx);
+//     return Object.assign(base, customFields);
+//   });
+
+//   var payload = {
+//     supplier:               RFQ.supplier,
+//     company:                RFQ.company,
+//     valid_till:             fieldValue('valid-till'),
+//     rfq:                    RFQ.name,
+//     currency:                fieldValue('quotation-currency'),
+//     conversion_rate:         fieldFloat('exchange-rate', 1),
+//     items:                  itemRows,
+//     terms:                  fieldValue('notes'),
+//     custom_payement_terms:  collectPaymentTerms(),
+
+//     // Taxes are now sent for ALL supplier scopes, including International.
+//     tax_category:           fieldValue('tax-category'),
+//     taxes_and_charges:      fieldValue('taxes-and-charges-template'),
+//     taxes:                  collectTaxRows(),
+
+//     custom_supplier_scope:                         fieldValue('supplier-scope'),
+//     custom_purchase_type:                         fieldValue('purchase-type'),
+//     custom_other_purchase_type:                   fieldValue('other-purchase-type'),
+//     custom_quality_category:                      fieldValue('quality-category'),
+//     custom_rfq_nature:                             fieldValue('rfq-nature'),
+//     custom_price_validity:                         fieldFloat('price-validity'),
+//     custom_warranty__guarantee:                    fieldValue('warranty'),
+//     custom_payment_milestone:                      fieldValue('payment-milestone'),
+//     custom_retention__security_deposit_:           fieldFloat('retention-percent'),
+//     custom_retention__security_deposit_amount:     fieldFloat('retention-amount'),
+
+//     custom_transportation_arrange_by:              fieldValue('transportation-arrange-by'),
+//     custom_transportation_mode:                    fieldValue('transportation-mode'),
+//     custom_transportation_cost:                    fieldFloat('transportation-cost'),
+//     custom_additional_charges:                     fieldValue('additional-charges'),
+//     custom_details:                                fieldValue('additional-charges-details'),
+//     custom_total_additional_charges:               fieldFloat('total-additional-charges'),
+//     incoterm:                                      fieldValue('incoterm'),
+
+//     custom_custom_duty_percentage:                 0,
+//     custom_social_welfare_fund_percentage:         0,
+//     custom_custom_clearence:                       0,
+//     custom_seaair_to_port_to_nmtg_works__freight:  0,
+
+//     custom_moq:                            fieldValue('moq'),
+//     custom_standard_packing_qty:           fieldFloat('standard-packing-qty'),
+//     custom_product_warranty:               fieldValue('product-warranty'),
+
+//     custom_service_type:                   fieldValue('service-type'),
+//     custom_other_service_type:             fieldValue('other-service-type'),
+//     custom_manpower_requirement:           fieldValue('manpower-requirement'),
+//     custom_service_location:               fieldValue('service-location'),
+//     custom_service_duration:               fieldValue('service-duration'),
+//     custom_hours:                          fieldValue('hours'),
+//     custom_day:                            fieldValue('day'),
+//     custom_months:                         fieldValue('months'),
+//     custom_yearly:                         fieldValue('yearly'),
+//     custom_travel__boarding__lodging:      fieldValue('travel-boarding-lodging'),
+
+//     custom_amc__service_support:           fieldValue('amc-service-support'),
+//     custom_training_required:              fieldValue('training-required'),
+//     custom_installation_required:          fieldValue('installation-required'),
+//     custom_commissioning_required:         fieldValue('commissioning-required'),
+
+//     custom_fixture__tooling_responsibility: fieldValue('fixture-tooling-responsibility'),
+//     custom_input_material__wip_return:      fieldValue('input-material-wip-return'),
+//     custom_return_lead_time:                fieldValue('return-lead-time'),
+//     custom_scrap__rejection_responsibility: fieldValue('scrap-rejection-responsibility'),
+
+//     custom_estimated_monthly_value:        fieldFloat('estimated-monthly-value'),
+//     custom_estimated_monthly_qty:          fieldInt('estimated-monthly-qty'),
+//     custom_minimum_commitment_qty:         fieldValue('minimum-commitment-qty'),
+//     custom_order_release_method:           fieldValue('order-release-method'),
+//     custom_termination_notice_period:      fieldValue('termination-notice-period'),
+//     custom_days:                           fieldValue('days'),
+
+//     custom_supplier_contact_person: fieldValue('supplier-contact-person'),
+//     custom_email:          fieldValue('supplier-contact-email'),
+//     custom_supplier_mobile:         fieldValue('supplier-contact-mobile'),
+
+//     custom_condition:                          fieldChecked('general-terms-acceptance') ? 1 : 0,
+//     apply_discount_on:                         fieldValue('apply-discount-on', 'Grand Total'),
+//     additional_discount_percentage:            fieldFloat('additional-discount-percentage'),
+//     discount_amount:                           fieldFloat('additional-discount-amount'),
+//     custom_authorized_person_name:             fieldValue('authorized-person-name'),
+//     custom_designation:                        fieldValue('designation'),
+//     custom__contact_number:                    fieldValue('authorized-contact-number')
+//   };
+
+//   var csrfToken = await getFrappeCSRF();
+//   if (!csrfToken) {
+//     showToast('Could not establish a secure session for submission. Please refresh the page and try again.', 'error', 8000);
+//     btn.disabled = false;
+//     return;
+//   }
+
+//   try {
+//     var res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
+//       method:  'POST',
+//       headers: { 'Content-Type': 'application/json', 'X-Frappe-CSRF-Token': csrfToken },
+//       body: JSON.stringify({ data: JSON.stringify(payload) })
+//     });
+//     var data = await res.json();
+//     if (res.ok && data.message && data.message.name) {
+//       document.getElementById('toast').className = 'toast';
+//       document.getElementById('statusBar').innerHTML = '<div class="msg ok">Quotation submitted. Reference: ' + data.message.name + '</div>';
+//       document.getElementById('successModalText').textContent =
+//         'Thank you. Your quotation has been recorded as ' + data.message.name + ' and our team will review it shortly.';
+//       document.getElementById('successModal').hidden = false;
+//     } else {
+//       console.error('Supplier Quotation submission failed. Full server response:', data);
+//       throw new Error(extractFrappeErrorMessage(data));
+//     }
+//   } catch (err) {
+//     showToast('Error: ' + err.message, 'error', 8000);
+//     btn.disabled = false;
+//   }
+// }
+
 async function submitQuotation() {
   if (!validate()) { showToast('Please fill in all required fields.', 'error'); return; }
   var btn = document.getElementById('submit-btn');
@@ -2481,6 +2745,15 @@ async function submitQuotation() {
     var customFields = collectItemCustomFields(idx);
     return Object.assign(base, customFields);
   });
+
+  var csrfToken = await getFrappeCSRF();
+  if (!csrfToken) {
+    showToast('Could not establish a secure session for submission. Please refresh the page and try again.', 'error', 8000);
+    btn.disabled = false;
+    return;
+  }
+
+  var attachmentUrl = await uploadAttachmentIfAny(csrfToken);
 
   var payload = {
     supplier:               RFQ.supplier,
@@ -2558,6 +2831,8 @@ async function submitQuotation() {
     custom_email:          fieldValue('supplier-contact-email'),
     custom_supplier_mobile:         fieldValue('supplier-contact-mobile'),
 
+    custom_attachment:                         attachmentUrl,
+
     custom_condition:                          fieldChecked('general-terms-acceptance') ? 1 : 0,
     apply_discount_on:                         fieldValue('apply-discount-on', 'Grand Total'),
     additional_discount_percentage:            fieldFloat('additional-discount-percentage'),
@@ -2566,13 +2841,6 @@ async function submitQuotation() {
     custom_designation:                        fieldValue('designation'),
     custom__contact_number:                    fieldValue('authorized-contact-number')
   };
-
-  var csrfToken = await getFrappeCSRF();
-  if (!csrfToken) {
-    showToast('Could not establish a secure session for submission. Please refresh the page and try again.', 'error', 8000);
-    btn.disabled = false;
-    return;
-  }
 
   try {
     var res = await fetch('/api/method/nmtg.override.api.submit_supplier_quotation', {
@@ -2787,6 +3055,7 @@ function buildItemsHeader() {
   document.getElementById('items-thead').innerHTML = html;
 }
 
+
 function renderItemColumnCell(col, item, idx) {
   switch (col.key) {
     case 'item':
@@ -2817,16 +3086,19 @@ function renderItemColumnCell(col, item, idx) {
     case 'field':
     default:
       var id = col.field + '-' + idx;
+      var prefill = (item[col.field] !== undefined && item[col.field] !== null) ? item[col.field] : '';
       if (col.type === 'select') {
         return '<select id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '">' +
           '<option value="">&mdash;</option>' +
-          col.options.map(function(o) { return '<option value="' + o + '">' + o + '</option>'; }).join('') +
+          col.options.map(function(o) {
+            return '<option value="' + o + '"' + (o === prefill ? ' selected' : '') + '>' + o + '</option>';
+          }).join('') +
           '</select>';
       }
       if (col.type === 'date') {
-        return '<input type="date" id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '" />';
+        return '<input type="date" id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '" value="' + prefill + '" />';
       }
-      return '<input type="text" id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '" />';
+      return '<input type="text" id="' + id + '" data-fname="' + col.field + '" data-idx="' + idx + '" value="' + prefill + '" />';
   }
 }
 
