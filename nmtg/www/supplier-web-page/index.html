@@ -231,7 +231,7 @@
           <input type="text" id="other-purchase-type" placeholder="Describe purchase type" />
         </div>
        
-    <div class="field">
+    <!-- <div class="field">
       <label>Quality category</label>
       <select id="quality-category">
         <option value="">— Select —</option>
@@ -240,11 +240,7 @@
         <option value="T3">T3</option>
       </select>
     </div>
-      <div class="field">
-    <label>Attachment <span class="hint"></span></label>
-    <input type="file" id="custom-attachment" />
-    <span class="err-inline" id="err-custom-attachment"></span>
-  </div>
+     -->
 
     <script>
       document.getElementById("quality-category").addEventListener("mousedown", function(e) {
@@ -719,6 +715,11 @@
           <input type="email" id="supplier-contact-email" placeholder="name@company.com" />
         </div>
       </div>
+        <div class="field">
+    <label>Supplier Quotation Attachment <span class="hint"></span></label>
+    <input type="file" id="custom-attachment" />
+    <span class="err-inline" id="err-custom-attachment"></span>
+  </div>
     </div>
 
   </div>
@@ -997,6 +998,37 @@ function fillInfoStrip() {
 }
 
 
+// async function uploadAttachmentIfAny(csrfToken) {
+//   var fileInput = document.getElementById('custom-attachment');
+//   if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+//     console.log('[attachment] no file selected');
+//     return '';
+//   }
+
+//   var formData = new FormData();
+//   formData.append('file', fileInput.files[0]);
+//   formData.append('is_private', 0);
+
+//   try {
+//     var res = await fetch('/api/method/upload_file', {
+//       method: 'POST',
+//       headers: { 'X-Frappe-CSRF-Token': csrfToken },
+//       body: formData
+//     });
+//     var data = await res.json();
+//     console.log('[attachment] upload_file response:', data);
+//     if (res.ok && data.message && data.message.file_url) {
+//       return data.message.file_url;
+//     }
+//     showToast('Attachment upload failed: ' + extractFrappeErrorMessage(data), 'error', 8000);
+//     return '';
+//   } catch (err) {
+//     console.error('[attachment] upload error:', err);
+//     showToast('Attachment upload error: ' + err.message, 'error', 8000);
+//     return '';
+//   }
+// }
+
 async function uploadAttachmentIfAny(csrfToken) {
   var fileInput = document.getElementById('custom-attachment');
   if (!fileInput || !fileInput.files || !fileInput.files[0]) {
@@ -1006,16 +1038,15 @@ async function uploadAttachmentIfAny(csrfToken) {
 
   var formData = new FormData();
   formData.append('file', fileInput.files[0]);
-  formData.append('is_private', 0);
 
   try {
-    var res = await fetch('/api/method/upload_file', {
+    var res = await fetch('/api/method/nmtg.override.api.upload_supplier_file', {
       method: 'POST',
       headers: { 'X-Frappe-CSRF-Token': csrfToken },
       body: formData
     });
     var data = await res.json();
-    console.log('[attachment] upload_file response:', data);
+    console.log('[attachment] upload_supplier_file response:', data);
     if (res.ok && data.message && data.message.file_url) {
       return data.message.file_url;
     }
@@ -1339,52 +1370,110 @@ function seedItemsWithHeaderCustomFields(doc) {
   });
 }
 
+// async function fetchRFQFromAPI(rfqName) {
+//   document.getElementById('form-wrap').style.display = 'none';
+//   document.getElementById('loading-screen').style.display = 'block';
+//   document.getElementById('loading-sub').textContent = 'Fetching ' + rfqName + ' from server\u2026';
+
+//   try {
+//     const fields = [
+//       'name','company','transaction_date','schedule_date','supplier','supplier_name',
+//       'set_warehouse',
+//       'custom_purchase_type','custom_rfq_nature',
+//       'custom_job_work__process_name','custom_job_work_rate_basis','custom_asset_type',
+//       'custom_other_purchase_type','custom_estimated_monthly_qty','custom_order_release_method',
+//       'custom_termination_notice_period','custom_days',
+//       'items.item_code','items.item_name','items.item_group','items.qty','items.uom',
+//       'items.warehouse','items.material_request','items.material_request_item',
+//       'items.custom_tds_attachment','items.image'
+//     ].map(f => 'fields[]=' + encodeURIComponent(f)).join('&');
+
+//     const res = await fetch(
+//       '/api/resource/Request for Quotation/' + encodeURIComponent(rfqName) + '?' + fields,
+//       { headers: { 'Accept': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' } }
+//     );
+
+//     if (res.ok) {
+//       const data = await res.json();
+//       const doc  = data.data;
+//       if (doc && Array.isArray(doc.items) && doc.items.length > 0) {
+//         RFQ.name             = doc.name             || rfqName;
+//         RFQ.company          = doc.company          || RFQ.company;
+//         RFQ.transaction_date = doc.transaction_date || RFQ.transaction_date;
+//         RFQ.schedule_date    = doc.schedule_date    || RFQ.schedule_date;
+//         RFQ.supplier         = doc.supplier_name    || doc.supplier || RFQ.supplier;
+//         RFQ.supplier_id      = doc.supplier         || RFQ.supplier_id;
+//         RFQ.set_warehouse    = doc.set_warehouse    || RFQ.set_warehouse;
+//         RFQ.items            = doc.items.map(mapFrappeItem);
+//         seedItemsWithHeaderCustomFields(doc);
+//         fillInfoStrip();
+//         prefillPurchaseDetails(doc);
+//         fetchSupplierScope(RFQ.supplier_id);
+//         showApiNotice();
+//         return true;
+//       }
+//     }
+//   } catch (_) { /* fall through to method attempt */ }
+
+//   document.getElementById('loading-sub').textContent = 'Trying authenticated endpoint\u2026';
+//   try {
+//     const supplier = encodeURIComponent(RFQ.supplier || new URLSearchParams(window.location.search).get('supplier') || '');
+//     const res2 = await fetch(
+//       '/api/method/nmtg.override.api.get_rfq_for_supplier?rfq=' + encodeURIComponent(rfqName) + '&supplier=' + supplier,
+//       { headers: { 'Accept': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' } }
+//     );
+
+//     if (res2.ok) {
+//       const data2 = await res2.json();
+//       const msg   = data2.message;
+//       if (msg && Array.isArray(msg.items) && msg.items.length > 0) {
+//         if (msg.rfq) {
+//           RFQ.name             = msg.rfq.name             || rfqName;
+//           RFQ.company          = msg.rfq.company          || RFQ.company;
+//           RFQ.transaction_date = msg.rfq.transaction_date || RFQ.transaction_date;
+//           RFQ.schedule_date    = msg.rfq.schedule_date    || RFQ.schedule_date;
+//           RFQ.supplier         = msg.rfq.supplier_name    || RFQ.supplier;
+//           RFQ.supplier_id      = msg.rfq.supplier         || RFQ.supplier_id;
+//           RFQ.set_warehouse    = msg.rfq.set_warehouse    || RFQ.set_warehouse;
+//         }
+//         RFQ.items = msg.items.map(mapFrappeItem);
+//         seedItemsWithHeaderCustomFields(msg.rfq || {});
+//         fillInfoStrip();
+//         prefillPurchaseDetails(msg.rfq || {});
+//         fetchSupplierScope(RFQ.supplier_id);
+//         showApiNotice();
+//         return true;
+//       } else {
+//         showError(
+//           'Could not load RFQ items',
+//           'The server returned no items for ' + rfqName +
+//           '. This usually means the supplier name in the link doesn\'t match a row on this RFQ\'s Supplier table, or the RFQ has no items. Please contact NMTG procurement.'
+//         );
+//         return false;
+//       }
+//     }
+
+//     let detail = 'The authenticated endpoint returned status ' + res2.status + '.';
+//     try {
+//       const errBody = await res2.json();
+//       detail = extractFrappeErrorMessage(errBody);
+//     } catch (_) { /* body wasn't JSON, keep generic detail */ }
+
+//     showError('Could not load RFQ items', detail);
+//     return false;
+
+//   } catch (err) {
+//     showError('Unable to load RFQ', 'Network error while fetching item details: ' + err.message);
+//     return false;
+//   }
+// }
+
+
 async function fetchRFQFromAPI(rfqName) {
   document.getElementById('form-wrap').style.display = 'none';
   document.getElementById('loading-screen').style.display = 'block';
   document.getElementById('loading-sub').textContent = 'Fetching ' + rfqName + ' from server\u2026';
 
-  try {
-    const fields = [
-      'name','company','transaction_date','schedule_date','supplier','supplier_name',
-      'set_warehouse',
-      'custom_purchase_type','custom_rfq_nature',
-      'custom_job_work__process_name','custom_job_work_rate_basis','custom_asset_type',
-      'custom_other_purchase_type','custom_estimated_monthly_qty','custom_order_release_method',
-      'custom_termination_notice_period','custom_days',
-      'items.item_code','items.item_name','items.item_group','items.qty','items.uom',
-      'items.warehouse','items.material_request','items.material_request_item',
-      'items.custom_tds_attachment','items.image'
-    ].map(f => 'fields[]=' + encodeURIComponent(f)).join('&');
-
-    const res = await fetch(
-      '/api/resource/Request for Quotation/' + encodeURIComponent(rfqName) + '?' + fields,
-      { headers: { 'Accept': 'application/json', 'X-Frappe-CSRF-Token': 'fetch' } }
-    );
-
-    if (res.ok) {
-      const data = await res.json();
-      const doc  = data.data;
-      if (doc && Array.isArray(doc.items) && doc.items.length > 0) {
-        RFQ.name             = doc.name             || rfqName;
-        RFQ.company          = doc.company          || RFQ.company;
-        RFQ.transaction_date = doc.transaction_date || RFQ.transaction_date;
-        RFQ.schedule_date    = doc.schedule_date    || RFQ.schedule_date;
-        RFQ.supplier         = doc.supplier_name    || doc.supplier || RFQ.supplier;
-        RFQ.supplier_id      = doc.supplier         || RFQ.supplier_id;
-        RFQ.set_warehouse    = doc.set_warehouse    || RFQ.set_warehouse;
-        RFQ.items            = doc.items.map(mapFrappeItem);
-        seedItemsWithHeaderCustomFields(doc);
-        fillInfoStrip();
-        prefillPurchaseDetails(doc);
-        fetchSupplierScope(RFQ.supplier_id);
-        showApiNotice();
-        return true;
-      }
-    }
-  } catch (_) { /* fall through to method attempt */ }
-
-  document.getElementById('loading-sub').textContent = 'Trying authenticated endpoint\u2026';
   try {
     const supplier = encodeURIComponent(RFQ.supplier || new URLSearchParams(window.location.search).get('supplier') || '');
     const res2 = await fetch(
@@ -3020,8 +3109,7 @@ const PURCHASE_TYPE_COLUMNS = {
       options: ['Machine','Equipment','Instrument','Software','Hardware','Other'] },
     { key: 'qty',   label: 'Qty / UOM' },
     { key: 'price', label: 'Unit Price *' },
-    { key: 'field', label: 'Warranty Period', field: 'custom_warranty_period', type: 'select',
-      options: ['Months','Years'] },
+    { key: 'field', label: 'Warranty Period', field: 'custom_warranty_period', type: 'data',},
     { key: 'total', label: 'Total' }
   ],
 
