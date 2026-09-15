@@ -22,7 +22,7 @@ const ITEM_SETTINGS_SKIP_FIELDS = [
     "custom_create_nmtg_code",
     "custom_legacy_item_name",
     "custom_quality_category_required",
-    "custom_mr_level_uom"
+    "custom_mr_uom"
 ];
 
 // Fields that need a special bracketed hint instead of (or in addition to)

@@ -74,6 +74,10 @@ frappe.ui.form.on("Purchase Receipt", {
                 }, __("Create"));
             }, 100);
         }
+        if (frm.doc.is_return && (frm.doc.custom_supplier_selection_for_qc || []).length) {
+            frm.clear_table("custom_supplier_selection_for_qc");
+            frm.refresh_field("custom_supplier_selection_for_qc");
+        }
     },
      setup(frm) {
         frm.fields_dict.custom_supplier_selection_for_qc.grid.get_field("item").get_query =
@@ -87,6 +91,18 @@ frappe.ui.form.on("Purchase Receipt", {
                     }
                 };
             };
+    },
+    is_return: function(frm) {
+        if (frm.doc.is_return) {
+            frm.clear_table("custom_supplier_selection_for_qc");
+            frm.refresh_field("custom_supplier_selection_for_qc");
+        }
+    },
+    validate: function(frm) {
+        if (frm.doc.is_return && (frm.doc.custom_supplier_selection_for_qc || []).length) {
+            frm.clear_table("custom_supplier_selection_for_qc");
+            frm.refresh_field("custom_supplier_selection_for_qc");
+        }
     }
 });
 

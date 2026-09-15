@@ -354,7 +354,7 @@ function apply_item_settings_fields(frm) {
         "custom_create_nmtg_code",
         "custom_legacy_item_name",
         "custom_quality_category_required",
-        "custom_mr_level_uom"
+        "custom_mr_uom"
     ];
 
     // Show always_visible fields, hide every other dynamic custom field
