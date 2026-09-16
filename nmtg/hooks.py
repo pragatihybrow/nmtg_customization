@@ -264,6 +264,8 @@ doctype_js = {
     "Opportunity":"public/js/opportunity.js",
     "Prospect":"public/js/prospect.js",
     "Quotation":"public/js/quotation.js"
+    "Sales Order":"public/js/sales_order.js",
+    "Sales Invoice":"public/js/sales_invoice.js"
 
 }
 
