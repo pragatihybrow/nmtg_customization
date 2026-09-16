@@ -15,7 +15,7 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 from frappe.utils.file_manager import save_file
-
+from frappe.utils import cint
 
 
 
@@ -120,128 +120,6 @@ STANDARD_HEADER_FIELDS = [
 ]
 
 
-
-# @frappe.whitelist(allow_guest=True)
-# def submit_supplier_quotation(data):
-#     if isinstance(data, str):
-#         data = json.loads(data)
-
-#     required = ['supplier', 'company', 'valid_till', 'rfq', 'items']
-#     for field in required:
-#         if not data.get(field):
-#             frappe.throw(f"Missing required field: {field}")
-
-#     rfq = frappe.get_doc("Request for Quotation", data['rfq'])
-#     supplier_names = [s.supplier for s in rfq.suppliers]
-#     if data['supplier'] not in supplier_names:
-#         frappe.throw("Supplier not authorized for this RFQ")
-
-#     existing = frappe.db.exists("Supplier Quotation", {
-#         "supplier": data['supplier'],
-#         "rfq": data['rfq']
-#     })
-#     if existing:
-#         frappe.throw(
-#             f"A quotation from {data['supplier']} for {data['rfq']} already exists: {existing}"
-#         )
-
-#     transaction_date = frappe.utils.today()
-
-#     if frappe.utils.getdate(data['valid_till']) < frappe.utils.getdate(transaction_date):
-#         frappe.throw(
-#             _("Valid till date cannot be before {0} (today). Please choose a later date and resubmit.")
-#             .format(frappe.utils.formatdate(transaction_date))
-#         )
-
-#     doc = frappe.new_doc("Supplier Quotation")
-#     doc.supplier = data['supplier']
-#     doc.company = data['company']
-#     doc.transaction_date = transaction_date
-#     doc.custom_submission_date_and_time = frappe.utils.now_datetime()
-#     doc.valid_till = data['valid_till']
-#     doc.rfq = data['rfq']
-
-#     if data.get('terms'):
-#         doc.terms = data['terms']
-#     if data.get('payment_terms_template'):
-#         doc.payment_terms_template = data['payment_terms_template']
-
-#     # ---- tax category / template ----
-#     if data.get('tax_category'):
-#         doc.tax_category = data['tax_category']
-#     if data.get('taxes_and_charges'):
-#         doc.taxes_and_charges = data['taxes_and_charges']
-
-#     # ---- header-level custom + standard fields ----
-#     for fieldname in CUSTOM_HEADER_FIELDS + STANDARD_HEADER_FIELDS:
-#         if fieldname in data:
-#             doc.set(fieldname, data[fieldname])
-
-#     # ---- items, including per-purchase-type custom fields ----
-#     for item in data['items']:
-#         row = {
-#             "item_code": item['item_code'],
-#             "qty": item['qty'],
-#             "uom": item.get('uom', 'Nos'),
-#             "stock_uom": item.get('uom', 'Nos'),
-#             "warehouse": item.get('warehouse') or rfq.set_warehouse or '',
-#             "rate": item['rate'],
-#             "lead_time_days": item.get('lead_time_days', 0),
-#             "material_request": item.get('material_request', ''),
-#             "material_request_item": item.get('material_request_item', ''),
-#             "request_for_quotation": data['rfq'],
-#         }
-#         for key, value in item.items():
-#             if key not in STANDARD_ITEM_FIELDS:
-#                 row[key] = value
-
-#         doc.append("items", row)
-
-#     # ---- payment terms child table ----
-#     for term in data.get('custom_payement_terms', []):
-#         doc.append("custom_payement_terms", {
-#             "terms": term.get('terms', ''),
-#             "percentage": term.get('percentage', 0),
-#             "amount": term.get('amount', 0),
-#             "days": term.get('days', ''),
-#         })
-
-#     # ---- taxes and charges table ----
-#     for tax in data.get('taxes', []):
-#         doc.append("taxes", {
-#             "category": tax.get('category', 'Total'),
-#             "add_deduct_tax": tax.get('add_deduct_tax', 'Add'),
-#             "charge_type": tax.get('charge_type', 'On Net Total'),
-#             "row_id": tax.get('row_id', ''),
-#             "account_head": tax.get('account_head', ''),
-#             "description": tax.get('description', ''),
-#             "rate": tax.get('rate', 0),
-#             "tax_amount": tax.get('tax_amount', 0),
-#         })
-
-#     original_ignore_permissions = frappe.flags.ignore_permissions
-#     try:
-#         frappe.flags.ignore_permissions = True
-#         doc.insert(ignore_permissions=True)
-
-#         # ---- reparent the uploaded File doc to this Supplier Quotation ----
-#         if data.get('custom_attachment'):
-#             file_matches = frappe.get_all(
-#                 "File",
-#                 filters={"file_url": data['custom_attachment']},
-#                 limit=1
-#             )
-#             if file_matches:
-#                 frappe.db.set_value("File", file_matches[0].name, {
-#                     "attached_to_doctype": "Supplier Quotation",
-#                     "attached_to_name": doc.name
-#                 })
-
-#         frappe.db.commit()
-#     finally:
-#         frappe.flags.ignore_permissions = original_ignore_permissions
-
-#     return {"name": doc.name, "status": "created"}
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1867,3 +1745,31 @@ def get_default_charge_accounts(company=None):
         "freight": resolve("Freight and Forwarding", "Freight and Forwarding Charges"),
         "additional": resolve("Additional Charges", "Additional Charges"),
     }
+
+
+
+@frappe.whitelist()
+def get_dealer_customers(doctype, txt, searchfield, start, page_len, filters):
+    start = cint(start)
+    page_len = cint(page_len)
+
+    condition = ""
+    values = {
+        "txt": f"%{txt}%",
+        "start": start,
+        "page_len": page_len
+    }
+
+    if txt:
+        condition = " and (c.name like %(txt)s or c.customer_name like %(txt)s)"
+
+    return frappe.db.sql(f"""
+        select distinct c.name, c.customer_name
+        from `tabCustomer` c
+        left join `tabCustomer Type CT` ct
+            on ct.parent = c.name and ct.parenttype = 'Customer'
+        where (c.customer_group = 'Dealer' or ct.customer_type = 'Dealer')
+        {condition}
+        order by c.name asc
+        limit %(page_len)s offset %(start)s
+    """, values)

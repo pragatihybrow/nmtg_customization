@@ -19,9 +19,11 @@ def execute(filters=None):
 
 def get_columns(filters):
     view_by = filters.get("view_by") or "Item Wise"
+    # SWAPPED: "Customer Wise" view now renders the item-wise column set,
+    # and "Item Wise" renders the customer-wise column set.
     if view_by == "Customer Wise":
-        return get_customer_wise_columns()
-    return get_item_wise_columns()
+        return get_item_wise_columns()
+    return get_customer_wise_columns()
 
 
 def get_item_wise_columns():
@@ -139,8 +141,6 @@ def get_data(filters):
 
 
 def post_process(rows, filters):
-    """Adds the derived margin/discount/size display fields and a per-group
-    serial number that resets whenever the primary group changes."""
     view_by = filters.get("view_by") or "Item Wise"
     group_fn = (lambda r: (r.item_code, r.customer_name)) if view_by == "Item Wise" \
         else (lambda r: (r.customer_name, r.item_code))
@@ -156,10 +156,12 @@ def post_process(rows, filters):
             counter = 0
         counter += 1
 
+        # SWAPPED: row builders must match the swapped column sets above,
+        # otherwise fieldnames won't line up and cells render empty.
         if view_by == "Customer Wise":
-            data.append(build_customer_wise_row(r))
-        else:
             data.append(build_item_wise_row(r))
+        else:
+            data.append(build_customer_wise_row(r))
 
     return data
 
@@ -192,8 +194,6 @@ def build_customer_wise_row(r):
     return {
         "quotation_no": r.quotation_no,
         "transaction_date": formatdate(r.transaction_date, "dd/mm/yyyy") if r.transaction_date else "",
-        # NOTE: no Rev No / Rev Date field exists on Quotation in the data shared so far
-        # (no revision/amendment field was present) — left blank until confirmed.
         "rev_no": r.custom_rev_no,
         "rev_date": formatdate(r.custom_rev_date, "dd/mm/yyyy") if r.custom_rev_date else "",
         "enquiry_no": r.opportunity,
@@ -221,8 +221,6 @@ def build_customer_wise_row(r):
 
 
 def get_size(required_feilds):
-    """Builds a SIZE string like 'ID 50 x OD 30 x TL 30' from the
-    Technical Evaluation Item's required_feilds JSON (custom_id/custom_od/custom_tl)."""
     if not required_feilds:
         return ""
     try:
@@ -242,8 +240,6 @@ def get_size(required_feilds):
 
 
 def get_drg_no(attachments):
-    """Renders the Technical Evaluation's drawing attachment file name(s)
-    (from the Attachment child table) for the item's request_no."""
     if not attachments:
         return ""
     names = [ntpath.basename(path) for path in attachments.split("||") if path]
@@ -264,6 +260,9 @@ def get_conditions(filters):
         conditions.append("qtn.company = %(company)s")
         values["company"] = filters["company"]
 
+    # if filters.get("customer_name"):
+    #     conditions.append("qtn.customer_name = %(customer_name)s")
+    #     values["customer_name"] = filters["customer_name"]
     if filters.get("customer_name"):
         conditions.append("qtn.customer_name = %(customer_name)s")
         values["customer_name"] = filters["customer_name"]

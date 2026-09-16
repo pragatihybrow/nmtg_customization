@@ -21,8 +21,9 @@ frappe.query_reports["Quotation History Item wise & Customer wise"] = {
 		{
 			"fieldname": "customer_name",
 			"label": __("Customer"),
-			"fieldtype": "Data"
-		},
+			"fieldtype": "Link",
+			"options": "Customer"
+	    },
 		{
 			"fieldname": "item_code",
 			"label": __("Item Code"),
