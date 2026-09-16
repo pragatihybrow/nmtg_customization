@@ -247,7 +247,6 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
-
 doctype_js = {
     "Item": "public/js/item.js",
     "Lead": "public/js/lead.js",
@@ -257,16 +256,14 @@ doctype_js = {
     "Purchase Receipt": "public/js/purchase_receipt.js",
     "Quality Inspection": "public/js/quality_inspection.js",
     "Purchase Order": "public/js/purchase_order.js",
-    "Supplier":        "public/js/supplier.js",
-    "Supplier Quotation":"public/js/supplier_quotation.js",
+    "Supplier": "public/js/supplier.js",
+    "Supplier Quotation": "public/js/supplier_quotation.js",
     "Request for Quotation": "public/js/request_for_quotation.js",
-    "Lead":"public/js/lead.js",
-    "Opportunity":"public/js/opportunity.js",
-    "Prospect":"public/js/prospect.js",
-    "Quotation":"public/js/quotation.js"
-    "Sales Order":"public/js/sales_order.js",
-    "Sales Invoice":"public/js/sales_invoice.js"
-
+    "Opportunity": "public/js/opportunity.js",
+    "Prospect": "public/js/prospect.js",
+    "Quotation": "public/js/quotation.js",
+    "Sales Order": "public/js/sales_order.js",
+    "Sales Invoice": "public/js/sales_invoice.js",
 }
 
 override_doctype_class = {
