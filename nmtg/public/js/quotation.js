@@ -25,7 +25,7 @@ frappe.ui.form.on("Quotation", {
     },
     refresh: function (frm) {
 		recalculate_all_commissions(frm);
-		 setup_dealer_liason_query(frm);
+		setup_dealer_liason_query(frm);
 
         if (frm.doc.quotation_to === "Customer" && frm.doc.party_name && !frm.doc.custom_dealer_name) {
             set_dealer_from_customer(frm);
@@ -58,16 +58,20 @@ frappe.ui.form.on("Quotation", {
 });
 
 function set_dealer_from_customer(frm) {
-    // Only fetch the dealer when the quotation is against a Customer
     if (frm.doc.quotation_to !== "Customer" || !frm.doc.party_name) {
-        frm.set_value("custom_dealer_name", null);
+        if (frm.doc.custom_dealer_name) {
+            frm.set_value("custom_dealer_name", null);
+        }
         return;
     }
 
     frappe.db.get_value("Customer", frm.doc.party_name, "custom_dealer")
         .then((r) => {
             const dealer = r && r.message ? r.message.custom_dealer : null;
-            frm.set_value("custom_dealer_name", dealer || null);
+            
+            if ((dealer || null) !== (frm.doc.custom_dealer_name || null)) {
+                frm.set_value("custom_dealer_name", dealer || null);
+            }
         });
 }
 
@@ -75,6 +79,9 @@ function set_dealer_from_customer(frm) {
 frappe.ui.form.on('Dealer Liason CT', {
     commission_: function(frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
+    },
+    commission_amount: function(frm, cdt, cdn) {
+        calculate_commission_percent(frm, cdt, cdn);
     },
     dealer__liason: function(frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
@@ -84,8 +91,11 @@ frappe.ui.form.on('Dealer Liason CT', {
     },
     third_party_commission_: function(frm, cdt, cdn) {
         calculate_third_party_commission_amount(frm, cdt, cdn);
+    },
+    third_party_commission_amount: function(frm, cdt, cdn) {
+        calculate_third_party_commission_percent(frm, cdt, cdn);
     }
-	
+
 });
 
 
@@ -116,6 +126,20 @@ function calculate_commission_amount(frm, cdt, cdn) {
     frm.refresh_field('custom_dealer__liason');
 }
 
+function calculate_commission_percent(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    let total = flt(frm.doc.total);
+
+    row.commission_ = total ? flt(
+        flt(row.commission_amount) * 100 / total,
+        precision('commission_', row)
+    ) : 0;
+
+    calculate_third_party_commission_amount(frm, cdt, cdn);
+
+    frm.refresh_field('custom_dealer__liason');
+}
+
 function calculate_third_party_commission_amount(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
 
@@ -126,20 +150,45 @@ function calculate_third_party_commission_amount(frm, cdt, cdn) {
 
     frm.refresh_field('custom_dealer__liason');
 }
+function calculate_third_party_commission_percent(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    let commission_amount = flt(row.commission_amount);
+
+    row.third_party_commission_ = commission_amount ? flt(
+        flt(row.third_party_commission_amount) * 100 / commission_amount,
+        precision('third_party_commission_', row)
+    ) : 0;
+
+    frm.refresh_field('custom_dealer__liason');
+}
 
 function recalculate_all_commissions(frm) {
+    let changed = false;
+
     (frm.doc.custom_dealer__liason || []).forEach(function(row) {
         let total = flt(frm.doc.total);
 
-        row.commission_amount = flt(
+        let new_commission_amount = flt(
             total * flt(row.commission_) / 100,
             precision('commission_amount', row)
         );
-
-        row.third_party_commission_amount = flt(
-            flt(row.commission_amount) * flt(row.third_party_commission_) / 100,
+        let new_third_party_commission_amount = flt(
+            flt(new_commission_amount) * flt(row.third_party_commission_) / 100,
             precision('third_party_commission_amount', row)
         );
+
+        if (row.commission_amount !== new_commission_amount) {
+            row.commission_amount = new_commission_amount;
+            changed = true;
+        }
+        if (row.third_party_commission_amount !== new_third_party_commission_amount) {
+            row.third_party_commission_amount = new_third_party_commission_amount;
+            changed = true;
+        }
     });
-    frm.refresh_field('custom_dealer__liason');
+
+   
+    if (changed) {
+        frm.refresh_field('custom_dealer__liason');
+    }
 }

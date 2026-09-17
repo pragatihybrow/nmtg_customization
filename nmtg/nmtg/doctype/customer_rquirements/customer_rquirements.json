@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-09-17 19:03:12.385712",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "item_code",
+  "item_name",
+  "customer_rquirements",
+  "responsible_role"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_rquirements",
+   "fieldtype": "Small Text",
+   "in_list_view": 1,
+   "label": "Customer Rquirements",
+   "options": "Item"
+  },
+  {
+   "fieldname": "responsible_role",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Responsible Role",
+   "link_filters": "[\n    [\"Role\", \"name\", \"in\", [\n        \"CR Assembly  Approver\",\n        \"CR Sales & Marketing Approver\",\n        \"CR R&D Approver\",\n        \"CR Production Approver\",\n        \"CR Quality Approver\"\n    ]]\n]",
+   "options": "Role"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Item",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Item Name",
+   "options": "Item"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-17 19:51:06.988263",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Customer Rquirements",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

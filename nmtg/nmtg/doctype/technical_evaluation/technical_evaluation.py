@@ -21,6 +21,7 @@ class TechnicalEvaluation(Document):
     def on_submit(self):
         self.sync_items_to_opportunity()
         self.update_opportunity_status()
+        self.sync_customer_requirements_to_opportunity()
 
     def on_cancel(self):
         self.update_opportunity_status()
@@ -229,6 +230,61 @@ class TechnicalEvaluation(Document):
         except (ValueError, TypeError):
             return None
 
+        
+    def sync_customer_requirements_to_opportunity(self):
+        if not self.opportunity_no or not self.customer_requirement:
+            return
+
+        opportunity = frappe.get_doc(
+            "Opportunity",
+            self.opportunity_no
+        )
+
+        opp_reqs_by_code = {}
+
+        for opp_req in opportunity.custom_customer_rquirements:
+            if opp_req.item_code:
+                opp_reqs_by_code.setdefault(
+                    opp_req.item_code,
+                    []
+                ).append(opp_req)
+
+        updated = False
+
+        for idx, te_req in enumerate(self.table_fbef):
+            opp_req = None
+
+            if (
+                te_req.item_code
+                and opp_reqs_by_code.get(te_req.item_code)
+            ):
+                opp_req = opp_reqs_by_code[
+                    te_req.item_code
+                ].pop(0)
+
+            elif (
+                not te_req.item_code
+                and idx < len(opportunity.custom_customer_rquirements)
+            ):
+                opp_req = opportunity.custom_customer_rquirements[idx]
+
+            else:
+                opp_req = opportunity.append(
+                    "custom_customer_rquirements",
+                    {}
+                )
+
+            opp_req.item_code = te_req.item_code
+            opp_req.customer_rquirements = te_req.customer_rquirements
+            opp_req.responsible_role = te_req.responsible_role
+
+            updated = True
+
+        if updated:
+            opportunity.flags.ignore_permissions = True
+            opportunity.flags.ignore_validate_update_after_submit = True
+            opportunity.save()
+
 
 
 EMAIL_SUBJECT_TEMPLATE = "Drawing / Technical Document Verification Required – {opportunity_no}"
@@ -377,8 +433,7 @@ def send_drawing_verification_emails_for_doc(docname):
 	if not recipients:
 		return {"sent": sent, "skipped": ["No recipient email configured on the document"]}
 
-	# split pending items into those with attachments vs without, so a single
-	# missing attachment doesn't block the rest of the document
+	
 	request_nos = [item.request_no for item in pending_items]
 	available_attachments = {att.request_no for att in doc.get("attachment", []) if att.attachment}
 
@@ -445,3 +500,4 @@ def send_drawing_verification_emails_for_doc(docname):
 		)
 
 	return {"sent": sent, "skipped": skipped}
+

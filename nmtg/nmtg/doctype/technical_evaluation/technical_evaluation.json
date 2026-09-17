@@ -30,7 +30,10 @@
   "questionary_for_technical_evaluation",
   "send_questionary_to_customer",
   "attachment",
-  "attachment_email_sent"
+  "attachment_email_sent",
+  "section_break_fios",
+  "customer_requirement",
+  "table_fbef"
  ],
  "fields": [
   {
@@ -171,13 +174,29 @@
    "fieldname": "custom_customer_rfq_number",
    "fieldtype": "Data",
    "label": "Customer RFQ Number"
+  },
+  {
+   "fieldname": "section_break_fios",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "customer_requirement",
+   "fieldtype": "Check",
+   "label": "Customer Requirement"
+  },
+  {
+   "depends_on": "eval:doc.customer_requirement==1",
+   "fieldname": "table_fbef",
+   "fieldtype": "Table",
+   "options": "Customer Rquirements"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-07 14:40:36.359037",
+ "modified": "2026-09-17 19:10:24.616203",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",

@@ -181,14 +181,20 @@ frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
                 );
             }).addClass("btn-primary");
         }
-    
+      set_item_filter(frm);
+    },
+
+    table_fbef_add(frm) {
+    set_item_filter(frm);
     },
 
     items_add: function(frm) {
         set_request_no_options(frm);
+          set_item_filter(frm);
     },
     items_remove: function(frm) {
         set_request_no_options(frm);
+        set_item_filter(frm);
     },
     onload: function (frm) {
         if (frm.is_new() && !frm.doc.lead_engineer) {
@@ -636,4 +642,18 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
             });
         }
     );
+}
+
+function set_item_filter(frm) {
+    const item_codes = (frm.doc.items || [])
+        .map(row => row.item_code)
+        .filter(Boolean);
+
+    frm.set_query("item_code", "table_fbef", function () {
+        return {
+            filters: {
+                name: ["in", item_codes]
+            }
+        };
+    });
 }
