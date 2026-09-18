@@ -1943,3 +1943,30 @@ def copy_customer_requirements_to_wo(doc, method=None):
                 "responsible_role": row.responsible_role,
             })
  
+
+def sync_customer_requirements_to_work_order(doc, method):
+    linked_work_orders = frappe.get_all(
+        "Work Order",
+        filters={"sales_order": doc.name, "docstatus": ["!=", 2]},
+        pluck="name"
+    )
+
+    for wo_name in linked_work_orders:
+        wo = frappe.get_doc("Work Order", wo_name)
+
+        wo.flags.ignore_validate_update_after_submit = True
+
+        wo.set("custom_customer_rquirements", [])
+
+        for row in doc.custom_customer_rquirements:
+            wo.append("custom_customer_rquirements", {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "customer_rquirements": row.customer_rquirements,
+                "responsible_role": row.responsible_role,
+                "role_assigned": row.role_assigned
+            })
+
+        wo.save(ignore_permissions=True)
+
+    frappe.db.commit()

@@ -15,6 +15,7 @@
  ],
  "fields": [
   {
+   "allow_on_submit": 1,
    "fieldname": "customer_rquirements",
    "fieldtype": "Small Text",
    "in_list_view": 1,
@@ -23,6 +24,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "responsible_role",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -32,6 +34,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "fieldname": "item_code",
    "fieldtype": "Link",
    "in_list_view": 1,
@@ -40,6 +43,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "fetch_from": "item_code.item_name",
    "fieldname": "item_name",
    "fieldtype": "Data",
@@ -49,6 +53,7 @@
    "reqd": 1
   },
   {
+   "allow_on_submit": 1,
    "default": "0",
    "fieldname": "role_assigned",
    "fieldtype": "Check",
@@ -60,7 +65,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-18 11:15:30.680055",
+ "modified": "2026-09-18 13:53:10.300100",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Customer Rquirements",
