@@ -26,6 +26,88 @@ frappe.ui.form.on("Sales Order", {
             },
         });
     },
+    before_workflow_action: function (frm) {
+		const action = frm.selected_workflow_action;
+
+		const action_field_map = {
+			"On Hold": {
+				fieldname: "custom_on_hold_remark",
+				dialog_title: __("Reason for Hold"),
+				field_label: __("Remark"),
+			},
+			"Unhold SO": {
+				fieldname: "custom_unhold_remark",
+				dialog_title: __("Unhold Remark"),
+				field_label: __("Remark"),
+			},
+		};
+
+		const config = action_field_map[action];
+
+		if (!config) {
+			return Promise.resolve();
+		}
+
+		return new Promise((resolve, reject) => {
+		
+			frappe.dom.unfreeze();
+
+			let settled = false;
+
+			const dialog = new frappe.ui.Dialog({
+				title: config.dialog_title,
+				fields: [
+					{
+						fieldname: "remark",
+						fieldtype: "Small Text",
+						label: config.field_label,
+						reqd: 1,
+					},
+				],
+				primary_action_label: __("Continue"),
+				primary_action: function (values) {
+					dialog.get_primary_btn().prop("disabled", true).text(__("Saving..."));
+					frappe.db
+						.set_value(frm.doctype, frm.docname, config.fieldname, values.remark)
+						.then(() => {
+							
+							frm.doc[config.fieldname] = values.remark;
+							frm.refresh_field(config.fieldname);
+
+							settled = true;
+							dialog.hide();
+							resolve();
+						})
+						.catch((err) => {
+							settled = true;
+							dialog.hide();
+							frappe.msgprint({
+								title: __("Could Not Save Remark"),
+								message: __(
+									"The remark could not be saved, so the {0} action was cancelled.",
+									[action]
+								),
+								indicator: "red",
+							});
+							reject(err);
+						});
+				},
+
+				on_hide: function () {
+					if (!settled) {
+						settled = true;
+						frappe.show_alert({
+							message: __("{0} action cancelled — no remark was entered.", [action]),
+							indicator: "orange",
+						});
+						reject(new Error("Workflow action cancelled: remark not provided."));
+					}
+				},
+			});
+
+			dialog.show();
+		});
+	},
 });
 
 function set_dealer_from_customer(frm) {
