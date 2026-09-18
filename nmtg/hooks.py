@@ -264,6 +264,8 @@ doctype_js = {
     "Quotation": "public/js/quotation.js",
     "Sales Order": "public/js/sales_order.js",
     "Sales Invoice": "public/js/sales_invoice.js",
+    "Delivery Note": "public/js/delivery_note.js",
+     "Work Order": "public/js/work_order.js"
 }
 
 override_doctype_class = {
@@ -311,7 +313,23 @@ doc_events = {
         "before_insert": "nmtg.override.opportunity.set_contact_recipient_emails",
         "validate": "nmtg.override.opportunity.set_contact_recipient_emails"
     },
+    "Quotation": {
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_opportunity"
+    },
+    "Sales Order": {
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_so"
+    },
+    "Sales Invoice": {
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_si"
+    },
+    "Delivery Note": {
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_dn"
+    },
+       "Work Order": {
+        "before_insert": "nmtg.override.api.copy_customer_requirements_to_wo"
+    },
 }
+
 
 scheduler_events = {
     "monthly": [

@@ -1,28 +1,4 @@
-frappe.ui.form.on("Quotation", {
-	setup: function (frm) {
-		frm.set_query("quotation_to", function () {
-			return {
-				filters: {
-					name: ["in", ["Customer", "Lead", "Prospect", "Enquiry"]],
-				},
-			};
-		});
-	},
-
-	set_contact_link: function (frm) {
-		if (frm.doc.quotation_to == "Enquiry" && frm.doc.party_name) {
-			frappe.dynamic_link = { doc: frm.doc, fieldname: "party_name", doctype: "Enquiry" };
-		}
-	},
-
-    party_name: function (frm) {
-        set_dealer_from_customer(frm);
-    },
-    quotation_to: function (frm) {
-        if (frm.doc.quotation_to !== "Customer") {
-            frm.set_value("custom_dealer_name", null);
-        }
-    },
+frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
 		recalculate_all_commissions(frm);
 		 setup_dealer_liason_query(frm);
@@ -54,7 +30,22 @@ frappe.ui.form.on("Quotation", {
     },
 	 total: function(frm) {
         recalculate_all_commissions(frm);
-    }
+    },
+    custom_assign_to_responsible_users: function (frm) {
+        if (frm.is_new()) {
+            frappe.msgprint(__("Please save the document first."));
+            return;
+        }
+        frappe.call({
+            method: "nmtg.override.api.assign_to_responsible_users",
+            args: { doctype: frm.doc.doctype, docname: frm.doc.name },
+            freeze: true,
+            freeze_message: __("Assigning..."),
+            callback: function () {
+                frm.reload_doc();
+            },
+        });
+    },
 });
 
 function set_dealer_from_customer(frm) {

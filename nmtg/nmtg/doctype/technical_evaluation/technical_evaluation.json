@@ -33,7 +33,8 @@
   "attachment_email_sent",
   "section_break_fios",
   "customer_requirement",
-  "table_fbef"
+  "table_fbef",
+  "assign_to_responsible_users"
  ],
  "fields": [
   {
@@ -190,13 +191,19 @@
    "fieldname": "table_fbef",
    "fieldtype": "Table",
    "options": "Customer Rquirements"
+  },
+  {
+   "depends_on": "eval:doc.customer_requirement==1",
+   "fieldname": "assign_to_responsible_users",
+   "fieldtype": "Button",
+   "label": "Assign To Responsible Users"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-17 19:10:24.616203",
+ "modified": "2026-09-18 11:14:27.707058",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",

@@ -16,6 +16,11 @@ from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
 from frappe.utils.file_manager import save_file
 from frappe.utils import cint
+from frappe.desk.form.assign_to import add as assign_to_add
+from functools import partial
+
+
+
 
 
 
@@ -1773,3 +1778,168 @@ def get_dealer_customers(doctype, txt, searchfield, start, page_len, filters):
         order by c.name asc
         limit %(page_len)s offset %(start)s
     """, values)
+
+@frappe.whitelist()
+def assign_to_responsible_users(doctype, docname):
+    doc = frappe.get_doc(doctype, docname)
+
+    child_field = None
+    for df in doc.meta.get_table_fields():
+        if df.options == "Customer Rquirements":
+            child_field = df.fieldname
+            break
+
+    if not child_field:
+        frappe.throw(f"No 'Customer Rquirements' child table found on {doctype}")
+
+    rows = doc.get(child_field) or []
+    role_to_users_cache = {}
+    assigned_summary = []
+    skipped_no_role = []
+    skipped_no_users = []
+
+    for row in rows:
+        if row.role_assigned:
+            continue
+
+        role = row.responsible_role
+        if not role:
+            skipped_no_role.append(row.item_code or row.name)
+            continue
+
+        if role not in role_to_users_cache:
+            role_to_users_cache[role] = _get_users_for_role(role)
+
+        users = role_to_users_cache[role]
+        if not users:
+            skipped_no_users.append(role)
+            continue
+
+        assign_to_add({
+            "assign_to": users,
+            "doctype": doctype,
+            "name": docname,
+            "description": (
+                f"Review required for item {row.item_code or ''} "
+                f"({row.item_name or ''}) — role: {role}. "
+                f"Requirement: {row.customer_rquirements or ''}"
+            ),
+        })
+
+        row.role_assigned = 1
+        assigned_summary.append(f"{role}: {', '.join(users)}")
+
+    doc.save(ignore_permissions=True)
+
+    messages = []
+    if assigned_summary:
+        messages.append("<b>Assigned:</b><br>" + "<br>".join(assigned_summary))
+    if skipped_no_users:
+        messages.append(
+            "<b>No enabled users found for roles:</b><br>"
+            + "<br>".join(set(skipped_no_users))
+        )
+    if not assigned_summary and not skipped_no_users:
+        messages.append("No pending rows to assign — all role_assigned rows are already set.")
+
+    frappe.msgprint("<br><br>".join(messages))
+    return {
+        "assigned": assigned_summary,
+        "skipped_no_role": skipped_no_role,
+        "skipped_no_users": skipped_no_users,
+    }
+
+
+def _get_users_for_role(role):
+    rows = frappe.get_all(
+        "Has Role",
+        filters={"role": role, "parenttype": "User"},
+        fields=["parent"],
+    )
+    users = []
+    for r in rows:
+        if r.parent in ("Administrator", "Guest"):
+            continue
+        if frappe.db.get_value("User", r.parent, "enabled"):
+            users.append(r.parent)
+    return users
+
+
+
+
+def reset_role_assigned_on_mapped_creation(doc, method=None, link_fields=None):
+    was_mapped = any(
+        item.get(field)
+        for item in doc.get("items") or []
+        for field in (link_fields or [])
+    )
+
+    if was_mapped:
+        for row in doc.get("custom_customer_rquirements") or []:
+            row.role_assigned = 0
+
+
+def reset_role_assigned_on_create_from_opportunity(doc, method=None):
+    if doc.get("opportunity"):
+        for row in doc.get("custom_customer_rquirements") or []:
+            row.role_assigned = 0
+
+
+reset_role_assigned_on_create_from_so = partial(
+    reset_role_assigned_on_mapped_creation, link_fields=["prevdoc_docname"]
+)
+
+reset_role_assigned_on_create_from_si = partial(
+    reset_role_assigned_on_mapped_creation, link_fields=["sales_order", "delivery_note"]
+)
+
+reset_role_assigned_on_create_from_dn = partial(
+    reset_role_assigned_on_mapped_creation, link_fields=["against_sales_order"]
+)
+
+
+@frappe.whitelist()
+def get_customer_requirements_for_wo(sales_order, item_code):
+    """
+    Whitelisted API called from work_order.js on the client side, to
+    populate custom_customer_rquirements on a new, unsaved Work Order
+    with the matching rows from its source Sales Order.
+    """
+    rows = []
+ 
+    if not sales_order or not item_code:
+        return rows
+ 
+    so = frappe.get_doc("Sales Order", sales_order)
+ 
+    for row in so.custom_customer_rquirements:
+        if row.item_code == item_code:
+            rows.append({
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "customer_rquirements": row.customer_rquirements,
+                "responsible_role": row.responsible_role,
+                # "role_assigned": row.role_assigned
+            })
+ 
+    return rows
+ 
+ 
+def copy_customer_requirements_to_wo(doc, method=None):
+    if not doc.sales_order:
+        return
+ 
+    if doc.get("custom_customer_rquirements"):
+        return
+ 
+    so = frappe.get_doc("Sales Order", doc.sales_order)
+ 
+    for row in so.custom_customer_rquirements:
+        if row.item_code == doc.production_item:
+            doc.append("custom_customer_rquirements", {
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "customer_rquirements": row.customer_rquirements,
+                "responsible_role": row.responsible_role,
+            })
+ 

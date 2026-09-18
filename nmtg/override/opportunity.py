@@ -46,9 +46,6 @@ class CustomOpportunity(Opportunity):
             )
 
 
-import frappe
-
-
 def set_contact_recipient_emails(doc, method=None):
     primary_email = ""
     cc_emails = []
