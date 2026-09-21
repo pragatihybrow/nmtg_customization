@@ -1970,3 +1970,171 @@ def sync_customer_requirements_to_work_order(doc, method):
         wo.save(ignore_permissions=True)
 
     frappe.db.commit()
+
+
+import frappe
+
+
+@frappe.whitelist()
+def send_drawing_verification_emails_for_doc(docname):
+    doc = frappe.get_doc("Sales Order", docname)
+
+    recipients = _get_recipients(doc)
+
+    pending_items = [
+        item for item in doc.items
+        if item.drawing_approval_required == "Yes" and not item.get("drawing_email_sent")
+    ]
+
+    sent = []
+    skipped = []
+
+    if not pending_items:
+        return {"sent": sent, "skipped": ["No pending items found"]}
+
+    if not recipients:
+        return {"sent": sent, "skipped": ["No recipient email configured on the document"]}
+
+    available_attachments = {att.item_row for att in doc.get("attachment", []) if att.attachment}
+
+    items_to_email = []
+    for item in pending_items:
+        if item.name in available_attachments:
+            items_to_email.append(item)
+        else:
+            skipped.append(f"{item.item_code or item.name}: no attachment found")
+
+    if not items_to_email:
+        return {"sent": sent, "skipped": skipped}
+
+    body = frappe.render_template(
+        EMAIL_BODY_TEMPLATE,
+        {
+            "doc": doc,
+            "items": items_to_email,
+            "get_formatted_size": _get_formatted_size,
+        },
+    )
+
+    subject = EMAIL_SUBJECT_TEMPLATE.format(reference=doc.name)
+
+    attachments = _get_attachments_for_item_rows(
+        doc, {item.name for item in items_to_email}
+    )
+
+    try:
+        frappe.sendmail(
+            recipients=recipients,
+            subject=subject,
+            message=body,
+            attachments=attachments,
+            reference_doctype=doc.doctype,
+            reference_name=doc.name,
+        )
+    except Exception as e:
+        frappe.log_error(
+            title="Drawing Verification Email - Send Failed",
+            message=frappe.get_traceback(),
+        )
+        skipped.extend(
+            f"{item.item_code or item.name}: email send failed - {str(e)}"
+            for item in items_to_email
+        )
+        return {"sent": sent, "skipped": skipped}
+
+    for item in items_to_email:
+        sent.append(item.item_code or item.name)
+        try:
+            item.db_set("drawing_email_sent", 1, update_modified=False)
+        except Exception as e:
+            frappe.log_error(
+                title="Drawing Verification Email - Tracking Update Failed",
+                message=frappe.get_traceback(),
+            )
+            skipped.append(
+                f"{item.item_code or item.name}: email sent, but failed to mark drawing_email_sent - {str(e)}"
+            )
+
+    # Parent flag is optional - only set it if the field exists on the doctype
+    if frappe.get_meta(doc.doctype).has_field("attachment_email_sent"):
+        try:
+            doc.db_set("attachment_email_sent", 1, update_modified=False)
+        except Exception:
+            frappe.log_error(
+                title="Drawing Verification Email - Parent Flag Update Failed",
+                message=frappe.get_traceback(),
+            )
+
+    return {"sent": sent, "skipped": skipped}
+
+
+def _get_attachments_for_item_rows(doc, item_rows):
+    """
+    Build the email attachment list for the given item rows.
+
+    Each distinct file is attached once. If several attachment rows point to
+    the same file_url (e.g. the same file uploaded in two slots), Frappe
+    stores only one File record for it, so only one copy can be attached.
+    """
+    attachments = []
+    seen_urls = set()
+
+    for att in doc.get("attachment", []):
+        if not att.attachment or att.item_row not in item_rows:
+            continue
+
+        if att.attachment in seen_urls:
+            continue
+        seen_urls.add(att.attachment)
+
+        file_name = frappe.db.get_value("File", {"file_url": att.attachment}, "name")
+        if file_name:
+            attachments.append({"fid": file_name})
+        else:
+            frappe.log_error(
+                title="Drawing Verification Email - File Record Not Found",
+                message=f"No File record found for {att.attachment} (Sales Order {doc.name})",
+            )
+
+    return attachments
+
+
+def _get_recipients(doc):
+    """Resolve recipient email(s) for a Sales Order's drawing verification email."""
+    recipients = []
+    if doc.get("contact_email"):
+        recipients.append(doc.contact_email)
+    return recipients
+
+
+def _get_formatted_size(file_url):
+    """Return a human-readable file size for a given file_url, or '' if unavailable."""
+    file_doc = frappe.get_all(
+        "File",
+        filters={"file_url": file_url},
+        fields=["file_size"],
+        limit_page_length=1,
+    )
+    if not file_doc or not file_doc[0].file_size:
+        return ""
+    size = file_doc[0].file_size
+    for unit in ["B", "KB", "MB", "GB"]:
+        if size < 1024:
+            return f"{size:.1f} {unit}"
+        size /= 1024
+    return f"{size:.1f} TB"
+
+
+EMAIL_SUBJECT_TEMPLATE = "Drawing Verification Required — {reference}"
+
+EMAIL_BODY_TEMPLATE = """
+<p>Dear Sir/Madam,</p>
+<p>Please find attached the drawing(s) for the following item(s) on Sales Order <b>{{ doc.name }}</b> requiring your verification/approval:</p>
+<ul>
+{% for item in items %}
+    <li>{{ item.item_code }} — {{ item.item_name }}</li>
+{% endfor %}
+</ul>
+<p>Kindly review and confirm at your earliest convenience.</p>
+<p>Regards,<br>{{ doc.company }}</p>
+"""

@@ -142,6 +142,7 @@
   {
    "fieldname": "send_questionary_to_customer",
    "fieldtype": "Button",
+   "hidden": 1,
    "label": "Send Questionary To Customer"
   },
   {
@@ -154,15 +155,13 @@
   {
    "fieldname": "custom_primary_contact_email",
    "fieldtype": "Data",
-   "hidden": 1,
-   "label": "custom_primary_contact_email",
+   "label": "Primary Contact Email",
    "options": "Email"
   },
   {
    "fieldname": "custom_other_contact_emails",
    "fieldtype": "Small Text",
-   "hidden": 1,
-   "label": "custom_other_contact_emails "
+   "label": "CC Emails"
   },
   {
    "default": "0",
@@ -203,7 +202,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-09-18 11:14:27.707058",
+ "modified": "2026-09-21 15:24:02.733188",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",

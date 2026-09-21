@@ -8,7 +8,8 @@
  "engine": "InnoDB",
  "field_order": [
   "request_no",
-  "attachment"
+  "attachment",
+  "item_row"
  ],
  "fields": [
   {
@@ -22,13 +23,19 @@
    "fieldtype": "Attach",
    "in_list_view": 1,
    "label": "Attachment"
+  },
+  {
+   "fieldname": "item_row",
+   "fieldtype": "Data",
+   "label": "Item",
+   "options": "Item"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-08-25 12:52:07.061885",
+ "modified": "2026-09-21 17:05:48.357869",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Attachment",
