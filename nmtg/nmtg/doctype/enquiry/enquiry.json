@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "naming_series:",
+ "autoname": "format:{organization_name}",
  "creation": "2026-08-05 11:51:50.712872",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -143,11 +143,11 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-08-06 13:06:58.254327",
+ "modified": "2026-09-21 12:58:31.267198",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Enquiry",
- "naming_rule": "By \"Naming Series\" field",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

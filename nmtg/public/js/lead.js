@@ -49,7 +49,84 @@ frappe.ui.form.on('Lead', {
 		if (primary_count > 1) {
 			frappe.throw(__("Only one Contact can be marked as Primary Contact."));
 		}
-	}
+	},
+	before_workflow_action: function (frm) {
+		const action = frm.selected_workflow_action;
+
+		const action_field_map = {
+			"Unqualified": {
+				fieldname: "custom_reason_for_unqualified_lead",
+				dialog_title: __("Reason for Unqualified Lead"),
+				field_label: __("Reason"),
+			},
+		};
+
+		const config = action_field_map[action];
+
+		if (!config) {
+			return Promise.resolve();
+		}
+
+		return new Promise((resolve, reject) => {
+		
+			frappe.dom.unfreeze();
+
+			let settled = false;
+
+			const dialog = new frappe.ui.Dialog({
+				title: config.dialog_title,
+				fields: [
+					{
+						fieldname: "remark",
+						fieldtype: "Small Text",
+						label: config.field_label,
+						reqd: 1,
+					},
+				],
+				primary_action_label: __("Continue"),
+				primary_action: function (values) {
+					dialog.get_primary_btn().prop("disabled", true).text(__("Saving..."));
+					frappe.db
+						.set_value(frm.doctype, frm.docname, config.fieldname, values.remark)
+						.then(() => {
+							
+							frm.doc[config.fieldname] = values.remark;
+							frm.refresh_field(config.fieldname);
+
+							settled = true;
+							dialog.hide();
+							resolve();
+						})
+						.catch((err) => {
+							settled = true;
+							dialog.hide();
+							frappe.msgprint({
+								title: __("Could Not Save Remark"),
+								message: __(
+									"The remark could not be saved, so the {0} action was cancelled.",
+									[action]
+								),
+								indicator: "red",
+							});
+							reject(err);
+						});
+				},
+
+				on_hide: function () {
+					if (!settled) {
+						settled = true;
+						frappe.show_alert({
+							message: __("{0} action cancelled — no remark was entered.", [action]),
+							indicator: "orange",
+						});
+						reject(new Error("Workflow action cancelled: remark not provided."));
+					}
+				},
+			});
+
+			dialog.show();
+		});
+	},
 });
 
 
