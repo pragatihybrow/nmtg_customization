@@ -2138,3 +2138,27 @@ EMAIL_BODY_TEMPLATE = """
 <p>Kindly review and confirm at your earliest convenience.</p>
 <p>Regards,<br>{{ doc.company }}</p>
 """
+
+
+def set_customer_ref_codes_so(doc, method=None):
+    if not doc.customer:
+        return
+
+    item_codes = list({row.item_code for row in doc.items if row.item_code})
+    if not item_codes:
+        return
+
+    rows = frappe.db.get_all(
+        "Item Customer Detail",
+        filters={
+            "parenttype": "Item",
+            "parentfield": "customer_items",
+            "parent": ["in", item_codes],
+            "customer_name": doc.customer,
+        },
+        fields=["parent as item_code", "ref_code"],
+    )
+    ref_code_map = {r.item_code: r.ref_code for r in rows}
+
+    for row in doc.items:
+        row.custom_customer_code = ref_code_map.get(row.item_code, "")

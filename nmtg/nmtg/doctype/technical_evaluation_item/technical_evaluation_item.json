@@ -24,6 +24,7 @@
   "drawing_approval_required",
   "attachment_qty",
   "attachment",
+  "drawing_approval_status",
   "feasibility_review_required",
   "create_feasibility_review",
   "feasibility_review_report",
@@ -210,13 +211,20 @@
    "fieldtype": "Check",
    "label": "drawing_email_sent",
    "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.drawing_approval_required===\"Yes\"",
+   "fieldname": "drawing_approval_status",
+   "fieldtype": "Select",
+   "label": "Drawing Approval Status",
+   "options": "\nYes\nNo"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-01 16:05:15.939114",
+ "modified": "2026-09-24 14:05:52.648940",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",

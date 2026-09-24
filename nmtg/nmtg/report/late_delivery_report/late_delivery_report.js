@@ -35,4 +35,26 @@ frappe.query_reports["Late Delivery Report"] = {
             default: frappe.datetime.get_today(),
         },
     ],
+
+    // Blank out numeric/date cells on the parent (SO) row instead of showing 0 / ₹0.00 / 0%
+    formatter: function (value, row, column, data, default_formatter) {
+        const blank_on_parent = [
+            "qty",
+            "delivery_note",
+            "so_delivery_date",
+            "due_in_weeks",
+            "actual_dispatch_date",
+            "actual_delivery_date",
+            "base_amount",
+            "ld_percentage",
+            "ld_amount",
+            "ld_amount_deducted",
+        ];
+
+        if (data && data.indent === 0 && blank_on_parent.includes(column.fieldname)) {
+            return "";
+        }
+
+        return default_formatter(value, row, column, data);
+    },
 };

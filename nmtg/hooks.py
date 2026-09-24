@@ -318,7 +318,8 @@ doc_events = {
     },
     "Sales Order": {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_so",
-        "on_update_after_submit": "nmtg.override.api.sync_customer_requirements_to_work_order"
+        "on_update_after_submit": "nmtg.override.api.sync_customer_requirements_to_work_order",
+        "validate": "nmtg.override.api.set_customer_ref_codes_so",
     },
     "Sales Invoice": {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_si"
@@ -328,6 +329,9 @@ doc_events = {
     },
        "Work Order": {
         "before_insert": "nmtg.override.api.copy_customer_requirements_to_wo"
+    },
+    "Quotation": {
+        "validate": "nmtg.override.quotation.set_customer_ref_codes",
     },
 }
 
