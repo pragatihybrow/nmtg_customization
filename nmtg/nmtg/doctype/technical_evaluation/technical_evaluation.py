@@ -209,6 +209,8 @@ class TechnicalEvaluation(Document):
 
             opp_item.custom_customer_material_code =(te_item.customer_material_code)
 
+            opp_item.custom_drawing_approval_status = (te_item.drawing_approval_status)
+
             updated = True
 
         if updated:
