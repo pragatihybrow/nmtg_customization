@@ -2162,3 +2162,30 @@ def set_customer_ref_codes_so(doc, method=None):
 
     for row in doc.items:
         row.custom_customer_code = ref_code_map.get(row.item_code, "")
+
+
+
+@frappe.whitelist()
+def get_users_by_roles(roles):
+    if isinstance(roles, str):
+        roles = frappe.parse_json(roles)
+
+    if not roles:
+        return []
+
+    role_users = frappe.get_all(
+        "Has Role",
+        filters={"role": ["in", roles], "parenttype": "User"},
+        fields=["parent as user"],
+    )
+
+    user_names = list({d.user for d in role_users})
+
+    if not user_names:
+        return []
+
+    return frappe.get_all(
+        "User",
+        filters={"name": ["in", user_names], "enabled": 1},
+        pluck="name",
+    )

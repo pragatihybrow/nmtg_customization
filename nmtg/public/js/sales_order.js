@@ -171,10 +171,81 @@ frappe.ui.form.on("Sales Order Item", {
     },
     form_render(frm, cdt, cdn) {
         render_attachment_slots(frm, cdt, cdn);
+
+        // Special characteristics HTML lives only in the DOM, and the grid
+        // row's detail form (and its $wrapper) is destroyed/recreated every
+        // time the row is collapsed and re-expanded. So: fetch + render on
+        // the first expand, and on every later expand just redraw from the
+        // cached data (no need to hit the server again).
+        let row = locals[cdt][cdn];
+        if (row.item_code && !row.__special_char_fetched) {
+            fetch_and_render_special_characteristics(frm, cdt, cdn);
+        } else {
+            render_special_characteristics_html(frm, cdt, cdn, row.__special_char_cache || []);
+        }
     },
     attachment_qty(frm, cdt, cdn) {
         sync_attachment_rows(frm, cdt, cdn);
         render_attachment_slots(frm, cdt, cdn);
+    },
+    item_code: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        row.__special_char_fetched = false; // item changed — force a refetch
+        fetch_and_render_special_characteristics(frm, cdt, cdn);
+    },
+    custom_assign_to_responsible_users: function (frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        if (frm.is_new()) {
+            frappe.msgprint(__("Please save the document first."));
+            return;
+        }
+
+        if (!row.custom_special_item_role) {
+            frappe.msgprint(__("No responsible role found for this item's special characteristics."));
+            return;
+        }
+
+        let roles = row.custom_special_item_role
+            .split(",")
+            .map((r) => r.trim())
+            .filter(Boolean);
+
+        frappe.call({
+            method: "nmtg.override.api.get_users_by_roles",
+            args: { roles: roles },
+            freeze: true,
+            freeze_message: __("Finding responsible users..."),
+            callback: function (r) {
+                let users = r.message || [];
+
+                if (!users.length) {
+                    frappe.msgprint(__("No enabled users found with role(s): {0}", [roles.join(", ")]));
+                    return;
+                }
+
+                frappe.call({
+                    method: "frappe.desk.form.assign_to.add",
+                    args: {
+                        assign_to: JSON.stringify(users),
+                        doctype: frm.doctype,
+                        name: frm.doc.name,
+                        description: __("Special item on row {0} ({1}) needs attention — role(s): {2}", [
+                            row.idx,
+                            row.item_code,
+                            roles.join(", "),
+                        ]),
+                    },
+                    callback: function () {
+                        frappe.show_alert({
+                            message: __("Assigned to: {0}", [users.join(", ")]),
+                            indicator: "green",
+                        });
+                        frm.reload_doc();
+                    },
+                });
+            },
+        });
     },
 });
 
@@ -265,14 +336,14 @@ function sync_attachment_rows(frm, cdt, cdn) {
 }
 
 
-function get_html_wrapper(frm, cdt, cdn) {
+function get_html_wrapper(frm, cdt, cdn, fieldname) {
     let grid_row = frm.fields_dict["items"].grid.grid_rows_by_docname[cdn];
     if (!grid_row) return null;
 
     // The HTML field only exists once the row's detail form has been opened/rendered
     if (!grid_row.grid_form || !grid_row.grid_form.fields_dict) return null;
 
-    let field = grid_row.grid_form.fields_dict["attachment"];
+    let field = grid_row.grid_form.fields_dict[fieldname];
     if (!field || !field.$wrapper) return null;
 
     return field.$wrapper;
@@ -281,7 +352,7 @@ function get_html_wrapper(frm, cdt, cdn) {
 
 function render_attachment_slots(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
-    let $wrapper = get_html_wrapper(frm, cdt, cdn);
+    let $wrapper = get_html_wrapper(frm, cdt, cdn, "attachment");
     if (!$wrapper) return;
 
     $wrapper.empty();
@@ -327,4 +398,68 @@ function render_attachment_slots(frm, cdt, cdn) {
 
         $container.append($slot);
     }
+}
+
+
+// ---- Special Characteristics (HTML field + role text field) ----
+
+function fetch_and_render_special_characteristics(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    row.__special_char_fetched = true;
+
+    if (!row.item_code) {
+        frappe.model.set_value(cdt, cdn, "custom_special_item_role", "");
+        row.__special_char_cache = [];
+        render_special_characteristics_html(frm, cdt, cdn, []);
+        return;
+    }
+
+    frappe.db.get_doc("Item", row.item_code).then((item_doc) => {
+        let characteristics = item_doc.custom_special_characteristics || [];
+
+        let roles = [...new Set(
+            characteristics.map((d) => d.responsible_role).filter(Boolean)
+        )].join(", ");
+        frappe.model.set_value(cdt, cdn, "custom_special_item_role", roles);
+
+        // cache on the row so form_render can redraw without refetching
+        row.__special_char_cache = characteristics;
+        render_special_characteristics_html(frm, cdt, cdn, characteristics);
+    });
+}
+
+function render_special_characteristics_html(frm, cdt, cdn, characteristics) {
+    let $wrapper = get_html_wrapper(frm, cdt, cdn, "custom_special_item_html");
+    if (!$wrapper) return; // row not expanded yet — will render next time form_render fires
+
+    $wrapper.empty();
+
+    if (!characteristics || !characteristics.length) {
+        $wrapper.append(`<div class="text-muted" style="font-size:12px;">No special characteristics for this item.</div>`);
+        return;
+    }
+
+    let rows = characteristics
+        .map(
+            (d) => `
+            <tr>
+                <td>${frappe.utils.escape_html(d.special_characteristics || "")}</td>
+                <td>${frappe.utils.escape_html(d.description || "")}</td>
+                <td>${frappe.utils.escape_html(d.responsible_role || "")}</td>
+            </tr>`
+        )
+        .join("");
+
+    $wrapper.append(`
+        <table class="table table-bordered" style="margin-bottom:0;">
+            <thead>
+                <tr>
+                    <th>Special Characteristics</th>
+                    <th>Description</th>
+                    <th>Responsible Role</th>
+                </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+        </table>
+    `);
 }
