@@ -18,6 +18,77 @@ frappe.ui.form.on("Item", {
        // generate_item_name(frm)
     },
 
+    before_save: function(frm) {
+        // Only ask once, and only for a new Item being created
+        if (!frm.is_new() || frm.__special_item_prompted) {
+            return;
+        }
+        frm.__special_item_prompted = true;
+
+        return new Promise((resolve) => {
+            let dialog = new frappe.ui.Dialog({
+                title: __("Special Item"),
+                fields: [
+                    {
+                        fieldname: "is_special",
+                        fieldtype: "Check",
+                        label: __("Is this a Special Item?"),
+                        default: frm.doc.custom_special_item ? 1 : 0
+                    },
+                    {
+                        fieldname: "suffix",
+                        fieldtype: "Data",
+                        label: __("Suffix"),
+                        depends_on: "eval:doc.is_special",
+                        mandatory_depends_on: "eval:doc.is_special"
+                    }
+                ],
+                primary_action_label: __("Continue"),
+                primary_action: function(values) {
+                    frm.set_value("custom_special_item", values.is_special ? 1 : 0);
+                    // Not stored on the doc - kept only in memory until the
+                    // post-save step below bakes it into item_name.
+                    frm.__pending_special_suffix = values.is_special ? values.suffix : null;
+                    dialog.hide();
+                    resolve();
+                }
+            });
+
+            // If the dialog is dismissed without hitting Continue (Esc / click outside),
+            // don't block the save - just proceed without marking it special.
+            dialog.$wrapper.on("hidden.bs.modal", function () {
+                resolve();
+            });
+
+            dialog.show();
+        });
+    },
+
+    after_save: function(frm) {
+        let suffix = frm.__pending_special_suffix;
+        // Clear immediately so this never re-fires on later saves of the same doc
+        frm.__pending_special_suffix = null;
+
+        if (!suffix || !frm.doc.custom_special_item) {
+            return;
+        }
+
+        let new_item_name = `${frm.doc.item_name}.${suffix}`;
+
+        frappe.call({
+            method: "frappe.client.set_value",
+            args: {
+                doctype: "Item",
+                name: frm.doc.name,
+                fieldname: "item_name",
+                value: new_item_name
+            },
+            callback: function() {
+                frm.reload_doc();
+            }
+        });
+    },
+
     item_group: function(frm) {
         frm.set_value("custom_product_group", "");
         frm.set_value("custom_sub_product_group", "");
@@ -354,10 +425,11 @@ function apply_item_settings_fields(frm) {
         "custom_create_nmtg_code",
         "custom_legacy_item_name",
         "custom_quality_category_required",
-        "custom_mr_uom"
+        "custom_mr_uom",
+        "custom_special_item",
+        "custom_special_characteristics"
     ];
 
-    // Show always_visible fields, hide every other dynamic custom field
     frm.meta.fields.forEach(df => {
         if (df.fieldname && df.fieldname.startsWith("custom_")) {
             if (always_visible.includes(df.fieldname)) {

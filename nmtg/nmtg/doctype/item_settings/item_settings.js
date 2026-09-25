@@ -22,14 +22,13 @@ const ITEM_SETTINGS_SKIP_FIELDS = [
     "custom_create_nmtg_code",
     "custom_legacy_item_name",
     "custom_quality_category_required",
-    "custom_mr_uom"
+    "custom_mr_uom",
+    "custom_special_item",
+    "custom_special_characteristics"
 ];
 
-// Fields that need a special bracketed hint instead of (or in addition to)
-// the raw fieldname, wherever they show up (multiselect + pattern helper).
 const ITEM_SETTINGS_FIELD_LABEL_HINTS = {
-    // custom_od: "use for sales",
-    // custom_diameter: "use for purchase"
+  
 };
 
 function get_field_display_label(f) {
