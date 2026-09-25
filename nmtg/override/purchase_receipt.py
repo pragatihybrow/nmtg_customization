@@ -129,9 +129,6 @@ class CustomPurchaseReceipt(PurchaseReceipt):
             used_ranges[qc.item] = existing
 
 
-
-
-
 def calculate_qty_in_kg(doc, method):
     for item in doc.items:
         if item.item_code and item.qty:
@@ -148,3 +145,96 @@ def calculate_qty_in_kg(doc, method):
                 item.custom_qty_in_kg = item.qty * conversion_factor
             else:
                 item.custom_qty_in_kg = 0
+
+
+def create_inward_qty_entries(doc, method=None):
+    current_row_names = {item.name for item in doc.items}
+
+    orphaned = frappe.get_all(
+        "Inward Qty",
+        filters={
+            "grn": doc.name,
+            "source_row": ["not in", list(current_row_names) or [""]],
+        },
+        pluck="name",
+    )
+    for name in orphaned:
+        frappe.delete_doc("Inward Qty", name, ignore_permissions=True)
+
+    for item in doc.items:
+        # Accepted quantity
+        if not item.get("inward_qty_on_grn"):
+            accepted_doc = frappe.get_doc({
+                "doctype": "Inward Qty",
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "received_quantity": item.qty,
+                "received_quantity_uom": item.uom,
+                "received_quantity_in_numbers": item.get("custom_qty_in_no") or 0,
+                "grn": doc.name,
+                "source_row": item.name,
+            }).insert(ignore_permissions=True)
+            item.inward_qty_on_grn = accepted_doc.name
+
+        # Rejected quantity, only if this row actually has any
+        if item.get("rejected_qty") and not item.get("rejected_inward_qty_on_grn"):
+            rejected_doc = frappe.get_doc({
+                "doctype": "Inward Qty",
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "received_quantity": item.rejected_qty,
+                "received_quantity_uom": item.uom,
+                "received_quantity_in_numbers": 0,  # no equivalent source field for rejected qty in numbers
+                "grn": doc.name,
+                "source_row": item.name,
+            }).insert(ignore_permissions=True)
+            item.rejected_inward_qty_on_grn = rejected_doc.name
+
+
+def remove_inward_qty_entries(doc, method=None):
+    frappe.db.delete("Inward Qty", {"grn": doc.name})
+
+
+def sync_qty_in_numbers_to_sle(doc, method=None):
+    # Custom field must exist on Stock Ledger Entry; skip safely if it doesn't
+    if not frappe.db.has_column("Stock Ledger Entry", "custom_qty_in_no"):
+        frappe.log_error(
+            "Custom field 'custom_qty_in_no' missing on Stock Ledger Entry; skipped sync for "
+            f"{doc.name}",
+            "NMTG: SLE qty in numbers sync skipped",
+        )
+        return
+
+    for item in doc.items:
+        # Accepted quantity
+        if item.get("inward_qty_on_grn"):
+            numbers = frappe.db.get_value(
+                "Inward Qty", item.inward_qty_on_grn, "received_quantity_in_numbers"
+            ) or 0
+            _update_sle_qty_in_numbers(doc.name, item.name, item.warehouse, numbers)
+
+        # Rejected quantity, if tracked
+        if item.get("rejected_inward_qty_on_grn") and item.get("rejected_warehouse"):
+            numbers = frappe.db.get_value(
+                "Inward Qty", item.rejected_inward_qty_on_grn, "received_quantity_in_numbers"
+            ) or 0
+            _update_sle_qty_in_numbers(doc.name, item.name, item.rejected_warehouse, numbers)
+
+
+def _update_sle_qty_in_numbers(voucher_no, voucher_detail_no, warehouse, numbers):
+    frappe.db.sql(
+        """
+        UPDATE `tabStock Ledger Entry`
+        SET custom_qty_in_no = CASE WHEN actual_qty < 0 THEN -%(numbers)s ELSE %(numbers)s END
+        WHERE voucher_type = 'Purchase Receipt'
+          AND voucher_no = %(voucher_no)s
+          AND voucher_detail_no = %(voucher_detail_no)s
+          AND warehouse = %(warehouse)s
+        """,
+        {
+            "numbers": abs(numbers or 0),
+            "voucher_no": voucher_no,
+            "voucher_detail_no": voucher_detail_no,
+            "warehouse": warehouse,
+        },
+    )

@@ -333,6 +333,13 @@ doc_events = {
     "Quotation": {
         "validate": "nmtg.override.quotation.set_customer_ref_codes",
     },
+    "Purchase Receipt": {
+        "validate": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+        "on_submit": "nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
+        "on_cancel": ["nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
+              "nmtg.override.purchase_receipt.remove_inward_qty_entries"],
+        "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
+    }
 }
 
 
