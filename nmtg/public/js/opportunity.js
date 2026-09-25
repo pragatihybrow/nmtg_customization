@@ -21,6 +21,9 @@ frappe.ui.form.on("Opportunity", {
             }, __('Create'));
         }
         update_technical_status(frm);
+		if (frm.doc.shipping_address_name && !frm.doc.custom_shipping_address) {
+            fetch_shipping_address(frm);
+        }
     },
     status: function(frm) {
         update_technical_status(frm);
@@ -40,8 +43,27 @@ frappe.ui.form.on("Opportunity", {
             },
         });
     },
+	validate: function (frm) {
+		let missing = [];
 
-  
+		(frm.doc.items || []).forEach((row) => {
+			if (row.__remark_mandatory && !row.custom_remarks) {
+				missing.push(row.idx);
+			}
+		});
+
+		if (missing.length) {
+			frappe.throw(
+				__("Remark is mandatory for Item row(s) {0} since Rate differs from the Price List Rate.", [
+					missing.join(", "),
+				])
+			);
+		}
+	},
+	 shipping_address_name: function(frm) {
+        fetch_shipping_address(frm);
+    },
+   
 });
 
 
@@ -142,22 +164,21 @@ function check_rate_vs_price_list(frm, cdt, cdn) {
 	});
 }
 
-frappe.ui.form.on("Opportunity", {
-	validate: function (frm) {
-		let missing = [];
+function fetch_shipping_address(frm) {
+    if (!frm.doc.shipping_address_name) {
+        frm.set_value("custom_shipping_address", "");
+        return;
+    }
 
-		(frm.doc.items || []).forEach((row) => {
-			if (row.__remark_mandatory && !row.custom_remarks) {
-				missing.push(row.idx);
-			}
-		});
-
-		if (missing.length) {
-			frappe.throw(
-				__("Remark is mandatory for Item row(s) {0} since Rate differs from the Price List Rate.", [
-					missing.join(", "),
-				])
-			);
-		}
-	},
-});
+    frappe.call({
+        method: "frappe.contacts.doctype.address.address.get_address_display",
+        args: {
+            address_dict: frm.doc.shipping_address_name
+        },
+        callback: function(r) {
+            if (r.message) {
+                frm.set_value("custom_shipping_address", r.message);
+            }
+        }
+    });
+}

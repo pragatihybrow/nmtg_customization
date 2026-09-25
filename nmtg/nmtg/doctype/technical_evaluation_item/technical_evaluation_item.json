@@ -18,6 +18,7 @@
   "nmtg_model",
   "item_code",
   "item_name",
+  "custom_customer_code",
   "selection_type",
   "technical_status",
   "clarification_required",
@@ -203,7 +204,8 @@
   {
    "fieldname": "customer_material_code",
    "fieldtype": "Data",
-   "label": "Customer Material code "
+   "label": "Customer Material code ",
+   "read_only": 1
   },
   {
    "default": "0",
@@ -218,13 +220,18 @@
    "fieldtype": "Select",
    "label": "Drawing Approval Status",
    "options": "\nYes\nNo"
+  },
+  {
+   "fieldname": "custom_customer_code",
+   "fieldtype": "Data",
+   "label": "Customer Material code "
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-24 14:05:52.648940",
+ "modified": "2026-09-25 11:51:44.812820",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation Item",

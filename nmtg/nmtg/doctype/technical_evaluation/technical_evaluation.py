@@ -14,6 +14,7 @@ class TechnicalEvaluation(Document):
 
     def before_save(self):
         self.generate_request_numbers()
+        self.set_customer_ref_codes_so()
 
     def on_update(self):
         self.update_opportunity_status()
@@ -40,6 +41,30 @@ class TechnicalEvaluation(Document):
         )
 
         self.version = f"V{existing_count + 1}"
+
+        
+    def set_customer_ref_codes_so(doc, method=None):
+        if not doc.customer:
+            return
+
+        item_codes = list({row.item_code for row in doc.items if row.item_code})
+        if not item_codes:
+            return
+
+        rows = frappe.db.get_all(
+            "Item Customer Detail",
+            filters={
+                "parenttype": "Item",
+                "parentfield": "customer_items",
+                "parent": ["in", item_codes],
+                "customer_name": doc.customer,
+            },
+            fields=["parent as item_code", "ref_code"],
+        )
+        ref_code_map = {r.item_code: r.ref_code for r in rows}
+
+        for row in doc.items:
+            row.custom_customer_code = ref_code_map.get(row.item_code, "")
 
     def generate_request_numbers(self):
         for idx, row in enumerate(self.items, start=1):
@@ -207,7 +232,7 @@ class TechnicalEvaluation(Document):
 
             opp_item.custom_version = self.version
 
-            opp_item.custom_customer_material_code =(te_item.customer_material_code)
+            opp_item.custom_customer_code =(te_item.custom_customer_code)
 
             opp_item.custom_drawing_approval_status = (te_item.drawing_approval_status)
 
@@ -502,4 +527,5 @@ def send_drawing_verification_emails_for_doc(docname):
 		)
 
 	return {"sent": sent, "skipped": skipped}
+
 

@@ -86,6 +86,18 @@ def get_columns():
             "width": 80,
         },
         {
+            "label": _("LD Frequency (days)"),
+            "fieldname": "custom_frequency",
+            "fieldtype": "Data",
+            "width": 130,
+        },
+        {
+            "label": _("Periods Overdue"),
+            "fieldname": "periods_overdue",
+            "fieldtype": "Int",
+            "width": 120,
+        },
+        {
             "label": _("LD Amount"),
             "fieldname": "ld_amount",
             "fieldtype": "Currency",
@@ -115,7 +127,7 @@ def get_data(filters):
             dni.qty AS qty,
             dni.custom_delivery_date AS material_received_date,
             dni.net_amount AS base_amount,
-            dni.custom_total_ld AS ld_amount,
+            dni.custom_total_ld AS stored_ld_amount,
             soi.custom_actual_delivery_date AS committed_delivery_date,
             soi.delivery_date AS production_delivery_date,
             so.custom_ld_so AS custom_ld_so
@@ -135,6 +147,8 @@ def get_data(filters):
     grouped = OrderedDict()
     for row in item_rows:
         row["due_in_weeks"] = get_due_in_weeks(row)
+        row["periods_overdue"] = get_periods_overdue(row)
+        row["ld_amount"] = get_ld_amount(row)
         row["ld_amount_deducted"] = get_ld_amount_deducted(row)
         grouped.setdefault(row["sales_order"], []).append(row)
 
@@ -153,6 +167,8 @@ def get_data(filters):
             "due_in_weeks": "",
             "base_amount": "",
             "ld_percentage": "",
+            "custom_frequency": "",
+            "periods_overdue": "",
             "ld_amount": "",
             "ld_amount_deducted": "",
             "indent": 0,
@@ -182,23 +198,6 @@ def get_conditions(filters):
 
     return ("AND " + " AND ".join(conditions)) if conditions else ""
 
-
-# def get_due_in_weeks(row):
-#     promised_date = row.get("committed_delivery_date")
-#     if not promised_date:
-#         return ""
-
-#     actual_date = row.get("material_received_date") or nowdate()
-#     delay_days = date_diff(promised_date, actual_date)
-
-#     if delay_days <= 0:
-#         return "0 week(s)"
-
-#     weeks = ceil(delay_days / 7)
-#     label = "{0} week(s)".format(weeks)
-#     if not row.get("material_received_date"):
-#         label += " (pending)"
-#     return label
 
 def get_due_in_weeks(row):
     promised_date = row.get("committed_delivery_date")
@@ -230,9 +229,49 @@ def format_duration(days):
     weeks = ceil(days / 7)
     return "{0} week{1}".format(weeks, "" if weeks == 1 else "s")
 
+
+def get_delay_days(row):
+    """Number of days between promised delivery and actual/current date."""
+    promised_date = row.get("committed_delivery_date")
+    if not promised_date:
+        return 0
+
+    end_date = row.get("material_received_date") or nowdate()
+    delay_days = date_diff(end_date, promised_date)
+    return delay_days if delay_days > 0 else 0
+
+
+def get_periods_overdue(row):
+    """Number of LD cycles (per custom_frequency, in days) the delivery is overdue."""
+    if not row.get("custom_ld_so"):
+        return 0
+
+    delay_days = get_delay_days(row)
+    if delay_days <= 0:
+        return 0
+
+    frequency_days = flt(row.get("custom_frequency")) or 7  # fallback: weekly
+    return ceil(delay_days / frequency_days)
+
+
+def get_ld_amount(row):
+    """LD Amount = base_amount * ld_percentage * number of frequency periods overdue."""
+    if not row.get("custom_ld_so"):
+        return 0
+
+    periods_overdue = row.get("periods_overdue") or get_periods_overdue(row)
+    if not periods_overdue:
+        return 0
+
+    base_amount = flt(row.get("base_amount"))
+    ld_percentage = flt(row.get("ld_percentage"))
+
+    return base_amount * (ld_percentage / 100) * periods_overdue
+
+
 def get_ld_amount_deducted(row):
     if not row.get("custom_ld_so"):
         return 0
 
-    ld_amount = flt(row.get("ld_amount"))
+    ld_amount = flt(row.get("stored_ld_amount"))
     return ld_amount if ld_amount else 0
