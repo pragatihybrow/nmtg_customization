@@ -254,19 +254,29 @@ def get_periods_overdue(row):
     return ceil(delay_days / frequency_days)
 
 
-def get_ld_amount(row):
-    """LD Amount = base_amount * ld_percentage * number of frequency periods overdue."""
-    if not row.get("custom_ld_so"):
-        return 0
+# def get_ld_amount(row):
+#     """LD Amount = base_amount * ld_percentage * number of frequency periods overdue."""
+#     if not row.get("custom_ld_so"):
+#         return 0
 
-    periods_overdue = row.get("periods_overdue") or get_periods_overdue(row)
-    if not periods_overdue:
+#     periods_overdue = row.get("periods_overdue") or get_periods_overdue(row)
+#     if not periods_overdue:
+#         return 0
+
+#     base_amount = flt(row.get("base_amount"))
+#     ld_percentage = flt(row.get("ld_percentage"))
+
+#     return base_amount * (ld_percentage / 100) * periods_overdue
+
+def get_ld_amount(row):
+    """LD Amount = base_amount * ld_percentage (per single frequency period, not cumulative)."""
+    if not row.get("custom_ld_so"):
         return 0
 
     base_amount = flt(row.get("base_amount"))
     ld_percentage = flt(row.get("ld_percentage"))
 
-    return base_amount * (ld_percentage / 100) * periods_overdue
+    return base_amount * (ld_percentage / 100)
 
 
 def get_ld_amount_deducted(row):
