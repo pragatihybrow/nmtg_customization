@@ -1,0 +1,21 @@
+[
+ {
+  "apply_to_all_doctypes": 0,
+  "condition": null,
+  "dimension_name": "Inward Qty",
+  "docstatus": 0,
+  "doctype": "Inventory Dimension",
+  "document_type": "Purchase Receipt Item",
+  "fetch_from_parent": "",
+  "istable": 1,
+  "mandatory_depends_on_backend": null,
+  "modified": "2026-09-28 09:38:45.207543",
+  "name": "Inward Qty",
+  "reference_document": "Inward Qty",
+  "reqd": 0,
+  "source_fieldname": "inward_qty",
+  "target_fieldname": "inward_qty",
+  "type_of_transaction": "Both",
+  "validate_negative_stock": 0
+ }
+]

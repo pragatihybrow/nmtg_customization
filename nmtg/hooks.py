@@ -334,11 +334,13 @@ doc_events = {
         "validate": "nmtg.override.quotation.set_customer_ref_codes",
     },
     "Purchase Receipt": {
-        "validate": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+        # "validate": "nmtg.override.purchase_receipt.create_inward_qty_entries",
         "on_submit": "nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
         "on_cancel": ["nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
               "nmtg.override.purchase_receipt.remove_inward_qty_entries"],
         "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
+        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries"
+
     }
 }
 
@@ -355,6 +357,7 @@ scheduler_events = {
 }
 
 fixtures = [
+
     {
         "dt": "Property Setter",
         "filters": [
@@ -363,13 +366,22 @@ fixtures = [
             ["property", "=", "options"]
         ]
     },
-        {
+
+    {
         "dt": "Translation",
         "filters": [
             ["language", "=", "en"],
             ["source_text", "in", ["Enquiry", "Purchase Receipt"]]
         ]
+    },
+
+    {
+        "dt": "Inventory Dimension",
+        "filters": [
+            ["name", "=", "Inward Qty"]
+        ]
     }
+
 ]
 
 jinja = {
