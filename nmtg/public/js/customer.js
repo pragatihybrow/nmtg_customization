@@ -24,6 +24,17 @@ frappe.ui.form.on('Customer', {
     customer_group(frm) {
         toggle_dealer_customer(frm);
     },
+    setup(frm) {
+        frm.set_query("custom_address", "sales_team", function (doc, cdt, cdn) {
+            return {
+                query: "frappe.contacts.doctype.address.address.address_query",
+                filters: {
+                    link_doctype: "Customer",
+                    link_name: doc.name,
+                },
+            };
+        });
+    },
 });
 
 function set_industry_filter(frm) {
@@ -89,6 +100,8 @@ function set_application_filter(frm) {
         });
     });
 }
+
+
 
 frappe.ui.form.on("Customer Type CT", {
     customer_type(frm) {

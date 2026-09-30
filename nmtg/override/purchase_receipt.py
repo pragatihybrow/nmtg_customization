@@ -147,50 +147,6 @@ def calculate_qty_in_kg(doc, method):
                 item.custom_qty_in_kg = 0
 
 
-# def create_inward_qty_entries(doc, method=None):
-#     current_row_names = {item.name for item in doc.items}
-
-#     orphaned = frappe.get_all(
-#         "Inward Qty",
-#         filters={
-#             "grn": doc.name,
-#             "source_row": ["not in", list(current_row_names) or [""]],
-#         },
-#         pluck="name",
-#     )
-#     for name in orphaned:
-#         frappe.delete_doc("Inward Qty", name, ignore_permissions=True)
-
-#     for item in doc.items:
-#         # Accepted quantity
-#         if not item.get("inward_qty_on_grn"):
-#             accepted_doc = frappe.get_doc({
-#                 "doctype": "Inward Qty",
-#                 "item_code": item.item_code,
-#                 "item_name": item.item_name,
-#                 "received_quantity": item.qty,
-#                 "received_quantity_uom": item.uom,
-#                 "received_quantity_in_numbers": item.get("custom_qty_in_no") or 0,
-#                 "grn": doc.name,
-#                 "source_row": item.name,
-#             }).insert(ignore_permissions=True)
-#             item.inward_qty_on_grn = accepted_doc.name
-
-#         # Rejected quantity, only if this row actually has any
-#         if item.get("rejected_qty") and not item.get("rejected_inward_qty_on_grn"):
-#             rejected_doc = frappe.get_doc({
-#                 "doctype": "Inward Qty",
-#                 "item_code": item.item_code,
-#                 "item_name": item.item_name,
-#                 "received_quantity": item.rejected_qty,
-#                 "received_quantity_uom": item.uom,
-#                 "received_quantity_in_numbers": 0,  # no equivalent source field for rejected qty in numbers
-#                 "grn": doc.name,
-#                 "source_row": item.name,
-#             }).insert(ignore_permissions=True)
-#             item.rejected_inward_qty_on_grn = rejected_doc.name
-
-
 def create_inward_qty_entries(doc, method=None):
     current_row_names = {item.name for item in doc.items}
 

@@ -1,6 +1,8 @@
 {
  "actions": [],
+ "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "format:{item_type}",
  "creation": "2026-05-07 16:53:39.821180",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -17,10 +19,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-05-07 16:53:49.639503",
+ "modified": "2026-09-28 16:34:48.711923",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Item Type",
+ "naming_rule": "Expression (old style)",
  "owner": "Administrator",
  "permissions": [
   {

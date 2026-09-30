@@ -271,8 +271,8 @@ doctype_js = {
 override_doctype_class = {
     "Item": "nmtg.override.item.CustomItem",
     "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt",
-    "Opportunity": "nmtg.override.opportunity.CustomOpportunity"
-
+    "Opportunity": "nmtg.override.opportunity.CustomOpportunity",
+    "Customer": "nmtg.override.customer.CustomCustomer"
 }
 
 doctype_list_js = {
@@ -307,7 +307,8 @@ doc_events = {
 		"on_submit": "nmtg.override.supplier.update_supplier_next_audit_date",
 	},
      "Customer": {
-        "validate": "nmtg.override.api.set_custom_dealer"
+        "validate": "nmtg.override.api.set_custom_dealer",
+        "before_validate": "nmtg.override.customer.set_sales_team_allocation",
     },
      "Opportunity": {
         "before_insert": "nmtg.override.opportunity.set_contact_recipient_emails",
@@ -341,7 +342,8 @@ doc_events = {
         "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
         "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries"
 
-    }
+    },
+     
 }
 
 

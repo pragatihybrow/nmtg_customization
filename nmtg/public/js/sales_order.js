@@ -52,6 +52,16 @@ frappe.ui.form.on("Sales Order", {
         }).addClass("btn-primary");
     }
 },
+    customer(frm) {
+            if (frm.doc.docstatus === 0) {
+                frm.clear_table("sales_team");
+                frm.refresh_field("sales_team");
+            }
+        },
+    customer_address(frm) {
+            nmtg_fetch_sales_team_by_address(frm);
+        },
+
     custom_assign_to_responsible_users: function (frm) {
         if (frm.is_new()) {
             frappe.msgprint(__("Please save the document first."));
@@ -172,11 +182,6 @@ frappe.ui.form.on("Sales Order Item", {
     form_render(frm, cdt, cdn) {
         render_attachment_slots(frm, cdt, cdn);
 
-        // Special characteristics HTML lives only in the DOM, and the grid
-        // row's detail form (and its $wrapper) is destroyed/recreated every
-        // time the row is collapsed and re-expanded. So: fetch + render on
-        // the first expand, and on every later expand just redraw from the
-        // cached data (no need to hit the server again).
         let row = locals[cdt][cdn];
         if (row.item_code && !row.__special_char_fetched) {
             fetch_and_render_special_characteristics(frm, cdt, cdn);
@@ -322,8 +327,6 @@ function recalculate_all_commissions(frm) {
 }
 
 
-// Attachments are now keyed off the item row's own docname (cdn) instead
-// of a request_no field, since Sales Order Item has no request_no.
 function sync_attachment_rows(frm, cdt, cdn) {
     let linked = (frm.doc.attachment || []).filter(a => a.item_row === cdn);
     let qty = cint(locals[cdt][cdn].attachment_qty);
@@ -340,7 +343,6 @@ function get_html_wrapper(frm, cdt, cdn, fieldname) {
     let grid_row = frm.fields_dict["items"].grid.grid_rows_by_docname[cdn];
     if (!grid_row) return null;
 
-    // The HTML field only exists once the row's detail form has been opened/rendered
     if (!grid_row.grid_form || !grid_row.grid_form.fields_dict) return null;
 
     let field = grid_row.grid_form.fields_dict[fieldname];
@@ -401,7 +403,6 @@ function render_attachment_slots(frm, cdt, cdn) {
 }
 
 
-// ---- Special Characteristics (HTML field + role text field) ----
 
 function fetch_and_render_special_characteristics(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
@@ -422,7 +423,6 @@ function fetch_and_render_special_characteristics(frm, cdt, cdn) {
         )].join(", ");
         frappe.model.set_value(cdt, cdn, "custom_special_item_role", roles);
 
-        // cache on the row so form_render can redraw without refetching
         row.__special_char_cache = characteristics;
         render_special_characteristics_html(frm, cdt, cdn, characteristics);
     });
@@ -430,7 +430,7 @@ function fetch_and_render_special_characteristics(frm, cdt, cdn) {
 
 function render_special_characteristics_html(frm, cdt, cdn, characteristics) {
     let $wrapper = get_html_wrapper(frm, cdt, cdn, "custom_special_item_html");
-    if (!$wrapper) return; // row not expanded yet — will render next time form_render fires
+    if (!$wrapper) return; 
 
     $wrapper.empty();
 
@@ -462,4 +462,75 @@ function render_special_characteristics_html(frm, cdt, cdn, characteristics) {
             <tbody>${rows}</tbody>
         </table>
     `);
+}
+
+// function nmtg_fetch_sales_team_by_address(frm) {
+//     if (frm.doc.docstatus !== 0) return;
+
+//     if (!frm.doc.customer || !frm.doc.customer_address) {
+//         frm.clear_table("sales_team");
+//         frm.refresh_field("sales_team");
+//         return;
+//     }
+
+//     frappe.call({
+//         method: "nmtg.override.customer.get_customer_sales_team",
+//         args: {
+//             customer: frm.doc.customer,
+//             customer_address: frm.doc.customer_address,
+//         },
+//         callback(r) {
+//             frm.clear_table("sales_team");
+
+//             (r.message || []).forEach((src) => {
+//                 const row = frm.add_child("sales_team");
+//                 row.sales_person = src.sales_person;
+//                 row.allocated_percentage = src.allocated_percentage;
+//             });
+
+//             frm.refresh_field("sales_team");
+
+//             if (frm.cscript && frm.cscript.calculate_taxes_and_totals) {
+//                 frm.cscript.calculate_taxes_and_totals();
+//             }
+//         },
+//     });
+// }
+
+
+function nmtg_fetch_sales_team_by_address(frm) {
+    if (frm.doc.docstatus !== 0) return;
+
+    if (!frm.doc.customer || !frm.doc.customer_address) {
+        frm.clear_table("sales_team");
+        frm.refresh_field("sales_team");
+        return;
+    }
+
+    frappe.call({
+        method: "nmtg.override.customer.get_customer_sales_team",
+        args: {
+            customer: frm.doc.customer,
+            customer_address: frm.doc.customer_address,
+        },
+        callback(r) {
+            frm.clear_table("sales_team");
+
+            (r.message || []).forEach((src) => {
+                const row = frm.add_child("sales_team");
+                row.sales_person = src.sales_person;
+                row.custom_factor = src.custom_factor;
+                row.custom_frequency = src.custom_frequency;
+                row.custom_target_value = src.custom_target_value;
+                row.custom_address = src.custom_address || frm.doc.customer_address;
+                row.allocated_percentage = src.allocated_percentage;
+            });
+
+            frm.refresh_field("sales_team");
+
+            if (frm.cscript && frm.cscript.calculate_taxes_and_totals) {
+                frm.cscript.calculate_taxes_and_totals();
+            }
+        },
+    });
 }
