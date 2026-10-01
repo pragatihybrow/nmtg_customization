@@ -1,0 +1,319 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-10-01 14:50:39.886052",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_yplp",
+  "amended_from",
+  "customer",
+  "material_request_type",
+  "custom_priority",
+  "company",
+  "column_break_pjmh",
+  "naming_series",
+  "transaction_date",
+  "schedule_date",
+  "warehouse",
+  "section_break_mapc",
+  "items",
+  "contact_info",
+  "billing_address_column",
+  "customer_address",
+  "address_display",
+  "billing_address_gstin",
+  "gst_category",
+  "place_of_supply",
+  "customer_group",
+  "territory",
+  "column_break_qlsn",
+  "contact_person",
+  "contact_display",
+  "contact_phone",
+  "contact_mobile",
+  "contact_email",
+  "shipping_address_section",
+  "shipping_address_name",
+  "shipping_address",
+  "column_break_lvbi",
+  "dispatch_address_name",
+  "dispatch_address",
+  "company_address_section",
+  "company_address",
+  "company_gstin",
+  "company_address_display",
+  "column_break_rncz",
+  "company_contact_person"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_yplp",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Projection Order",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "material_request_type",
+   "fieldtype": "Select",
+   "label": "Purpose",
+   "options": "Manufacture"
+  },
+  {
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "MAT-PO-.YYYY.-"
+  },
+  {
+   "fieldname": "column_break_pjmh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "transaction_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Transaction Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "schedule_date",
+   "fieldtype": "Date",
+   "label": "Required By"
+  },
+  {
+   "fieldname": "custom_priority",
+   "fieldtype": "Select",
+   "label": "Priority",
+   "options": "\nP1\nP2\nP3\nP4"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "link_filters": "[[\"Warehouse\",\"company\",\"=\",\"eval:doc.company\"]]",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "section_break_mapc",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "items",
+   "fieldtype": "Table",
+   "label": "Items",
+   "options": "Material Request Item"
+  },
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "Customer"
+  },
+  {
+   "fieldname": "contact_info",
+   "fieldtype": "Tab Break",
+   "label": "Address & Contact"
+  },
+  {
+   "fieldname": "customer_address",
+   "fieldtype": "Link",
+   "label": "Customer Address",
+   "options": "Address"
+  },
+  {
+   "fieldname": "address_display",
+   "fieldtype": "Text Editor",
+   "label": "Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "billing_address_column",
+   "fieldtype": "Section Break",
+   "label": "Billing Address"
+  },
+  {
+   "fetch_from": "customer_address.gstin",
+   "fieldname": "billing_address_gstin",
+   "fieldtype": "Data",
+   "label": "Billing Address GSTIN"
+  },
+  {
+   "fetch_from": "customer_address.gst_category",
+   "fieldname": "gst_category",
+   "fieldtype": "Data",
+   "label": "GST Category"
+  },
+  {
+   "fieldname": "place_of_supply",
+   "fieldtype": "Autocomplete",
+   "label": "Place of Supply",
+   "options": "01-Jammu and Kashmir\n02-Himachal Pradesh\n03-Punjab\n04-Chandigarh\n05-Uttarakhand\n06-Haryana\n07-Delhi\n08-Rajasthan\n09-Uttar Pradesh\n10-Bihar\n11-Sikkim\n12-Arunachal Pradesh\n13-Nagaland\n14-Manipur\n15-Mizoram\n16-Tripura\n17-Meghalaya\n18-Assam\n19-West Bengal\n20-Jharkhand\n21-Odisha\n22-Chhattisgarh\n23-Madhya Pradesh\n24-Gujarat\n26-Dadra and Nagar Haveli and Daman and Diu\n27-Maharashtra\n29-Karnataka\n30-Goa\n31-Lakshadweep Islands\n32-Kerala\n33-Tamil Nadu\n34-Puducherry\n35-Andaman and Nicobar Islands\n36-Telangana\n37-Andhra Pradesh\n38-Ladakh\n96-Other Countries\n97-Other Territory"
+  },
+  {
+   "fieldname": "customer_group",
+   "fieldtype": "Link",
+   "label": "Customer Group",
+   "options": "Customer Group"
+  },
+  {
+   "fieldname": "territory",
+   "fieldtype": "Link",
+   "label": "Territory",
+   "options": "Territory"
+  },
+  {
+   "fieldname": "column_break_qlsn",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Link",
+   "label": "Contact Person",
+   "options": "Contact"
+  },
+  {
+   "fieldname": "contact_display",
+   "fieldtype": "Small Text",
+   "label": "Contact",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_mobile",
+   "fieldtype": "Small Text",
+   "label": "Mobile No",
+   "read_only": 1
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email",
+   "read_only": 1
+  },
+  {
+   "fieldname": "shipping_address_section",
+   "fieldtype": "Section Break",
+   "label": "Shipping Address"
+  },
+  {
+   "fieldname": "shipping_address_name",
+   "fieldtype": "Link",
+   "label": "Shipping Address Name",
+   "options": "Address"
+  },
+  {
+   "fieldname": "shipping_address",
+   "fieldtype": "Text Editor",
+   "label": "Shipping Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_lvbi",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "dispatch_address_name",
+   "fieldtype": "Link",
+   "label": "Dispatch Address Name",
+   "options": "Address"
+  },
+  {
+   "fieldname": "dispatch_address",
+   "fieldtype": "Text Editor",
+   "label": "Dispatch Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_address_section",
+   "fieldtype": "Section Break",
+   "label": "Company Address"
+  },
+  {
+   "fieldname": "company_address",
+   "fieldtype": "Link",
+   "label": "Company Address Name",
+   "options": "Address"
+  },
+  {
+   "fieldname": "column_break_rncz",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fetch_from": "company_address.gstin",
+   "fieldname": "company_gstin",
+   "fieldtype": "Data",
+   "label": "Company GSTIN",
+   "length": 15
+  },
+  {
+   "fieldname": "company_address_display",
+   "fieldtype": "Text Editor",
+   "label": "Company Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "company_contact_person",
+   "fieldtype": "Link",
+   "label": "Company Contact Person",
+   "options": "Contact"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [
+  {
+   "link_doctype": "Material Request",
+   "link_fieldname": "custom_projection_order"
+  }
+ ],
+ "modified": "2026-10-01 17:35:34.302221",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Projection Order",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -343,6 +343,12 @@ doc_events = {
         "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries"
 
     },
+     "Material Request": {
+        "validate": "nmtg.nmtg.doctype.projection_order.projection_order.set_projection_order",
+        "after_insert": "nmtg.nmtg.doctype.projection_order.projection_order.set_projection_order_reference",
+        "on_cancel": "nmtg.nmtg.doctype.projection_order.projection_order.clear_projection_order_reference",
+        "on_trash": "nmtg.nmtg.doctype.projection_order.projection_order.clear_projection_order_reference",
+    },
      
 }
 
@@ -391,3 +397,9 @@ jinja = {
         "nmtg.override.api.get_formatted_size"
     ]
 }
+
+# override_doctype_dashboards = {
+    
+#     "Material Request":
+#         "nmtg.override.api.get_dashboard_data",
+# }

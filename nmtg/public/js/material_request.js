@@ -23,7 +23,28 @@ frappe.ui.form.on('Material Request', {
                 });
             }, __('Create'));
         }
-    }
+        const is_projection_mr =
+            frm.doc.material_request_type === "Manufacture" &&
+            frm.doc.custom_projection_order;
+
+        if (!is_projection_mr) return;
+
+        setTimeout(() => {
+            frm.remove_custom_button("Work Order", "Create");
+            frm.remove_custom_button(__("Work Order"), __("Create"));
+        }, 300);
+
+        if (frm.doc.docstatus === 1 && frm.doc.status !== "Stopped") {
+            setTimeout(() => {
+                frm.remove_custom_button("Production Plan", "Create"); 
+                frm.add_custom_button(
+                    __("Production Plan"),
+                    () => make_production_plan(frm),
+                    __("Create")
+                );
+            }, 350);
+        }
+    },
 });
 
 
@@ -52,7 +73,6 @@ frappe.ui.form.on("Material Request Item", {
 const item_cache = {};
 
 
-// Formula field -> Item field
 const FORMULA_FIELD_MAP = {
 
     "Diameter": "custom_diameter",
@@ -99,10 +119,7 @@ function calculate_formula(frm, cdt, cdn) {
 
         const entered_qty = flt(row.custom_quantity_in_mm);
 
-        // Only run the conversion formula when purchase_uom and stock_uom
-        // actually differ — that's the only case where a conversion_factor
-        // needs computing. If they're the same, qty is just whatever was
-        // entered — no formula, no conversion_factor games.
+        
         if (item.purchase_uom === item.stock_uom) {
 
             const qty_value = item.purchase_uom === "Nos"
@@ -122,9 +139,7 @@ function calculate_formula(frm, cdt, cdn) {
             return;
         }
 
-        // If the Item master has no fixed Length, treat the entered value
-        // as the Length itself (e.g. bar stock cut to order), not as a
-        // piece-count multiplier.
+        
         const has_fixed_length = flt(item.custom_length) > 0;
         const length_value = has_fixed_length ? item.custom_length : entered_qty;
 
@@ -159,14 +174,7 @@ function calculate_formula(frm, cdt, cdn) {
 
         try {
 
-            /*
-             * qty_per_unit:
-             * - If item has a fixed Length: weight/quantity of ONE piece,
-             *   in purchase_uom
-             * - If Length comes from the row: total weight/quantity for
-             *   that entered length, in purchase_uom (already
-             *   length-specific)
-             */
+          
             const qty_per_unit = Function(
                 `"use strict"; return (${formula});`
             )();
@@ -175,26 +183,18 @@ function calculate_formula(frm, cdt, cdn) {
                 throw new Error("Invalid calculation");
             }
 
-            // Piece-count multiplier only applies when Length is fixed on
-            // the Item master; otherwise entered_qty was already consumed
-            // as the Length in the formula above.
             const multiplier = has_fixed_length ? entered_qty : 1;
             const final_qty = multiplier * qty_per_unit;
 
-            // qty is in purchase_uom here (never Nos, since we already
-            // returned above when purchase_uom === stock_uom), so no
-            // rounding needed at this point.
+        
             frappe.model.set_value(cdt, cdn, "qty", final_qty);
             frappe.model.set_value(cdt, cdn, "uom", item.purchase_uom);
 
-            // stock_qty is expressed in stock_uom, so round it when
-            // stock_uom is Nos (whole pieces only).
+            
             const stock_qty_value = item.stock_uom === "Nos"
                 ? Math.round(entered_qty)
                 : entered_qty;
 
-            // conversion_factor = stock_qty / qty, using the
-            // (possibly rounded) stock_qty to keep the two consistent.
             const conversion_factor = stock_qty_value / final_qty;
 
             setTimeout(() => {
@@ -213,10 +213,6 @@ function calculate_formula(frm, cdt, cdn) {
                     stock_qty_value
                 );
 
-                // Belt-and-braces: re-round after core's own
-                // recalculation (triggered by the conversion_factor
-                // set above) has had a chance to reintroduce drift
-                // due to conversion_factor precision rounding.
                 setTimeout(() => enforce_nos_rounding(frm, cdt, cdn), 0);
 
             }, 0);
@@ -240,9 +236,6 @@ function calculate_formula(frm, cdt, cdn) {
 function enforce_nos_rounding(frm, cdt, cdn) {
 
     const row = locals[cdt][cdn];
-
-    // stock_uom is already present on the row itself (fetched from Item
-    // when item_code is set), no need to re-fetch the Item doc here.
     if (row.stock_uom !== "Nos") {
         return;
     }
@@ -282,4 +275,18 @@ function get_item(item_code) {
         return item;
     });
 
+}
+
+function make_production_plan(frm) {
+    frappe.model.with_doctype("Production Plan", () => {
+        const pp = frappe.model.get_new_doc("Production Plan");
+        pp.company = frm.doc.company;
+        pp.get_items_from = "Material Request";
+
+        const row = frappe.model.add_child(pp, "Production Plan Material Request", "material_requests");
+        row.material_request = frm.doc.name;
+        row.material_request_date = frm.doc.transaction_date;
+
+        frappe.set_route("Form", "Production Plan", pp.name);
+    });
 }
