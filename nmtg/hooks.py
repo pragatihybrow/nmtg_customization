@@ -308,7 +308,7 @@ doc_events = {
 	},
      "Customer": {
         "validate": "nmtg.override.api.set_custom_dealer",
-        "before_validate": "nmtg.override.customer.set_sales_team_allocation",
+        # "before_validate": "nmtg.override.customer.set_sales_team_allocation",
     },
      "Opportunity": {
         "before_insert": "nmtg.override.opportunity.set_contact_recipient_emails",
@@ -321,6 +321,7 @@ doc_events = {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_so",
         "on_update_after_submit": "nmtg.override.api.sync_customer_requirements_to_work_order",
         "validate": "nmtg.override.api.set_customer_ref_codes_so",
+        "before_validate": "nmtg.override.customer.filter_sales_team_by_address",
     },
     "Sales Invoice": {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_si"
@@ -349,6 +350,9 @@ doc_events = {
         "on_cancel": "nmtg.nmtg.doctype.projection_order.projection_order.clear_projection_order_reference",
         "on_trash": "nmtg.nmtg.doctype.projection_order.projection_order.clear_projection_order_reference",
     },
+    "Sales Person": {
+        "validate": "nmtg.override.sales_person.validate_sales_person_weightage"
+}
      
 }
 

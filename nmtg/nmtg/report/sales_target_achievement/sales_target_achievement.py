@@ -1,6 +1,8 @@
 # Copyright (c) 2026, Hybrowlabs and contributors
 # For license information, please see license.txt
 
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import (
@@ -18,8 +20,21 @@ FACTOR_LEAD_SO = "Lead to SO - Mkt Net order value"
 FACTOR_DIRECT_SO = "Direct enquiry - SO : Direct SO value"
 FACTOR_REPEAT = "Repeat customer SO value"
 
+ALL_FACTORS = [
+    FACTOR_NET_SO, FACTOR_OVERDUE, FACTOR_Q2O, FACTOR_FOLLOWUP, FACTOR_DISPATCH,
+    FACTOR_L2E, FACTOR_LEAD_SO, FACTOR_DIRECT_SO, FACTOR_REPEAT,
+]
+FACTOR_KEYS = {f.lower(): f for f in ALL_FACTORS}
+
+# Percentage-wise targets; every other factor is an amount (value) target
 PERCENT_FACTORS = {FACTOR_Q2O, FACTOR_FOLLOWUP, FACTOR_L2E}
 BAD_LEAD_STATUS = {"do not contact", "cancelled", "disqualified", "junk"}
+
+
+def normalize_factor(label):
+    """'CRM Follow-up Compliance(%)' / 'Lead-to-Enquiry Ratio (%)' -> canonical factor name."""
+    key = re.sub(r"\s*\(%\)\s*", "", label or "").strip().lower()
+    return FACTOR_KEYS.get(key)
 
 
 def execute(filters=None):
@@ -36,8 +51,9 @@ def execute(filters=None):
     if not targets:
         return columns, []
 
-    user_map = get_user_map()
-    period_cache, metric_cache, data = {}, {}, []
+    assigned = get_assigned_customers()  # {sales_person: [customers]}
+    period_cache, metric_cache = {}, {}
+    rows_by_sp = {}
 
     metric_fns = {
         FACTOR_NET_SO: metric_net_so,
@@ -52,97 +68,149 @@ def execute(filters=None):
     }
 
     for t in targets:
+        factor_key = normalize_factor(t.factor)
         freq_key = normalize_freq(t.frequency)
+        is_percent = factor_key in PERCENT_FACTORS
+
         if freq_key not in period_cache:
             period_cache[freq_key] = get_period(freq_key, filters.as_on_date, filters.company)
         from_date, to_date = period_cache[freq_key]
 
-        # metrics are computed once per (factor, frequency) for all customers
-        mkey = (t.factor, freq_key)
+        # customer-wise metrics are computed once per (factor, frequency)
+        mkey = (factor_key, freq_key)
         if mkey not in metric_cache:
-            fn = metric_fns.get(t.factor)
-            metric_cache[mkey] = fn(from_date, to_date, filters.company, user_map) if fn else {}
-        m = metric_cache[mkey].get((t.customer, t.sales_person), {})
+            fn = metric_fns.get(factor_key)
+            metric_cache[mkey] = fn(from_date, to_date, filters.company) if fn else {}
+        customer_metrics = metric_cache[mkey]
 
-        achievement = flt(m.get("value"))
-        target = flt(t.target)
-        ach_pct = (achievement / target * 100) if target else 0
+        # total of all customers assigned to this sales person
+        customers = assigned.get(t.sales_person, [])
+        actual = aggregate(customer_metrics, customers, is_percent)
+
+        target = flt(t.target)  # target_value is a Data field, so convert
+        ach_pct = (actual / target * 100) if target else 0
         weightage = flt(t.weightage)
 
-        data.append({
-            "customer": t.customer,
-            "customer_name": t.customer_name,
+        rows_by_sp.setdefault(t.sales_person, []).append({
             "sales_person": t.sales_person,
             "factor": t.factor,
-            "measure": "Percent" if t.factor in PERCENT_FACTORS else "Amount",
+            "measure": "Percent" if is_percent else "Amount",
+            "customers": len(customers),
             "frequency": freq_key,
             "from_date": from_date,
             "to_date": to_date,
             "target": target,
-            "achievement": achievement,
+            "achievement": actual,
             "achievement_pct": ach_pct,
             "weightage": weightage,
-            "weighted_pct": ach_pct * weightage / 100,
-            "numerator": flt(m.get("num")),
-            "denominator": flt(m.get("den")),
+            # (Total actual value / target) * weightage
+            "weighted_pct": (actual / target * weightage) if target else 0,
+            "is_total": 0,
+        })
+
+    data = []
+    for sp, rows in rows_by_sp.items():
+        data.extend(rows)
+        data.append({
+            "sales_person": sp,
+            "factor": _("Total"),
+            "measure": None,
+            "customers": None,
+            "frequency": None,
+            "from_date": None,
+            "to_date": None,
+            "target": None,
+            "achievement": None,
+            "achievement_pct": None,
+            "weightage": sum(r["weightage"] for r in rows),
+            "weighted_pct": sum(r["weighted_pct"] for r in rows),
+            "is_total": 1,
         })
 
     return columns, data
 
 
 # --------------------------------------------------------------------------
-# Columns / targets / periods
+# Columns / targets / assignments / periods
 # --------------------------------------------------------------------------
 def get_columns():
     return [
-        {"label": _("Customer"), "fieldname": "customer", "fieldtype": "Link", "options": "Customer", "width": 140},
-        {"label": _("Customer Name"), "fieldname": "customer_name", "fieldtype": "Data", "width": 160},
-        {"label": _("Sales Person"), "fieldname": "sales_person", "fieldtype": "Link", "options": "Sales Person", "width": 140},
+        {"label": _("Sales Person"), "fieldname": "sales_person", "fieldtype": "Link", "options": "Sales Person", "width": 150},
         {"label": _("Factor"), "fieldname": "factor", "fieldtype": "Data", "width": 260},
-        # {"label": _("Measure"), "fieldname": "measure", "fieldtype": "Data", "width": 80},
+        {"label": _("Measure"), "fieldname": "measure", "fieldtype": "Data", "width": 80},
+        {"label": _("Customers"), "fieldname": "customers", "fieldtype": "Int", "width": 80},
         {"label": _("Frequency"), "fieldname": "frequency", "fieldtype": "Data", "width": 90},
         {"label": _("From Date"), "fieldname": "from_date", "fieldtype": "Date", "width": 95},
         {"label": _("To Date"), "fieldname": "to_date", "fieldtype": "Date", "width": 95},
         {"label": _("Target"), "fieldname": "target", "fieldtype": "Float", "precision": 2, "width": 110},
-        {"label": _("Achievement"), "fieldname": "achievement", "fieldtype": "Float", "precision": 2, "width": 120},
+        {"label": _("Total Actual Value"), "fieldname": "achievement", "fieldtype": "Float", "precision": 2, "width": 130},
         {"label": _("Achievement %"), "fieldname": "achievement_pct", "fieldtype": "Percent", "precision": 2, "width": 110},
         {"label": _("Weightage %"), "fieldname": "weightage", "fieldtype": "Percent", "precision": 2, "width": 100},
-        {"label": _("Weighted Achievement %"), "fieldname": "weighted_pct", "fieldtype": "Percent", "precision": 2, "width": 130},
+        {"label": _("Actual Weightage Achieved"), "fieldname": "weighted_pct", "fieldtype": "Percent", "precision": 2, "width": 150},
     ]
 
 
 def get_targets(filters):
     conds, values = "", {}
-    if filters.get("customer"):
-        conds += " and c.name = %(customer)s"
-        values["customer"] = filters.customer
     if filters.get("sales_person"):
-        conds += " and st.sales_person = %(sales_person)s"
+        conds += " and sp.name = %(sales_person)s"
         values["sales_person"] = filters.sales_person
-    if filters.get("factor"):
-        conds += " and st.custom_factor = %(factor)s"
-        values["factor"] = filters.factor
 
-    return frappe.db.sql(
+    rows = frappe.db.sql(
         f"""
-        select c.name as customer,
-               c.customer_name,
-               st.sales_person,
-               st.custom_factor as factor,
-               st.custom_frequency as frequency,
-               st.custom_target_value as target,
-               st.allocated_percentage as weightage
+        select sp.name as sales_person,
+               ct.factor,
+               ct.frequency,
+               ct.target_value as target,
+               ct.weightage
+        from `tabSales Person` sp
+        inner join `tabSales Person CT` ct
+            on ct.parent = sp.name
+           and ct.parenttype = 'Sales Person'
+           and ct.parentfield = 'custom_sales_target'
+        where sp.enabled = 1
+          and ifnull(ct.factor, '') != ''
+          {conds}
+        order by sp.name, ct.idx
+        """,
+        values, as_dict=True,
+    )
+
+    if filters.get("factor"):
+        wanted = normalize_factor(filters.factor)
+        rows = [r for r in rows if normalize_factor(r.factor) == wanted]
+    return rows
+
+
+def get_assigned_customers():
+    """Sales Person -> customers listed against them in Customer > Sales Team."""
+    rows = frappe.db.sql(
+        """
+        select distinct st.sales_person, st.parent as customer
         from `tabSales Team` st
         inner join `tabCustomer` c on c.name = st.parent
         where st.parenttype = 'Customer'
           and st.parentfield = 'sales_team'
           and c.disabled = 0
-          and ifnull(st.custom_factor, '') != ''
-          {conds}
-        order by c.name, st.sales_person, st.idx
+          and ifnull(st.sales_person, '') != ''
         """,
-        values, as_dict=True,
+        as_dict=True,
     )
+    out = {}
+    for r in rows:
+        out.setdefault(r.sales_person, []).append(r.customer)
+    return out
+
+
+def aggregate(customer_metrics, customers, is_percent):
+    """Total across all assigned customers.
+    Amount  -> sum of values.
+    Percent -> total numerator / total denominator * 100."""
+    if is_percent:
+        num = sum(flt(customer_metrics.get(c, {}).get("num")) for c in customers)
+        den = sum(flt(customer_metrics.get(c, {}).get("den")) for c in customers)
+        return (num / den * 100) if den else 0
+    return sum(flt(customer_metrics.get(c, {}).get("value")) for c in customers)
 
 
 def normalize_freq(freq):
@@ -170,96 +238,62 @@ def get_period(freq, as_on_date, company):
         return getdate(f"{d.year}-01-01"), getdate(f"{d.year}-12-31")
 
 
-def get_user_map():
-    """Sales Person -> User (through Employee)."""
-    rows = frappe.db.sql(
-        """
-        select sp.name as sales_person, e.user_id
-        from `tabSales Person` sp
-        inner join `tabEmployee` e on e.name = sp.employee
-        where ifnull(e.user_id, '') != ''
-        """,
-        as_dict=True,
-    )
-    return {r.sales_person: r.user_id for r in rows}
-
-
 def value_map(rows):
-    """rows with customer, sales_person, value -> {(customer, sales_person): {...}}"""
-    return {(r.customer, r.sales_person): {"value": flt(r.value)} for r in rows}
+    """rows with customer, value -> {customer: {"value": ...}}"""
+    return {r.customer: {"value": flt(r.value)} for r in rows}
 
 
-def expand_user_stats(stats, user_map):
-    """stats: {(customer, user): [num, den]} -> {(customer, sales_person): {...}}"""
-    user_to_sps = {}
-    for sp, user in user_map.items():
-        user_to_sps.setdefault(user, []).append(sp)
-
-    out = {}
-    for (customer, user), (num, den) in stats.items():
-        for sp in user_to_sps.get(user, []):
-            out[(customer, sp)] = {
-                "value": (num / den * 100) if den else 0,
-                "num": num,
-                "den": den,
-            }
-    return out
+def ratio_map(rows):
+    """rows with customer, num, den -> {customer: {"num": ..., "den": ...}}"""
+    return {r.customer: {"num": flt(r.num), "den": flt(r.den)} for r in rows}
 
 
 # --------------------------------------------------------------------------
 # Sales Order based factors (net value = base_net_total: no tax / freight)
+# All metrics below return {customer: {...}}
 # --------------------------------------------------------------------------
 def so_value(from_date, to_date, company, extra=""):
     return frappe.db.sql(
         f"""
-        select so.customer, st.sales_person,
-               sum(so.base_net_total * st.allocated_percentage / 100) as value
+        select so.customer, sum(so.base_net_total) as value
         from `tabSales Order` so
-        inner join `tabSales Team` st
-            on st.parent = so.name and st.parenttype = 'Sales Order'
-           and st.parentfield = 'sales_team'
         where so.docstatus = 1
           and so.company = %(company)s
           and so.transaction_date between %(from_date)s and %(to_date)s
           {extra}
-        group by so.customer, st.sales_person
+        group by so.customer
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
 
 
-def metric_net_so(from_date, to_date, company, user_map):
+def metric_net_so(from_date, to_date, company):
     # Submitted SOs only (cancelled are docstatus 2, so excluded)
     result = value_map(so_value(from_date, to_date, company))
 
     # Deduct returns (credit notes) raised against Sales Orders in the period
     returns = frappe.db.sql(
         """
-        select si.customer, st.sales_person,
-               sum(si.base_net_total * st.allocated_percentage / 100) as value
+        select si.customer, sum(si.base_net_total) as value
         from `tabSales Invoice` si
-        inner join `tabSales Team` st
-            on st.parent = si.name and st.parenttype = 'Sales Invoice'
-           and st.parentfield = 'sales_team'
         where si.docstatus = 1 and si.is_return = 1
           and si.company = %(company)s
           and si.posting_date between %(from_date)s and %(to_date)s
           and exists (select 1 from `tabSales Invoice Item` sii
                       where sii.parent = si.name and ifnull(sii.sales_order, '') != '')
-        group by si.customer, st.sales_person
+        group by si.customer
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
     for r in returns:  # return values are already negative
-        key = (r.customer, r.sales_person)
-        result.setdefault(key, {"value": 0})
-        result[key]["value"] += flt(r.value)
+        result.setdefault(r.customer, {"value": 0})
+        result[r.customer]["value"] += flt(r.value)
     return result
 
 
-def metric_lead_so(from_date, to_date, company, user_map):
+def metric_lead_so(from_date, to_date, company):
     # Customer was created from a Lead
     extra = """
         and exists (select 1 from `tabCustomer` c
@@ -268,7 +302,7 @@ def metric_lead_so(from_date, to_date, company, user_map):
     return value_map(so_value(from_date, to_date, company, extra))
 
 
-def metric_direct_so(from_date, to_date, company, user_map):
+def metric_direct_so(from_date, to_date, company):
     # SO -> Quotation -> Opportunity created directly against the Customer
     extra = """
         and exists (
@@ -281,7 +315,7 @@ def metric_direct_so(from_date, to_date, company, user_map):
     return value_map(so_value(from_date, to_date, company, extra))
 
 
-def metric_repeat(from_date, to_date, company, user_map):
+def metric_repeat(from_date, to_date, company):
     # The customer already had an earlier submitted Sales Order
     extra = """
         and exists (
@@ -299,20 +333,16 @@ def metric_repeat(from_date, to_date, company, user_map):
 # --------------------------------------------------------------------------
 # Sales Invoice / Payment Entry based factors
 # --------------------------------------------------------------------------
-def metric_dispatch(from_date, to_date, company, user_map):
+def metric_dispatch(from_date, to_date, company):
     # Returns / credit notes carry negative base_net_total, so they reduce it
     rows = frappe.db.sql(
         """
-        select si.customer, st.sales_person,
-               sum(si.base_net_total * st.allocated_percentage / 100) as value
+        select si.customer, sum(si.base_net_total) as value
         from `tabSales Invoice` si
-        inner join `tabSales Team` st
-            on st.parent = si.name and st.parenttype = 'Sales Invoice'
-           and st.parentfield = 'sales_team'
         where si.docstatus = 1
           and si.company = %(company)s
           and si.posting_date between %(from_date)s and %(to_date)s
-        group by si.customer, st.sales_person
+        group by si.customer
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
@@ -320,24 +350,21 @@ def metric_dispatch(from_date, to_date, company, user_map):
     return value_map(rows)
 
 
-def metric_overdue(from_date, to_date, company, user_map):
+def metric_overdue(from_date, to_date, company):
+    # Allocated amount only, against invoices that were overdue at payment time
     rows = frappe.db.sql(
         """
-        select si.customer, st.sales_person,
-               sum(per.allocated_amount * st.allocated_percentage / 100) as value
+        select si.customer, sum(per.allocated_amount) as value
         from `tabPayment Entry` pe
         inner join `tabPayment Entry Reference` per
             on per.parent = pe.name and per.reference_doctype = 'Sales Invoice'
         inner join `tabSales Invoice` si on si.name = per.reference_name
-        inner join `tabSales Team` st
-            on st.parent = si.name and st.parenttype = 'Sales Invoice'
-           and st.parentfield = 'sales_team'
         where pe.docstatus = 1
           and pe.payment_type = 'Receive'
           and pe.company = %(company)s
           and pe.posting_date between %(from_date)s and %(to_date)s
           and si.due_date < pe.posting_date
-        group by si.customer, st.sales_person
+        group by si.customer
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
@@ -348,14 +375,13 @@ def metric_overdue(from_date, to_date, company, user_map):
 # --------------------------------------------------------------------------
 # CRM based factors
 # Customer is resolved via Opportunity (party = Customer, or Lead that became
-# the Customer through Customer.lead_name). Sales person = Sales Person whose
-# Employee's User owns the CRM record.
+# the Customer through Customer.lead_name). Returns numerator / denominator
+# per customer so percentages can be totalled correctly.
 # --------------------------------------------------------------------------
-def metric_q2o(from_date, to_date, company, user_map):
+def metric_q2o(from_date, to_date, company):
     rows = frappe.db.sql(
         """
         select c.name as customer,
-               coalesce(nullif(op.opportunity_owner, ''), op.owner) as usr,
                count(distinct op.name) as den,
                count(distinct case when exists (
                     select 1 from `tabQuotation` q2
@@ -371,20 +397,18 @@ def metric_q2o(from_date, to_date, company, user_map):
           and op.transaction_date between %(from_date)s and %(to_date)s
           and exists (select 1 from `tabQuotation` q
                       where q.opportunity = op.name and q.docstatus = 1)
-        group by c.name, usr
+        group by c.name
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
-    stats = {(r.customer, r.usr): [flt(r.num), flt(r.den)] for r in rows}
-    return expand_user_stats(stats, user_map)
+    return ratio_map(rows)
 
 
-def metric_followup(from_date, to_date, company, user_map):
+def metric_followup(from_date, to_date, company):
     rows = frappe.db.sql(
         """
         select c.name as customer,
-               td.allocated_to as usr,
                count(*) as den,
                sum(case when td.status = 'Closed'
                          and date(td.modified) <= td.date
@@ -415,22 +439,21 @@ def metric_followup(from_date, to_date, company, user_map):
           and td.status != 'Cancelled'
           and ifnull(td.allocated_to, '') != ''
           and td.date between %(from_date)s and %(to_date)s
-        group by c.name, td.allocated_to
+        group by c.name
         """,
         {"from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
-    stats = {(r.customer, r.usr): [flt(r.num), flt(r.den)] for r in rows}
-    return expand_user_stats(stats, user_map)
+    return ratio_map(rows)
 
 
-def metric_l2e(from_date, to_date, company, user_map):
-    # Leads that became this customer (Customer.lead_name = Lead)
+def metric_l2e(from_date, to_date, company):
+    # Leads that became this customer (Customer.lead_name = Lead);
+    # "converted" = an Opportunity exists for the Lead (or its Customer)
     leads = frappe.db.sql(
         """
         select ld.name, ld.lead_name, ld.company_name, ld.email_id, ld.status,
                c.name as customer,
-               coalesce(nullif(ld.lead_owner, ''), ld.owner) as usr,
                exists (select 1 from `tabOpportunity` op
                        where (op.opportunity_from = 'Lead' and op.party_name = ld.name)
                           or (op.opportunity_from = 'Customer' and op.party_name = c.name)
@@ -445,8 +468,12 @@ def metric_l2e(from_date, to_date, company, user_map):
         as_dict=True,
     )
 
-    seen_emails, stats = set(), {}
+    seen_emails, seen_leads, stats = set(), set(), {}
     for l in leads:
+        if l.name in seen_leads:
+            continue
+        seen_leads.add(l.name)
+
         text = f"{l.lead_name or ''} {l.company_name or ''}".lower()
         if (l.status or "").lower() in BAD_LEAD_STATUS:
             continue
@@ -458,9 +485,9 @@ def metric_l2e(from_date, to_date, company, user_map):
                 continue
             seen_emails.add(email)
 
-        s = stats.setdefault((l.customer, l.usr), [0, 0])
-        s[1] += 1
+        s = stats.setdefault(l.customer, {"num": 0, "den": 0})
+        s["den"] += 1
         if l.converted:
-            s[0] += 1
+            s["num"] += 1
 
-    return expand_user_stats(stats, user_map)
+    return stats

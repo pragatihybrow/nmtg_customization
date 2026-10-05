@@ -4,63 +4,78 @@ frappe.ui.form.on("Sales Order", {
     },
 
     refresh: function (frm) {
-    recalculate_all_commissions(frm);
-    setup_dealer_liason_query(frm);
+        recalculate_all_commissions(frm);
+        setup_dealer_liason_query(frm);
 
-    if (frm.doc.quotation_to === "Customer" && frm.doc.customer) {
-        set_dealer_from_customer(frm);
-    };
+        if (frm.doc.quotation_to === "Customer" && frm.doc.customer) {
+            set_dealer_from_customer(frm);
+        }
 
-    if (frm.is_new()) return;
+       
+        if (
+            frm.is_new() &&
+            frm.doc.docstatus === 0 &&
+            frm.doc.customer &&
+            frm.doc.customer_address &&
+            frm.__nmtg_sales_team_checked_for !== frm.doc.name
+        ) {
+            frm.__nmtg_sales_team_checked_for = frm.doc.name;
+            nmtg_schedule_sales_team_sync(frm);
+        }
 
-    let has_pending = (frm.doc.items || []).some(
-        it => it.drawing_approval_required === "Yes" && !it.drawing_email_sent
-    );
+        if (frm.is_new()) return;
 
-    if (has_pending) {
-        frm.add_custom_button("Send Drawing Verification Emails", function() {
-            frappe.confirm(
-                "Send drawing verification emails for all pending items in this document?",
-                () => {
-                    frappe.call({
-                        method: "nmtg.override.api.send_drawing_verification_emails_for_doc",
-                        args: { docname: frm.doc.name },
-                        freeze: true,
-                        freeze_message: "Sending emails...",
-                        callback: function(r) {
-                            if (!r.exc && r.message) {
-                                let sent = r.message.sent || [];
-                                let skipped = r.message.skipped || [];
+        let has_pending = (frm.doc.items || []).some(
+            it => it.drawing_approval_required === "Yes" && !it.drawing_email_sent
+        );
 
-                                let summary = `<b>Sent:</b> ${sent.length}`;
-                                if (skipped.length) {
-                                    summary += `<br><b>Skipped (no recipient/attachment):</b> ${skipped.length}<br>${skipped.join("<br>")}`;
+        if (has_pending) {
+            frm.add_custom_button("Send Drawing Verification Emails", function () {
+                frappe.confirm(
+                    "Send drawing verification emails for all pending items in this document?",
+                    () => {
+                        frappe.call({
+                            method: "nmtg.override.api.send_drawing_verification_emails_for_doc",
+                            args: { docname: frm.doc.name },
+                            freeze: true,
+                            freeze_message: "Sending emails...",
+                            callback: function (r) {
+                                if (!r.exc && r.message) {
+                                    let sent = r.message.sent || [];
+                                    let skipped = r.message.skipped || [];
+
+                                    let summary = `<b>Sent:</b> ${sent.length}`;
+                                    if (skipped.length) {
+                                        summary += `<br><b>Skipped (no recipient/attachment):</b> ${skipped.length}<br>${skipped.join("<br>")}`;
+                                    }
+
+                                    frappe.msgprint({
+                                        title: "Drawing Verification Emails",
+                                        message: summary,
+                                        indicator: sent.length ? "green" : "orange"
+                                    });
+
+                                    frm.reload_doc();
                                 }
-
-                                frappe.msgprint({
-                                    title: "Drawing Verification Emails",
-                                    message: summary,
-                                    indicator: sent.length ? "green" : "orange"
-                                });
-
-                                frm.reload_doc();
                             }
-                        }
-                    });
-                }
-            );
-        }).addClass("btn-primary");
-    }
-},
+                        });
+                    }
+                );
+            }).addClass("btn-primary");
+        }
+    },
+
     customer(frm) {
-            if (frm.doc.docstatus === 0) {
-                frm.clear_table("sales_team");
-                frm.refresh_field("sales_team");
-            }
-        },
+        if (frm.doc.docstatus === 0) {
+            frm.clear_table("sales_team");
+            frm.refresh_field("sales_team");
+        }
+        nmtg_schedule_sales_team_sync(frm);
+    },
+
     customer_address(frm) {
-            nmtg_fetch_sales_team_by_address(frm);
-        },
+        nmtg_schedule_sales_team_sync(frm);
+    },
 
     custom_assign_to_responsible_users: function (frm) {
         if (frm.is_new()) {
@@ -77,6 +92,7 @@ frappe.ui.form.on("Sales Order", {
             },
         });
     },
+
     before_workflow_action: function (frm) {
         const action = frm.selected_workflow_action;
 
@@ -100,7 +116,6 @@ frappe.ui.form.on("Sales Order", {
         }
 
         return new Promise((resolve, reject) => {
-
             frappe.dom.unfreeze();
 
             let settled = false;
@@ -121,7 +136,6 @@ frappe.ui.form.on("Sales Order", {
                     frappe.db
                         .set_value(frm.doctype, frm.docname, config.fieldname, values.remark)
                         .then(() => {
-
                             frm.doc[config.fieldname] = values.remark;
                             frm.refresh_field(config.fieldname);
 
@@ -195,7 +209,7 @@ frappe.ui.form.on("Sales Order Item", {
     },
     item_code: function (frm, cdt, cdn) {
         let row = locals[cdt][cdn];
-        row.__special_char_fetched = false; // item changed — force a refetch
+        row.__special_char_fetched = false;
         fetch_and_render_special_characteristics(frm, cdt, cdn);
     },
     custom_assign_to_responsible_users: function (frm, cdt, cdn) {
@@ -254,20 +268,18 @@ frappe.ui.form.on("Sales Order Item", {
     },
 });
 
-frappe.ui.form.on('Dealer Liason CT', {
-    commission_: function(frm, cdt, cdn) {
+frappe.ui.form.on("Dealer Liason CT", {
+    commission_: function (frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
     },
-    dealer__liason: function(frm, cdt, cdn) {
+    dealer__liason: function (frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
-        let row = locals[cdt][cdn];
         frappe.model.set_value(cdt, cdn, "dealer__liason_name", "");
         setup_dealer_liason_query(frm);
     },
-    third_party_commission_: function(frm, cdt, cdn) {
+    third_party_commission_: function (frm, cdt, cdn) {
         calculate_third_party_commission_amount(frm, cdt, cdn);
     }
-
 });
 
 
@@ -290,12 +302,12 @@ function calculate_commission_amount(frm, cdt, cdn) {
 
     row.commission_amount = flt(
         total * flt(row.commission_) / 100,
-        precision('commission_amount', row)
+        precision("commission_amount", row)
     );
 
     calculate_third_party_commission_amount(frm, cdt, cdn);
 
-    frm.refresh_field('custom_dealer__liason');
+    frm.refresh_field("custom_dealer__liason");
 }
 
 function calculate_third_party_commission_amount(frm, cdt, cdn) {
@@ -303,27 +315,27 @@ function calculate_third_party_commission_amount(frm, cdt, cdn) {
 
     row.third_party_commission_amount = flt(
         flt(row.commission_amount) * flt(row.third_party_commission_) / 100,
-        precision('third_party_commission_amount', row)
+        precision("third_party_commission_amount", row)
     );
 
-    frm.refresh_field('custom_dealer__liason');
+    frm.refresh_field("custom_dealer__liason");
 }
 
 function recalculate_all_commissions(frm) {
-    (frm.doc.custom_dealer__liason || []).forEach(function(row) {
+    (frm.doc.custom_dealer__liason || []).forEach(function (row) {
         let total = flt(frm.doc.total);
 
         row.commission_amount = flt(
             total * flt(row.commission_) / 100,
-            precision('commission_amount', row)
+            precision("commission_amount", row)
         );
 
         row.third_party_commission_amount = flt(
             flt(row.commission_amount) * flt(row.third_party_commission_) / 100,
-            precision('third_party_commission_amount', row)
+            precision("third_party_commission_amount", row)
         );
     });
-    frm.refresh_field('custom_dealer__liason');
+    frm.refresh_field("custom_dealer__liason");
 }
 
 
@@ -403,7 +415,6 @@ function render_attachment_slots(frm, cdt, cdn) {
 }
 
 
-
 function fetch_and_render_special_characteristics(frm, cdt, cdn) {
     let row = locals[cdt][cdn];
     row.__special_char_fetched = true;
@@ -430,7 +441,7 @@ function fetch_and_render_special_characteristics(frm, cdt, cdn) {
 
 function render_special_characteristics_html(frm, cdt, cdn, characteristics) {
     let $wrapper = get_html_wrapper(frm, cdt, cdn, "custom_special_item_html");
-    if (!$wrapper) return; 
+    if (!$wrapper) return;
 
     $wrapper.empty();
 
@@ -464,39 +475,16 @@ function render_special_characteristics_html(frm, cdt, cdn, characteristics) {
     `);
 }
 
-// function nmtg_fetch_sales_team_by_address(frm) {
-//     if (frm.doc.docstatus !== 0) return;
 
-//     if (!frm.doc.customer || !frm.doc.customer_address) {
-//         frm.clear_table("sales_team");
-//         frm.refresh_field("sales_team");
-//         return;
-//     }
-
-//     frappe.call({
-//         method: "nmtg.override.customer.get_customer_sales_team",
-//         args: {
-//             customer: frm.doc.customer,
-//             customer_address: frm.doc.customer_address,
-//         },
-//         callback(r) {
-//             frm.clear_table("sales_team");
-
-//             (r.message || []).forEach((src) => {
-//                 const row = frm.add_child("sales_team");
-//                 row.sales_person = src.sales_person;
-//                 row.allocated_percentage = src.allocated_percentage;
-//             });
-
-//             frm.refresh_field("sales_team");
-
-//             if (frm.cscript && frm.cscript.calculate_taxes_and_totals) {
-//                 frm.cscript.calculate_taxes_and_totals();
-//             }
-//         },
-//     });
-// }
-
+function nmtg_schedule_sales_team_sync(frm) {
+   
+    clearTimeout(frm.__nmtg_sales_team_timer);
+    frm.__nmtg_sales_team_timer = setTimeout(() => {
+        frappe.after_ajax(() => {
+            setTimeout(() => nmtg_fetch_sales_team_by_address(frm), 300);
+        });
+    }, 500);
+}
 
 function nmtg_fetch_sales_team_by_address(frm) {
     if (frm.doc.docstatus !== 0) return;
@@ -507,24 +495,30 @@ function nmtg_fetch_sales_team_by_address(frm) {
         return;
     }
 
+    const customer = frm.doc.customer;
+    const customer_address = frm.doc.customer_address;
+
     frappe.call({
         method: "nmtg.override.customer.get_customer_sales_team",
         args: {
-            customer: frm.doc.customer,
-            customer_address: frm.doc.customer_address,
+            customer: customer,
+            customer_address: customer_address,
         },
         callback(r) {
+            if (frm.doc.customer !== customer || frm.doc.customer_address !== customer_address) {
+                return;
+            }
+
             frm.clear_table("sales_team");
 
-            (r.message || []).forEach((src) => {
-                const row = frm.add_child("sales_team");
-                row.sales_person = src.sales_person;
-                row.custom_factor = src.custom_factor;
-                row.custom_frequency = src.custom_frequency;
-                row.custom_target_value = src.custom_target_value;
-                row.custom_address = src.custom_address || frm.doc.customer_address;
-                row.allocated_percentage = src.allocated_percentage;
-            });
+            (r.message || [])
+                .filter((src) => src.custom_address === customer_address)
+                .forEach((src) => {
+                    const row = frm.add_child("sales_team");
+                    row.sales_person = src.sales_person;
+                    row.custom_address = src.custom_address;
+                    row.allocated_percentage = src.allocated_percentage;
+                });
 
             frm.refresh_field("sales_team");
 
