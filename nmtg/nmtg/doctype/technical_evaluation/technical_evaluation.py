@@ -235,6 +235,7 @@ class TechnicalEvaluation(Document):
             opp_item.custom_customer_code =(te_item.custom_customer_code)
 
             opp_item.custom_drawing_approval_status = (te_item.drawing_approval_status)
+            opp_item.custom_material_code_description =(te_item.material_code_description)
 
             updated = True
 
@@ -353,7 +354,7 @@ EMAIL_BODY_TEMPLATE = """
             <td>{{ item.product_group or "" }}</td>
             <td>{{ item.nmtg_model or "" }}</td>
             <td>{{ get_formatted_size(item.required_feilds) }}</td>
-            <td>{{ item.customer_material_code }}</td>
+            <td>{{ item.custom_customer_code }}</td>
             <td>{{ item.remark }}</td>
         </tr>
         {% endfor %}

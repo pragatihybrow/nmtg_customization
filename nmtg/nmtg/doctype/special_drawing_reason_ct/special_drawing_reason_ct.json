@@ -17,6 +17,7 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Special Characteristics",
+   "link_filters": "[[\"Special Drawing Reason\",\"product_group\",\"=\",\"eval:parent.custom_product_group\"]]",
    "options": "Special Drawing Reason"
   },
   {
@@ -37,7 +38,7 @@
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-09-25 13:47:25.461057",
+ "modified": "2026-10-05 14:33:45.205890",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Special Drawing Reason CT",
