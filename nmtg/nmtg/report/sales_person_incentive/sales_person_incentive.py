@@ -28,6 +28,14 @@ FACTOR_KEYS = {f.lower(): f for f in ALL_FACTORS}
 
 # Percentage-wise targets; every other factor is an amount (value) target
 PERCENT_FACTORS = {FACTOR_Q2O, FACTOR_FOLLOWUP, FACTOR_L2E}
+
+# Factors credited to the sales person on the transaction's own Sales Team
+# (Sales Order / Sales Invoice). The rest are credited via Customer > Sales Team.
+SP_KEYED_FACTORS = {
+    FACTOR_NET_SO, FACTOR_OVERDUE, FACTOR_DISPATCH,
+    FACTOR_LEAD_SO, FACTOR_DIRECT_SO, FACTOR_REPEAT,
+}
+
 BAD_LEAD_STATUS = {"do not contact", "cancelled", "disqualified", "junk"}
 
 
@@ -215,7 +223,8 @@ def get_targets(filters):
 
 
 def get_assigned_customers():
-    """Sales Person -> customers listed against them in Customer > Sales Team."""
+    """Sales Person -> customers listed against them in Customer > Sales Team.
+    Used only for the CRM based factors."""
     rows = frappe.db.sql(
         """
         select distinct st.sales_person, st.parent as customer
@@ -234,15 +243,15 @@ def get_assigned_customers():
     return out
 
 
-def aggregate(customer_metrics, customers, is_percent):
-    """Total across all assigned customers.
+def aggregate(metrics, keys, is_percent):
+    """Total across the given keys (sales person or customers).
     Amount  -> sum of values.
     Percent -> total numerator / total denominator * 100."""
     if is_percent:
-        num = sum(flt(customer_metrics.get(c, {}).get("num")) for c in customers)
-        den = sum(flt(customer_metrics.get(c, {}).get("den")) for c in customers)
+        num = sum(flt(metrics.get(k, {}).get("num")) for k in keys)
+        den = sum(flt(metrics.get(k, {}).get("den")) for k in keys)
         return (num / den * 100) if den else 0
-    return sum(flt(customer_metrics.get(c, {}).get("value")) for c in customers)
+    return sum(flt(metrics.get(k, {}).get("value")) for k in keys)
 
 
 # --------------------------------------------------------------------------
@@ -270,8 +279,10 @@ def get_month_scores(targets, month_end, company, assigned, metric_cache):
         Actual Weightage Achieved = (Total Actual Value / Target) x Weightage
 
     Each factor is measured from the start of its own period (month / quarter /
-    fiscal year, by the factor's frequency) up to the month end. Total Actual
-    Value is the total of all customers assigned to the sales person.
+    fiscal year, by the factor's frequency) up to the month end.
+    Transaction factors (Sales Order / Sales Invoice / Payment) are credited by
+    the transaction's own Sales Team; CRM factors use the customers assigned to
+    the sales person.
     """
     metric_fns = get_metric_fns()
     period_cache = {}
@@ -293,8 +304,11 @@ def get_month_scores(targets, month_end, company, assigned, metric_cache):
             fn = metric_fns.get(factor)
             metric_cache[mkey] = fn(p_from, p_to, company) if fn else {}
 
-        customers = assigned.get(t.sales_person, [])
-        actual = aggregate(metric_cache[mkey], customers, factor in PERCENT_FACTORS)
+        if factor in SP_KEYED_FACTORS:
+            keys = [t.sales_person]  # metric is already keyed by sales person
+        else:
+            keys = assigned.get(t.sales_person, [])
+        actual = aggregate(metric_cache[mkey], keys, factor in PERCENT_FACTORS)
 
         target = flt(t.target)  # target_value is a Data field, so convert
         weightage = flt(t.weightage)
@@ -334,9 +348,9 @@ def get_period(freq, as_on_date, company):
         return getdate(f"{d.year}-01-01"), getdate(f"{d.year}-12-31")
 
 
-def value_map(rows):
-    """rows with customer, value -> {customer: {"value": ...}}"""
-    return {r.customer: {"value": flt(r.value)} for r in rows}
+def value_map(rows, key="customer"):
+    """rows with <key>, value -> {<key>: {"value": ...}}"""
+    return {r[key]: {"value": flt(r.value)} for r in rows}
 
 
 def ratio_map(rows):
@@ -346,18 +360,22 @@ def ratio_map(rows):
 
 # --------------------------------------------------------------------------
 # Sales Order based factors (net value = base_net_total: no tax / freight)
-# All metrics below return {customer: {...}}
+# All metrics below return {sales_person: {"value": ...}}, split by the
+# Sales Order's own Sales Team (allocated_percentage).
 # --------------------------------------------------------------------------
 def so_value(from_date, to_date, company, extra=""):
     return frappe.db.sql(
         f"""
-        select so.customer, sum(so.base_net_total) as value
+        select st.sales_person,
+               sum(so.base_net_total * ifnull(st.allocated_percentage, 0) / 100) as value
         from `tabSales Order` so
+        inner join `tabSales Team` st
+            on st.parent = so.name and st.parenttype = 'Sales Order'
         where so.docstatus = 1
           and so.company = %(company)s
           and so.transaction_date between %(from_date)s and %(to_date)s
           {extra}
-        group by so.customer
+        group by st.sales_person
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
@@ -366,26 +384,30 @@ def so_value(from_date, to_date, company, extra=""):
 
 def metric_net_so(from_date, to_date, company):
     # Submitted SOs only (cancelled are docstatus 2, so excluded)
-    result = value_map(so_value(from_date, to_date, company))
+    result = value_map(so_value(from_date, to_date, company), "sales_person")
 
-    # Deduct returns (credit notes) raised against Sales Orders in the period
+    # Deduct returns (credit notes) raised against Sales Orders in the period,
+    # split by the return invoice's Sales Team
     returns = frappe.db.sql(
         """
-        select si.customer, sum(si.base_net_total) as value
+        select st.sales_person,
+               sum(si.base_net_total * ifnull(st.allocated_percentage, 0) / 100) as value
         from `tabSales Invoice` si
+        inner join `tabSales Team` st
+            on st.parent = si.name and st.parenttype = 'Sales Invoice'
         where si.docstatus = 1 and si.is_return = 1
           and si.company = %(company)s
           and si.posting_date between %(from_date)s and %(to_date)s
           and exists (select 1 from `tabSales Invoice Item` sii
                       where sii.parent = si.name and ifnull(sii.sales_order, '') != '')
-        group by si.customer
+        group by st.sales_person
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
     for r in returns:  # return values are already negative
-        result.setdefault(r.customer, {"value": 0})
-        result[r.customer]["value"] += flt(r.value)
+        result.setdefault(r.sales_person, {"value": 0})
+        result[r.sales_person]["value"] += flt(r.value)
     return result
 
 
@@ -395,7 +417,7 @@ def metric_lead_so(from_date, to_date, company):
         and exists (select 1 from `tabCustomer` c
                     where c.name = so.customer and ifnull(c.lead_name, '') != '')
     """
-    return value_map(so_value(from_date, to_date, company, extra))
+    return value_map(so_value(from_date, to_date, company, extra), "sales_person")
 
 
 def metric_direct_so(from_date, to_date, company):
@@ -408,7 +430,7 @@ def metric_direct_so(from_date, to_date, company):
             where soi.parent = so.name and op.opportunity_from = 'Customer'
         )
     """
-    return value_map(so_value(from_date, to_date, company, extra))
+    return value_map(so_value(from_date, to_date, company, extra), "sales_person")
 
 
 def metric_repeat(from_date, to_date, company):
@@ -423,53 +445,60 @@ def metric_repeat(from_date, to_date, company):
                        and prev.creation < so.creation))
         )
     """
-    return value_map(so_value(from_date, to_date, company, extra))
+    return value_map(so_value(from_date, to_date, company, extra), "sales_person")
 
 
 # --------------------------------------------------------------------------
 # Sales Invoice / Payment Entry based factors
+# Split by the Sales Invoice's own Sales Team, keyed by sales person.
 # --------------------------------------------------------------------------
 def metric_dispatch(from_date, to_date, company):
     # Returns / credit notes carry negative base_net_total, so they reduce it
     rows = frappe.db.sql(
         """
-        select si.customer, sum(si.base_net_total) as value
+        select st.sales_person,
+               sum(si.base_net_total * ifnull(st.allocated_percentage, 0) / 100) as value
         from `tabSales Invoice` si
+        inner join `tabSales Team` st
+            on st.parent = si.name and st.parenttype = 'Sales Invoice'
         where si.docstatus = 1
           and si.company = %(company)s
           and si.posting_date between %(from_date)s and %(to_date)s
-        group by si.customer
+        group by st.sales_person
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
-    return value_map(rows)
+    return value_map(rows, "sales_person")
 
 
 def metric_overdue(from_date, to_date, company):
     # Allocated amount only, against invoices that were overdue at payment time
     rows = frappe.db.sql(
         """
-        select si.customer, sum(per.allocated_amount) as value
+        select st.sales_person,
+               sum(per.allocated_amount * ifnull(st.allocated_percentage, 0) / 100) as value
         from `tabPayment Entry` pe
         inner join `tabPayment Entry Reference` per
             on per.parent = pe.name and per.reference_doctype = 'Sales Invoice'
         inner join `tabSales Invoice` si on si.name = per.reference_name
+        inner join `tabSales Team` st
+            on st.parent = si.name and st.parenttype = 'Sales Invoice'
         where pe.docstatus = 1
           and pe.payment_type = 'Receive'
           and pe.company = %(company)s
           and pe.posting_date between %(from_date)s and %(to_date)s
           and si.due_date < pe.posting_date
-        group by si.customer
+        group by st.sales_person
         """,
         {"company": company, "from_date": from_date, "to_date": to_date},
         as_dict=True,
     )
-    return value_map(rows)
+    return value_map(rows, "sales_person")
 
 
 # --------------------------------------------------------------------------
-# CRM based factors
+# CRM based factors (still customer based)
 # Customer is resolved via Opportunity (party = Customer, or Lead that became
 # the Customer through Customer.lead_name). Returns numerator / denominator
 # per customer so percentages can be totalled correctly.
