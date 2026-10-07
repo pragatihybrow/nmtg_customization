@@ -265,7 +265,8 @@ doctype_js = {
     "Sales Order": "public/js/sales_order.js",
     "Sales Invoice": "public/js/sales_invoice.js",
     "Delivery Note": "public/js/delivery_note.js",
-     "Work Order": "public/js/work_order.js"
+     "Work Order": "public/js/work_order.js",
+     "Payment Request":"public/js/payment_request.js"
 }
 
 override_doctype_class = {
