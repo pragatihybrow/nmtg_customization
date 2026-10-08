@@ -266,14 +266,17 @@ doctype_js = {
     "Sales Invoice": "public/js/sales_invoice.js",
     "Delivery Note": "public/js/delivery_note.js",
      "Work Order": "public/js/work_order.js",
-     "Payment Request":"public/js/payment_request.js"
+     "Payment Request":"public/js/payment_request.js",
+     "Payment Entry":"public/js/payment_entry.js",
+     "Purchase Invoice": "public/js/purchase_invoice.js",
 }
 
 override_doctype_class = {
     "Item": "nmtg.override.item.CustomItem",
     "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt",
     "Opportunity": "nmtg.override.opportunity.CustomOpportunity",
-    "Customer": "nmtg.override.customer.CustomCustomer"
+    "Customer": "nmtg.override.customer.CustomCustomer",
+    
 }
 
 doctype_list_js = {
@@ -408,3 +411,7 @@ jinja = {
 #     "Material Request":
 #         "nmtg.override.api.get_dashboard_data",
 # }
+override_whitelisted_methods = {
+    "erpnext.accounts.doctype.payment_request.payment_request.make_payment_request":
+        "nmtg.override.payment_request.make_payment_request"
+}
