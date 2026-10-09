@@ -96,6 +96,7 @@ frappe.ui.form.on("Item", {
         toggle_models_field(frm);
         set_models_filter(frm);
         apply_item_settings_fields(frm);
+        set_quality_category_required(frm);
        // generate_item_name(frm)
     },
 
@@ -105,6 +106,7 @@ frappe.ui.form.on("Item", {
         toggle_models_field(frm);
         set_models_filter(frm);
         apply_item_settings_fields(frm);
+        set_quality_category_required(frm);
        // generate_item_name(frm);
     },
 
@@ -113,6 +115,7 @@ frappe.ui.form.on("Item", {
         toggle_models_field(frm);
         set_models_filter(frm);
         apply_item_settings_fields(frm);
+        set_quality_category_required(frm);
         // generate_item_code(frm);
     },
 
@@ -430,6 +433,17 @@ function apply_item_settings_fields(frm) {
         "custom_special_characteristics"
     ];
 
+    // Remember each field's original "reqd" (from the doctype) the first time,
+    // so we can restore it when a field is no longer required by Item Settings
+    if (!frm.__orig_reqd) {
+        frm.__orig_reqd = {};
+        frm.meta.fields.forEach(df => {
+            if (df.fieldname && df.fieldname.startsWith("custom_")) {
+                frm.__orig_reqd[df.fieldname] = df.reqd ? 1 : 0;
+            }
+        });
+    }
+
     frm.meta.fields.forEach(df => {
         if (df.fieldname && df.fieldname.startsWith("custom_")) {
             if (always_visible.includes(df.fieldname)) {
@@ -446,12 +460,50 @@ function apply_item_settings_fields(frm) {
 
         let matched_row = find_matching_item_settings_row(settings, frm);
 
+        // Restore original mandatory state first
+        Object.keys(frm.__orig_reqd).forEach(fieldname => {
+            if (frm.fields_dict[fieldname]) {
+                frm.set_df_property(fieldname, "reqd", frm.__orig_reqd[fieldname]);
+            }
+        });
+
         if (matched_row && matched_row.feilds) {
             matched_row.feilds.split(",").forEach(field => {
-                frm.set_df_property(field.trim(), "hidden", 0);
+                field = field.trim();
+                if (!field || !frm.fields_dict[field]) return;
+
+                // Show it and make it mandatory
+                frm.set_df_property(field, "hidden", 0);
+                frm.set_df_property(field, "reqd", 1);
             });
         }
 
         frm.refresh_fields();
+    });
+}
+
+
+
+function set_quality_category_required(frm) {
+    const groups = [
+        frm.doc.item_group,
+        frm.doc.custom_product_group,
+        frm.doc.custom_sub_product_group
+    ].filter(Boolean);
+
+    if (!groups.length) {
+        frm.set_value('custom_quality_category_required', 0);
+        return;
+    }
+
+    frappe.db.get_list('Item Group', {
+        filters: {
+            name: ['in', groups],
+            custom_quality_category_required: 1
+        },
+        fields: ['name'],
+        limit: 1
+    }).then(r => {
+        frm.set_value('custom_quality_category_required', r && r.length ? 1 : 0);
     });
 }

@@ -269,6 +269,7 @@ doctype_js = {
      "Payment Request":"public/js/payment_request.js",
      "Payment Entry":"public/js/payment_entry.js",
      "Purchase Invoice": "public/js/purchase_invoice.js",
+     "Address":"public/js/address.js"
 }
 
 override_doctype_class = {
@@ -356,7 +357,10 @@ doc_events = {
     },
     "Sales Person": {
         "validate": "nmtg.override.sales_person.validate_sales_person_weightage"
-}
+},
+ "Address": {
+        "before_naming": "nmtg.override.api.set_state_in_title"
+    }
      
 }
 

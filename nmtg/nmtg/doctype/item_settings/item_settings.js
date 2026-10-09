@@ -7,7 +7,7 @@ const ITEM_SETTINGS_SKIP_FIELDS = [
     "custom_sub_product_group",
     "custom_product_code",
     "custom_models",
-    "custom_material_type",
+    // "custom_material_type",
     "custom_material_sub_type",
     "custom_section_break_0x4t9",
     "custom_section_break_qnbdu",

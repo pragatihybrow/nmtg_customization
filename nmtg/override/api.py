@@ -2190,3 +2190,21 @@ def get_users_by_roles(roles):
         pluck="name",
     )
 
+
+
+
+def set_state_in_title(doc, method=None):
+    title = (doc.address_title or "").strip()
+
+    if not title and doc.links:
+        title = (doc.links[0].link_name or "").strip()
+
+    state = (doc.state or "").strip()
+    if not title or not state:
+        return
+
+    suffix = f" - {state}"
+    if not title.endswith(suffix):
+        title = title + suffix
+
+    doc.address_title = title
