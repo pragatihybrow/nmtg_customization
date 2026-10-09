@@ -729,6 +729,9 @@ def validate_quality_category_before_submit(doc, method):
 @frappe.whitelist()
 def custom_set_rejection_remark(name, remark):
     frappe.db.set_value("Supplier", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Material Request", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Purchase Order", name, "custom_rejection_remark", remark)
+
     frappe.db.commit()
 
 
