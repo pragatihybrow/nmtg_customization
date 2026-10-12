@@ -15,6 +15,7 @@
   "item_code",
   "item_name",
   "nmtg_heat_number",
+  "challan_status",
   "column_break_uufu",
   "challan_no",
   "report_date",
@@ -24,6 +25,7 @@
   "qty",
   "qc_row_name",
   "testing_type",
+  "qc_series",
   "section_break_myjv",
   "testing",
   "testing_data",
@@ -204,13 +206,27 @@
    "fieldtype": "Small Text",
    "hidden": 1,
    "label": "NMTG Code Data"
+  },
+  {
+   "default": "Challan Pending",
+   "fieldname": "challan_status",
+   "fieldtype": "Select",
+   "label": "Challan Status",
+   "options": "\nChallan Pending\nChallan Created",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qc_series",
+   "fieldtype": "Data",
+   "label": "QC Series",
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-12 14:36:56.410950",
+ "modified": "2026-10-12 16:41:11.745541",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Third Party Quality Inspection",

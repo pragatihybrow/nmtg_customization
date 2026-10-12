@@ -281,7 +281,8 @@ override_doctype_class = {
 }
 
 doctype_list_js = {
-    "Quality Inspection": "public/js/quality_inspection_listview.js"
+    # "Quality Inspection": "public/js/quality_inspection_listview.js",
+    "Third Party Quality Inspection":"nmtg/doctype/third_party_quality_inspection/third_party_quality_inspection_listview.js"    
 }
 
 doc_events = {
@@ -346,7 +347,9 @@ doc_events = {
         "on_cancel": ["nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
               "nmtg.override.purchase_receipt.remove_inward_qty_entries"],
         "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
-        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries"
+        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+        "validate": "nmtg.override.api.set_mr_creator",
+
 
     },
      "Material Request": {

@@ -10,6 +10,19 @@ frappe.ui.form.on("Quality Inspection", {
         frm.fields_dict["custom_add_reading"].$input
             && frm.fields_dict["custom_add_reading"].$input
                 .addClass("btn-primary");
+                
+        if (frm.doc.docstatus === 0 && !frm.doc.custom_po_qty) {
+            set_po_qty_and_uom(frm);
+        }
+    },
+     reference_type(frm) {
+        set_po_qty_and_uom(frm);
+    },
+    reference_name(frm) {
+        set_po_qty_and_uom(frm);
+    },
+    item_code(frm) {
+        set_po_qty_and_uom(frm);
     },
 
     custom_add_reading(frm) {
@@ -55,19 +68,13 @@ frappe.ui.form.on("Quality Inspection", {
 
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CONFIG: roles allowed to tick "Manager Approval" for rejected heat numbers
-// ─────────────────────────────────────────────────────────────────────────────
-const APPROVER_ROLES = ["Quality Manager", "System Manager"];
+const APPROVER_ROLES = ["Quality Manager", "System Manager", "IQC Manager"];
 
 function can_approve() {
     return APPROVER_ROLES.some(role => frappe.user.has_role(role));
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Split custom_reading_details JSON → { values, remarks, approvals }
-// Reserved keys: "__remarks__", "__approvals__"
-// ─────────────────────────────────────────────────────────────────────────────
+
 function split_details(raw) {
     let details = {};
     try { details = JSON.parse(raw || "{}"); } catch (e) {}
@@ -79,9 +86,6 @@ function split_details(raw) {
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parse "NK132 - NK181"  →  ["NK132","NK133",…,"NK181"]
-// ─────────────────────────────────────────────────────────────────────────────
 function parse_heat_range(raw) {
     const parts = raw.split(/\s*[-–—]\s*/);
     if (parts.length !== 2) return null;
@@ -133,10 +137,6 @@ function collect_params(readings) {
     return result;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Build  { spec → { heatNo → value } }  from existing readings rows
-// Reserved keys never leak into value maps
-// ─────────────────────────────────────────────────────────────────────────────
 function build_existing_map(readings, params) {
     const existing = {};
     for (const p of params) {
@@ -152,17 +152,11 @@ function build_existing_map(readings, params) {
     return existing;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Parse variable tokens like "Diameter(mm)", "Length(mm)" from a formula string
-// ─────────────────────────────────────────────────────────────────────────────
 function parse_formula_variables(formula) {
     const TOKEN_RE = /[A-Za-z_][A-Za-z0-9_ ]*\([^)]*\)/g;
     return [...new Set(formula.match(TOKEN_RE) || [])];
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Evaluate custom_formula_for_conversion dynamically
-// ─────────────────────────────────────────────────────────────────────────────
 function evaluate_formula(formula, item_field_map, param_value_map) {
     if (!formula) return null;
 
@@ -213,9 +207,6 @@ function evaluate_formula(formula, item_field_map, param_value_map) {
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Build item_field_map from item_doc
-// ─────────────────────────────────────────────────────────────────────────────
 function build_item_field_map(item_doc) {
     return {
         "Diameter(mm)"                     : flt(item_doc.custom_diameter),
@@ -252,9 +243,6 @@ function build_item_field_map(item_doc) {
     };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Build param_value_map for a single heat number
-// ─────────────────────────────────────────────────────────────────────────────
 function build_param_value_map(params, draft, hn) {
     const map = {};
     for (const p of params) {
@@ -268,10 +256,6 @@ function build_param_value_map(params, draft, hn) {
     return map;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Check if a single value passes min/max for a param
-// Returns: true = pass, false = fail, null = not applicable
-// ─────────────────────────────────────────────────────────────────────────────
 function check_value_status(val, param_meta) {
     if (!param_meta) return null;
     if (val === undefined || val === null || val === "") return null;
@@ -289,12 +273,6 @@ function check_value_status(val, param_meta) {
     return num >= min && num <= max;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Build heat-number → overall status map across all params
-// Returns per HN: "accepted" | "approved" | "rejected" | "na"
-//   "approved" = values failed, but a manager approved it (counts as accepted)
-// Pass approvals = {} to get the RAW (pre-approval) status.
-// ─────────────────────────────────────────────────────────────────────────────
 function build_hn_status_map(heatNumbers, params, draft, approvals) {
     approvals = approvals || {};
     const map = {};
@@ -317,10 +295,7 @@ function build_hn_status_map(heatNumbers, params, draft, approvals) {
     return map;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Compute the 3-way overall status for a single parameter row
-// A failed value on a manager-approved heat number counts as accepted
-// ─────────────────────────────────────────────────────────────────────────────
+
 function compute_row_overall_status(param_meta, heatNumbers, draftForSpec, approvals) {
     approvals = approvals || {};
     let countAccepted = 0;
@@ -347,9 +322,6 @@ function compute_row_overall_status(param_meta, heatNumbers, draftForSpec, appro
     return "Partially Accepted";
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// READ-ONLY paginated preview table inside child table row
-// ─────────────────────────────────────────────────────────────────────────────
 function render_paginated_reading_table(
     $container,
     entries,
@@ -467,9 +439,6 @@ function render_paginated_reading_table(
     });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Render custom_reading HTML inside an expanded child table row
-// ─────────────────────────────────────────────────────────────────────────────
 function render_custom_reading_html(frm, cdt, cdn) {
     const grid_row = frm.fields_dict["readings"].grid.grid_rows_by_docname[cdn];
     if (!grid_row || !grid_row.grid_form) return;
@@ -518,9 +487,6 @@ function render_custom_reading_html(frm, cdt, cdn) {
     });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Build & open the main dialog
-// ─────────────────────────────────────────────────────────────────────────────
 function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks, existingApprovals) {
 
     const noParams   = params.length === 0;
@@ -1333,4 +1299,57 @@ function update_parent_status(frm) {
         allRejected ? "Rejected" :
         "Partially Accepted"
     );
+}
+
+async function set_po_qty_and_uom(frm) {
+    if (frm.doc.docstatus !== 0) return;
+
+    const ref_type = frm.doc.reference_type;
+    const ref_name = frm.doc.reference_name;
+    const item_code = frm.doc.item_code;
+
+    if (!ref_name || !item_code || !["Purchase Receipt", "Purchase Invoice"].includes(ref_type)) {
+        return;
+    }
+
+    // Field that links the GRN / invoice row to the PO row
+    const po_row_field = ref_type === "Purchase Receipt" ? "purchase_order_item" : "po_detail";
+
+    try {
+        const ref_doc = await frappe.db.get_doc(ref_type, ref_name);
+
+        // Match the row by item; prefer a row that actually has a PO linked
+        const rows = (ref_doc.items || []).filter(r => r.item_code === item_code);
+        const row = rows.find(r => r.purchase_order) || rows[0];
+
+        if (!row || !row.purchase_order) {
+            frm.set_value("custom_po_qty", 0);
+            frm.set_value("custom_po_qty_uom", "");
+            return;
+        }
+
+        // Prefer the exact PO row; fall back to PO + item_code
+        const filters = row[po_row_field]
+            ? { name: row[po_row_field], parent: row.purchase_order }
+            : { parent: row.purchase_order, item_code: item_code };
+
+        const r = await frappe.db.get_value(
+            "Purchase Order Item",
+            filters,
+            ["qty", "uom"],
+            null,
+            "Purchase Order"
+        );
+
+        const po_item = r && r.message;
+        if (po_item && po_item.qty !== undefined) {
+            await frm.set_value("custom_po_qty", po_item.qty);
+            await frm.set_value("custom_po_qty_uom", po_item.uom);
+        } else {
+            await frm.set_value("custom_po_qty", 0);
+            await frm.set_value("custom_po_qty_uom", "");
+        }
+    } catch (e) {
+        console.error("Error fetching PO qty/UOM", e);
+    }
 }

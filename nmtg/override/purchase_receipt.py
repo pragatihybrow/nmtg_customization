@@ -3,14 +3,14 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import flt, nowdate
+from frappe.model import no_value_fields, table_fields
+from frappe.utils import cint, flt, nowdate
 from erpnext.stock.doctype.purchase_receipt.purchase_receipt import PurchaseReceipt
 
 HEAT_RE = re.compile(r"^NK\s*(\d+)(?:\s*-\s*NK\s*(\d+))?$", re.IGNORECASE)
 
 
 def parse_heat_number(text):
-   
     text = (text or "").replace("\n", " ").strip()
     m = HEAT_RE.match(text)
     if not m:
@@ -31,13 +31,55 @@ class CustomPurchaseReceipt(PurchaseReceipt):
         super().validate()
         self.validate_supplier_qc()
 
+    def before_update_after_submit(self):
+        parent = getattr(super(), "before_update_after_submit", None)
+        if parent:
+            parent()
+        self.restore_saved_non_submittable_fields()
+
     def on_update_after_submit(self):
-        # Lab rows are edited after the GRN is submitted, and validate() does not
-        # run then — so the heat number rules must run here as well.
         parent = getattr(super(), "on_update_after_submit", None)
         if parent:
             parent()
         self.validate_supplier_qc()
+
+    def restore_saved_non_submittable_fields(self):
+        old = self.get_doc_before_save()
+        if not old:
+            return
+
+        # ── Parent fields ──
+        for df in self.meta.fields:
+            if (
+                df.fieldtype in no_value_fields
+                or df.fieldtype in table_fields
+                or df.allow_on_submit
+            ):
+                continue
+            self.set(df.fieldname, old.get(df.fieldname))
+
+        # ── Child tables (items, taxes, ...) that are not editable after submit ──
+        for table_df in self.meta.get_table_fields():
+            if table_df.allow_on_submit:
+                continue
+
+            child_meta = frappe.get_meta(table_df.options)
+            child_fields = [
+                df.fieldname
+                for df in child_meta.fields
+                if df.fieldtype not in no_value_fields
+                and df.fieldtype not in table_fields
+                and not df.allow_on_submit
+            ]
+
+            old_rows = {r.name: r for r in (old.get(table_df.fieldname) or [])}
+
+            for row in self.get(table_df.fieldname) or []:
+                old_row = old_rows.get(row.name)
+                if not old_row:
+                    continue
+                for fieldname in child_fields:
+                    row.set(fieldname, old_row.get(fieldname))
 
     def validate_supplier_qc(self):
         used_ranges = {}
@@ -293,6 +335,28 @@ def _update_sle_qty_in_numbers(voucher_no, voucher_detail_no, warehouse, numbers
         },
     )
 
+def get_item_qc_flags(item_codes):
+    """Returns {item_code: {'internal': bool, 'third_party': bool}} from Item flags."""
+    item_codes = [c for c in set(item_codes) if c]
+    if not item_codes:
+        return {}
+
+    rows = frappe.get_all(
+        "Item",
+        filters={"name": ["in", item_codes]},
+        fields=["name", "inspection_required_before_purchase", "custom_only_internal_qc"],
+    )
+
+    flags = {}
+    for r in rows:
+        required = cint(r.inspection_required_before_purchase)
+        only_internal = cint(r.custom_only_internal_qc)
+        flags[r.name] = {
+            "internal": bool(required),
+            "third_party": bool(required and not only_internal),
+        }
+    return flags
+
 
 # ════════════════════════════════════════════════════════════════════
 #  INTERNAL QC  →  standard "Quality Inspection"
@@ -302,12 +366,14 @@ def make_quality_inspections_custom(company, doctype, docname, inspection_type, 
     """
     One standard Quality Inspection per GRN item row, for the full qty,
     identified by NMTG code only (no lab / supplier split).
+    Allowed only for items with 'inspection_required_before_purchase' checked.
     """
     if isinstance(items, str):
         items = json.loads(items)
 
     pr = frappe.get_doc(doctype, docname)
     pr_items = {d.name: d for d in pr.items}
+    flags = get_item_qc_flags([d.item_code for d in pr.items])
 
     created = []
 
@@ -316,6 +382,12 @@ def make_quality_inspections_custom(company, doctype, docname, inspection_type, 
         pr_item = pr_items.get(child_ref)
         if not pr_item:
             frappe.throw(_("Row {0} not found in {1} {2}").format(child_ref, doctype, docname))
+
+        if not flags.get(pr_item.item_code, {}).get("internal"):
+            frappe.throw(
+                _("Row {0}: Item {1} does not require inspection before purchase, so a Quality Inspection cannot be created.")
+                .format(pr_item.idx, pr_item.item_code)
+            )
 
         # One internal QI per GRN item row
         if frappe.db.exists(
@@ -364,13 +436,12 @@ def make_quality_inspections_custom(company, doctype, docname, inspection_type, 
 
 # ════════════════════════════════════════════════════════════════════
 #  THIRD PARTY QC  →  "Third Party Quality Inspection"
+#  Only for items with inspection_required_before_purchase = 1
+#  AND custom_only_internal_qc = 0.
 # ════════════════════════════════════════════════════════════════════
 @frappe.whitelist()
 def make_third_party_quality_inspections(docname):
-    """
-    One "Third Party Quality Inspection" per row of custom_supplier_selection_for_qc
-    (lab-wise), created from a SUBMITTED GRN. Rows that already have a document are skipped.
-    """
+
     pr = frappe.get_doc("Purchase Receipt", docname)
 
     if pr.docstatus != 1:
@@ -386,9 +457,16 @@ def make_third_party_quality_inspections(docname):
     for d in pr.items:
         pr_items.setdefault(d.item_code, d)
 
-    created, skipped = [], 0
+    flags = get_item_qc_flags([qc.item for qc in pr.custom_supplier_selection_for_qc])
+
+    created, skipped, not_applicable = [], 0, 0
 
     for qc in pr.custom_supplier_selection_for_qc:
+        # Item must require inspection AND must not be internal-QC-only
+        if not flags.get(qc.item, {}).get("third_party"):
+            not_applicable += 1
+            continue
+
         if frappe.db.exists(
             "Third Party Quality Inspection",
             {"grn": pr.name, "qc_row_name": qc.name, "docstatus": ["!=", 2]},
@@ -409,7 +487,6 @@ def make_third_party_quality_inspections(docname):
             testing_types = []
 
         doc = frappe.new_doc("Third Party Quality Inspection")
-        # Testing Type (Table MultiSelect) ← types ticked on the GRN lab row
         doc.company = pr.company
         doc.report_date = nowdate()
         doc.grn = pr.name
@@ -424,16 +501,16 @@ def make_third_party_quality_inspections(docname):
         doc.insert()
         created.append(doc.name)
 
-    return {"created": created, "skipped": skipped}
+    if not created and not skipped and not_applicable:
+        frappe.throw(
+            _("Third Party Quality Inspection is not applicable: the items in the lab entries are either not marked "
+              "'Inspection Required Before Purchase' or are set to 'Only Internal QC'.")
+        )
+
+    return {"created": created, "skipped": skipped, "not_applicable": not_applicable}
 
 
 def _set_testing_types(doc, testing_types):
-    """
-    Fill the 'testing_type' Table MultiSelect (child doctype 'Testing Type CT')
-    with the testing types selected in custom_supplier_selection_for_qc.
-    The child's Link field and its target doctype are read from the meta, so no
-    fieldname is hard-coded.
-    """
     if not testing_types:
         return
 
@@ -448,8 +525,6 @@ def _set_testing_types(doc, testing_types):
         if not value:
             continue
 
-        # The ticked value is the 'testing_type' text of QC Testing Type;
-        # resolve it to the linked record's name if they differ.
         link_name = value
         if not frappe.db.exists(link_df.options, value):
             link_name = frappe.db.get_value(link_df.options, {"testing_type": value}, "name")

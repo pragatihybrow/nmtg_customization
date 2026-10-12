@@ -18,6 +18,15 @@ frappe.ui.form.on("Third Party Quality Inspection", {
 		tpqi_render_testing(frm, false);
 	},
 
+	grn(frm) {
+		frm.__tpqi_grn_cache = {};
+		tpqi_render_codes(frm);
+	},
+
+	item_code(frm) {
+		tpqi_render_codes(frm);
+	},
+
 	qty(frm) {
 		tpqi_calculate_qty(frm, false);
 	},
@@ -139,6 +148,44 @@ function tpqi_style_select($sel) {
 	});
 }
 
+/* ---------- GRN codes (Purchase Receipt Item -> custom_nmtg_heat_number) ---------- */
+
+// Returns (via Promise) all NMTG codes of the GRN rows that match the item code.
+function tpqi_fetch_grn_codes(frm) {
+	const grn = frm.doc.grn;
+	const item_code = frm.doc.item_code;
+
+	if (!grn || !item_code) return Promise.resolve([]);
+
+	frm.__tpqi_grn_cache = frm.__tpqi_grn_cache || {};
+	const key = `${grn}||${item_code}`;
+	if (frm.__tpqi_grn_cache[key]) return Promise.resolve(frm.__tpqi_grn_cache[key]);
+
+	return frappe
+		.call({
+			method: "frappe.client.get_list",
+			args: {
+				doctype: "Purchase Receipt Item",
+				parent: "Purchase Receipt",
+				filters: { parent: grn, item_code: item_code },
+				fields: ["custom_nmtg_heat_number"],
+				order_by: "idx asc",
+				limit_page_length: 0,
+			},
+		})
+		.then((r) => {
+			const codes = [];
+			(r.message || []).forEach((row) => {
+				tpqi_expand_codes(row.custom_nmtg_heat_number).forEach((c) => {
+					if (!codes.includes(c)) codes.push(c);
+				});
+			});
+			frm.__tpqi_grn_cache[key] = codes;
+			return codes;
+		})
+		.catch(() => []);
+}
+
 /* ---------- selected NMTG codes (stored in nmtg_code_data) ---------- */
 
 function tpqi_get_selected_codes(frm) {
@@ -174,6 +221,9 @@ function tpqi_render_codes(frm) {
 		frm.__tpqi_code_observer = null;
 	}
 
+	// guard against out-of-order async renders
+	const render_id = (frm.__tpqi_render_id = (frm.__tpqi_render_id || 0) + 1);
+
 	const esc = frappe.utils.escape_html;
 	const locked = frm.doc.docstatus !== 0;
 	const $wrapper = field.$wrapper;
@@ -196,48 +246,64 @@ function tpqi_render_codes(frm) {
 		return;
 	}
 
-	const codes = tpqi_expand_codes(frm.doc.nmtg_heat_number);
-
-	if (!codes.length) {
+	if (!frm.doc.grn || !frm.doc.item_code) {
 		$wrapper.html(
 			`<div class="text-muted" style="padding:8px 0;">${__(
-				"Enter NMTG Heat Number to see the NMTG codes."
+				"Select GRN and Item Code to see the NMTG codes."
 			)}</div>`
 		);
 		return;
 	}
 
-	const options = codes.map((code) => ({ value: code, label: code }));
+	$wrapper.html(`<div class="text-muted" style="padding:8px 0;">${__("Loading NMTG codes...")}</div>`);
 
-	const control = frappe.ui.form.make_control({
-		parent: $wrapper,
-		df: {
-			fieldtype: "MultiSelectPills",
-			label: __("Select NMTG Code"),
-			fieldname: "nmtg_code_select",
-			options: options,
-		},
-		render_input: true,
+	tpqi_fetch_grn_codes(frm).then((codes) => {
+		// a newer render started meanwhile - ignore this one
+		if (render_id !== frm.__tpqi_render_id) return;
+
+		$wrapper.empty();
+
+		if (!codes.length) {
+			$wrapper.html(
+				`<div class="text-muted" style="padding:8px 0;">${__(
+					"No NMTG codes found in the GRN for this item."
+				)}</div>`
+			);
+			return;
+		}
+
+		const options = codes.map((code) => ({ value: code, label: code }));
+
+		const control = frappe.ui.form.make_control({
+			parent: $wrapper,
+			df: {
+				fieldtype: "MultiSelectPills",
+				label: __("Select NMTG Code"),
+				fieldname: "nmtg_code_select",
+				options: options,
+			},
+			render_input: true,
+		});
+
+		// restore saved selection (only codes still present in the GRN list)
+		const previous = saved_codes.filter((c) => codes.includes(c));
+		if (previous.length) control.set_value(previous);
+
+		// drop codes that are no longer in the GRN list
+		tpqi_save_selected_codes(frm, codes, previous);
+
+		const observer = new MutationObserver(function () {
+			tpqi_save_selected_codes(frm, codes, control.get_value() || []);
+		});
+
+		observer.observe($wrapper[0], {
+			childList: true,
+			subtree: true,
+		});
+
+		frm.__tpqi_code_observer = observer;
+		frm.__tpqi_code_control = control;
 	});
-
-	// restore saved selection (only codes still present in the current range)
-	const previous = saved_codes.filter((c) => codes.includes(c));
-	if (previous.length) control.set_value(previous);
-
-	// drop codes that are no longer in the range
-	tpqi_save_selected_codes(frm, codes, previous);
-
-	const observer = new MutationObserver(function () {
-		tpqi_save_selected_codes(frm, codes, control.get_value() || []);
-	});
-
-	observer.observe($wrapper[0], {
-		childList: true,
-		subtree: true,
-	});
-
-	frm.__tpqi_code_observer = observer;
-	frm.__tpqi_code_control = control;
 }
 
 /* ---------- render: Testing grid (HTML field `testing`) ---------- */

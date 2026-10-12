@@ -18,9 +18,7 @@ from frappe.utils.file_manager import save_file
 from frappe.utils import cint
 from frappe.desk.form.assign_to import add as assign_to_add
 from functools import partial
-
-
-
+from frappe.utils import get_fullname
 
 
 
@@ -363,6 +361,69 @@ def get_taxes_template_details(template):
     }
     
 
+# ════════════════════════════════════════════════════════════════════
+#  NMTG HEAT NUMBER
+#  Codes issued on a cancelled GRN are reused before new numbers are
+#  taken from the naming series.
+# ════════════════════════════════════════════════════════════════════
+def _heat_range_regex(prefix):
+    p = re.escape(prefix)
+    return re.compile(rf"^{p}\s*(\d+)(?:\s*-\s*{p}\s*(\d+))?$", re.IGNORECASE)
+
+
+def _heat_numbers_in_use(prefix, docstatus_filter):
+    """
+    Set of integers covered by custom_nmtg_heat_number on Purchase Receipt Items
+    matching docstatus_filter (e.g. ["<", 2] for live, 2 for cancelled).
+    """
+    rx = _heat_range_regex(prefix)
+    values = frappe.get_all(
+        "Purchase Receipt Item",
+        filters={
+            "docstatus": docstatus_filter,
+            "custom_nmtg_heat_number": ["like", f"{prefix}%"],
+        },
+        pluck="custom_nmtg_heat_number",
+    )
+
+    numbers = set()
+    for v in values:
+        m = rx.match((v or "").replace("\n", " ").strip())
+        if not m:
+            continue
+        start = int(m.group(1))
+        end = int(m.group(2)) if m.group(2) else start
+        if end < start:
+            continue
+        numbers.update(range(start, end + 1))
+    return numbers
+
+
+def _find_reusable_block(prefix, size):
+    """
+    Lowest block of `size` consecutive heat numbers that were issued on a
+    cancelled GRN and are not held by any live (draft/submitted) GRN item.
+    Returns the start number, or None if no such block exists.
+    """
+    cancelled = _heat_numbers_in_use(prefix, 2)
+    if not cancelled:
+        return None
+
+    free = sorted(cancelled - _heat_numbers_in_use(prefix, ["<", 2]))
+
+    run_start = prev = None
+    run_len = 0
+    for n in free:
+        if prev is not None and n == prev + 1:
+            run_len += 1
+        else:
+            run_start, run_len = n, 1
+        prev = n
+        if run_len >= size:
+            return run_start
+    return None
+
+
 @frappe.whitelist()
 def create_heat_number(po, row_name):
 
@@ -379,7 +440,7 @@ def create_heat_number(po, row_name):
     if row.custom_nmtg_heat_number:
         frappe.throw("Heat Number already generated")
 
-    qty = int(row.custom_qty_in_no or 0)  # ✅ use custom_qty_in_no instead of qty
+    qty = int(row.custom_qty_in_no or 0)  # use custom_qty_in_no instead of qty
 
     if qty <= 0:
         frappe.throw("Please set a valid Qty In No before generating Heat Number.")
@@ -408,32 +469,52 @@ def create_heat_number(po, row_name):
 
     prefix = f"N{year_initial}"
 
-    if row.custom_single_heat_number:
-        single = make_autoname(f"{prefix}.###")
-        num = int(single.replace(prefix, "").replace(".", ""))
-        heat_number = f"{prefix}{str(num).zfill(3)}"
-    else:
-        first = make_autoname(f"{prefix}.###")
-        start = int(first.replace(prefix, "").replace(".", ""))
-        end = start
+    # Serialise concurrent requests so two users cannot grab the same reused block
+    lock_name = f"nmtg_heat_number_{frappe.local.site}_{prefix}"
+    use_lock = frappe.db.db_type == "mariadb"
+    if use_lock:
+        frappe.db.sql("SELECT GET_LOCK(%s, 10)", (lock_name,))
 
-        for _ in range(qty - 1):
-            nxt = make_autoname(f"{prefix}.###")
-            end = int(nxt.replace(prefix, "").replace(".", ""))
+    try:
+        needed = 1 if row.custom_single_heat_number else qty
 
-        heat_number = (
-            f"{prefix}{str(start).zfill(3)}"
-            f" - "
-            f"{prefix}{str(end).zfill(3)}"
+        # 1) Reuse codes freed by cancelled GRNs (series counter is not touched)
+        start = _find_reusable_block(prefix, needed)
+
+        if start is not None:
+            end = start + needed - 1
+        else:
+            # 2) Nothing reusable -> take fresh numbers from the series
+            first = make_autoname(f"{prefix}.###")
+            start = int(first.replace(prefix, "").replace(".", ""))
+            end = start
+
+            for _ in range(needed - 1):
+                nxt = make_autoname(f"{prefix}.###")
+                end = int(nxt.replace(prefix, "").replace(".", ""))
+
+        if row.custom_single_heat_number:
+            heat_number = f"{prefix}{str(start).zfill(3)}"
+        else:
+            heat_number = (
+                f"{prefix}{str(start).zfill(3)}"
+                f" - "
+                f"{prefix}{str(end).zfill(3)}"
+            )
+
+        frappe.db.set_value(
+            "Purchase Receipt Item",
+            row_name,
+            "custom_nmtg_heat_number",
+            heat_number,
+            update_modified=False
         )
 
-    frappe.db.set_value(
-        "Purchase Receipt Item",
-        row_name,
-        "custom_nmtg_heat_number",
-        heat_number,
-        update_modified=False
-    )
+        if use_lock:
+            frappe.db.commit()  # make the claim visible before releasing the lock
+    finally:
+        if use_lock:
+            frappe.db.sql("SELECT RELEASE_LOCK(%s)", (lock_name,))
 
     return heat_number
 
@@ -2211,3 +2292,84 @@ def set_state_in_title(doc, method=None):
         title = title + suffix
 
     doc.address_title = title
+
+
+
+
+@frappe.whitelist()
+def get_or_create_tpqi_series(tpqi_names):
+	if isinstance(tpqi_names, str):
+		tpqi_names = frappe.parse_json(tpqi_names)
+
+	if not tpqi_names:
+		return ""
+
+	doctype = "Third Party Quality Inspection"
+
+	for name in tpqi_names:
+		frappe.has_permission(doctype, "read", doc=name, throw=True)
+
+	# reprint: reuse the series if any record in the group already has one
+	existing = frappe.get_all(
+		doctype,
+		filters={"name": ["in", tpqi_names], "qc_series": ["!=", ""]},
+		pluck="qc_series",
+		limit=1,
+	)
+	series = existing[0] if existing else make_autoname("TPQC-.YYYY.-.#####")
+
+	for name in tpqi_names:
+		frappe.db.set_value(
+			doctype,
+			name,
+			{"qc_series": series, "challan_status": "Challan Created"},
+			update_modified=False,
+		)
+
+	return series
+
+
+def set_mr_creator(doc, method=None):
+    po_item_names = [d.purchase_order_item for d in doc.items if d.get("purchase_order_item")]
+    po_names = [d.purchase_order for d in doc.items if d.get("purchase_order") and not d.get("purchase_order_item")]
+
+    mr_names = set()
+
+    if po_item_names:
+        mr_names.update(
+            frappe.get_all(
+                "Purchase Order Item",
+                filters={"name": ["in", po_item_names], "material_request": ["is", "set"]},
+                pluck="material_request",
+            )
+        )
+
+    if po_names:
+        mr_names.update(
+            frappe.get_all(
+                "Purchase Order Item",
+                filters={"parent": ["in", po_names], "material_request": ["is", "set"]},
+                pluck="material_request",
+            )
+        )
+
+    direct_mrs = [d.material_request for d in doc.items if d.get("material_request")]
+    mr_names.update(direct_mrs)
+
+    if not mr_names:
+        doc.custom_mr_creater = None
+        return
+
+    owners = frappe.get_all(
+        "Material Request",
+        filters={"name": ["in", list(mr_names)]},
+        pluck="owner",
+    )
+
+    names = []
+    for owner in owners:
+        full_name = get_fullname(owner)
+        if full_name and full_name not in names:
+            names.append(full_name)
+
+    doc.custom_mr_creater = ", ".join(names)[:140]
