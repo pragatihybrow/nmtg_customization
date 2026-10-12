@@ -38,21 +38,46 @@ frappe.ui.form.on("Quality Inspection", {
         const params   = collect_params(readings);
         const existing = build_existing_map(readings, params);
 
-        // Extract remarks from any reading row's custom_reading_details["__remarks__"]
-        let existingRemarks = {};
+        // Extract remarks + manager approvals from any reading row's custom_reading_details
+        let existingRemarks   = {};
+        let existingApprovals = {};
         for (const r of readings) {
-            let details = {};
-            try { details = JSON.parse(r.custom_reading_details || "{}"); } catch (e) {}
-            if (details["__remarks__"] && typeof details["__remarks__"] === "object") {
-                existingRemarks = details["__remarks__"];
+            const parts = split_details(r.custom_reading_details);
+            if (Object.keys(parts.remarks).length || Object.keys(parts.approvals).length) {
+                existingRemarks   = parts.remarks;
+                existingApprovals = parts.approvals;
                 break;
             }
         }
 
-        open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks);
+        open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks, existingApprovals);
     },
 
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG: roles allowed to tick "Manager Approval" for rejected heat numbers
+// ─────────────────────────────────────────────────────────────────────────────
+const APPROVER_ROLES = ["Quality Manager", "System Manager"];
+
+function can_approve() {
+    return APPROVER_ROLES.some(role => frappe.user.has_role(role));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Split custom_reading_details JSON → { values, remarks, approvals }
+// Reserved keys: "__remarks__", "__approvals__"
+// ─────────────────────────────────────────────────────────────────────────────
+function split_details(raw) {
+    let details = {};
+    try { details = JSON.parse(raw || "{}"); } catch (e) {}
+    const { __remarks__, __approvals__, ...values } = details;
+    return {
+        values,
+        remarks   : (__remarks__   && typeof __remarks__   === "object") ? __remarks__   : {},
+        approvals : (__approvals__ && typeof __approvals__ === "object") ? __approvals__ : {}
+    };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Parse "NK132 - NK181"  →  ["NK132","NK133",…,"NK181"]
@@ -110,7 +135,7 @@ function collect_params(readings) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build  { spec → { heatNo → value } }  from existing readings rows
-// Strips the reserved "__remarks__" key so it never leaks into value maps
+// Reserved keys never leak into value maps
 // ─────────────────────────────────────────────────────────────────────────────
 function build_existing_map(readings, params) {
     const existing = {};
@@ -121,9 +146,7 @@ function build_existing_map(readings, params) {
         const spec = (r.specification || "").trim();
         if (!spec) continue;
         if (!existing[spec]) existing[spec] = {};
-        let details = {};
-        try { details = JSON.parse(r.custom_reading_details || "{}"); } catch (e) {}
-        const { __remarks__, ...values } = details;
+        const { values } = split_details(r.custom_reading_details);
         Object.assign(existing[spec], values);
     }
     return existing;
@@ -136,55 +159,6 @@ function parse_formula_variables(formula) {
     const TOKEN_RE = /[A-Za-z_][A-Za-z0-9_ ]*\([^)]*\)/g;
     return [...new Set(formula.match(TOKEN_RE) || [])];
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Evaluate custom_formula_for_conversion dynamically
-// ─────────────────────────────────────────────────────────────────────────────
-// function evaluate_formula(formula, item_field_map, param_value_map) {
-//     if (!formula) return null;
-
-//     const tokens = parse_formula_variables(formula);
-//     let expr = formula;
-
-//     for (const token of tokens) {
-//         let val = null;
-
-//         if (token in item_field_map) {
-//             val = flt(item_field_map[token]);
-//         } else if (token in param_value_map) {
-//             const raw = param_value_map[token];
-//             if (raw === undefined || raw === null || raw === "") return null;
-//             val = flt(raw);
-//         } else {
-//             console.warn("[evaluate_formula] Unknown token:", token, "| formula:", formula,
-//                          "| item_field_map keys:", Object.keys(item_field_map),
-//                          "| param_value_map keys:", Object.keys(param_value_map));
-//             return null;
-//         }
-
-//         if (isNaN(val)) {
-//             console.warn("[evaluate_formula] NaN for token:", token, "val:", val);
-//             return null;
-//         }
-
-//         expr = expr.split(token).join(String(val));
-//     }
-
-//     try {
-//         const result = Function('"use strict"; return (' + expr + ')')();
-//         if (!isFinite(result)) {
-//             console.warn("[evaluate_formula] Non-finite result:", result, "expr:", expr);
-//             return null;
-//         }
-//         return result;
-//     } catch (e) {
-//         console.error("[evaluate_formula] Eval error:", e, "expr:", expr);
-//         return null;
-//     }
-// }
-
-
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Evaluate custom_formula_for_conversion dynamically
@@ -242,16 +216,6 @@ function evaluate_formula(formula, item_field_map, param_value_map) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Build item_field_map from item_doc
 // ─────────────────────────────────────────────────────────────────────────────
-// function build_item_field_map(item_doc) {
-//     return {
-//         "Diameter(mm)" : flt(item_doc.custom_diameter),
-//         "OD(mm)"       : flt(item_doc.custom_od),
-//         "ID(mm)"       : flt(item_doc.custom_id),
-//         "TL(mm)"       : flt(item_doc.custom_tl),
-//         "Thickness(mm)": flt(item_doc.custom_tl),
-//     };
-// }
-
 function build_item_field_map(item_doc) {
     return {
         "Diameter(mm)"                     : flt(item_doc.custom_diameter),
@@ -260,6 +224,7 @@ function build_item_field_map(item_doc) {
         "ID(mm)"                           : flt(item_doc.custom_id),
         "Inner Diameter"                   : flt(item_doc.custom_id),
         "TL(mm)"                           : flt(item_doc.custom_tl),
+        "Total Length(mm)"                           : flt(item_doc.custom_tl),
         "Thickness(mm)"                    : flt(item_doc.custom_thickness),
         "Width(mm)"                        : flt(item_doc.custom_width),
         "Height(mm)"                       : flt(item_doc.custom_height),
@@ -326,9 +291,12 @@ function check_value_status(val, param_meta) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Build heat-number → overall status map across all params
-// Returns: "accepted" | "rejected" | "na"
+// Returns per HN: "accepted" | "approved" | "rejected" | "na"
+//   "approved" = values failed, but a manager approved it (counts as accepted)
+// Pass approvals = {} to get the RAW (pre-approval) status.
 // ─────────────────────────────────────────────────────────────────────────────
-function build_hn_status_map(heatNumbers, params, draft) {
+function build_hn_status_map(heatNumbers, params, draft, approvals) {
+    approvals = approvals || {};
     const map = {};
     for (const hn of heatNumbers) {
         let anyApplicable = false;
@@ -341,26 +309,35 @@ function build_hn_status_map(heatNumbers, params, draft) {
             anyApplicable = true;
             if (!result) anyFail = true;
         }
-        map[hn] = !anyApplicable ? "na" : anyFail ? "rejected" : "accepted";
+        if (!anyApplicable)      map[hn] = "na";
+        else if (!anyFail)       map[hn] = "accepted";
+        else if (approvals[hn])  map[hn] = "approved";
+        else                     map[hn] = "rejected";
     }
     return map;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Compute the 3-way overall status for a single parameter row
+// A failed value on a manager-approved heat number counts as accepted
 // ─────────────────────────────────────────────────────────────────────────────
-function compute_row_overall_status(param_meta, heatNumbers, draftForSpec) {
+function compute_row_overall_status(param_meta, heatNumbers, draftForSpec, approvals) {
+    approvals = approvals || {};
     let countAccepted = 0;
     let countRejected = 0;
 
     const values = Object.entries(draftForSpec || {}).filter(
-        ([key, val]) => key !== "__remarks__" && val !== "" && val !== null && val !== undefined
+        ([key, val]) => key !== "__remarks__" && key !== "__approvals__"
+            && val !== "" && val !== null && val !== undefined
     );
 
     for (const [hn, val] of values) {
         const result = check_value_status(val, param_meta);
         if (result === true)  countAccepted++;
-        else if (result === false) countRejected++;
+        else if (result === false) {
+            if (approvals[hn]) countAccepted++;
+            else countRejected++;
+        }
     }
 
     if (values.length === 0) return null;
@@ -383,10 +360,12 @@ function render_paginated_reading_table(
     formula,
     item_field_map,
     params,
-    draft
+    draft,
+    approvals
 ) {
-    page    = page    || 1;
-    remarks = remarks || {};
+    page      = page      || 1;
+    remarks   = remarks   || {};
+    approvals = approvals || {};
 
     const PAGE_SIZE = 10;
 
@@ -396,7 +375,10 @@ function render_paginated_reading_table(
     entries.forEach(([hn, val]) => {
         const result = param_meta ? check_value_status(val, param_meta) : null;
         if (result === true)  accepted_count++;
-        else if (result === false) rejected_count++;
+        else if (result === false) {
+            if (approvals[hn]) accepted_count++;
+            else rejected_count++;
+        }
     });
 
     const total_heat_count = (allHeatNumbers || []).length || entries.length;
@@ -417,9 +399,13 @@ function render_paginated_reading_table(
             weight = w !== null ? w.toFixed(3) : "0.000";
         }
 
+        const approvedBy = approvals[hn];
+
         const statusBadge =
             result === true
                 ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#d4edda;color:#155724;">✓ Accepted</span>`
+                : (result === false && approvedBy)
+                ? `<span title="Approved by ${frappe.utils.escape_html(String(approvedBy))}" style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#d6e9f8;color:#0c4a7a;">✓ Approved</span>`
                 : result === false
                 ? `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#f8d7da;color:#721c24;">✗ Rejected</span>`
                 : `<span style="display:inline-block;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#e9ecef;color:#6c757d;">— N/A</span>`;
@@ -470,13 +456,13 @@ function render_paginated_reading_table(
     $container.find(".prev-page").on("click", function () {
         render_paginated_reading_table(
             $container, entries, page - 1, param_meta,
-            allHeatNumbers, remarks, formula, item_field_map, params, draft
+            allHeatNumbers, remarks, formula, item_field_map, params, draft, approvals
         );
     });
     $container.find(".next-page").on("click", function () {
         render_paginated_reading_table(
             $container, entries, page + 1, param_meta,
-            allHeatNumbers, remarks, formula, item_field_map, params, draft
+            allHeatNumbers, remarks, formula, item_field_map, params, draft, approvals
         );
     });
 }
@@ -493,11 +479,7 @@ function render_custom_reading_html(frm, cdt, cdn) {
 
     const d = locals[cdt][cdn];
 
-    let details = {};
-    try { details = JSON.parse(d.custom_reading_details || "{}"); } catch (e) {}
-
-    const remarks = details["__remarks__"] || {};
-    const { __remarks__, ...valueDetails } = details;
+    const { values: valueDetails, remarks, approvals } = split_details(d.custom_reading_details);
 
     frappe.db.get_doc("Item", frm.doc.item_code).then(item_doc => {
         const formula        = item_doc.custom_formula_for_conversion || "";
@@ -520,11 +502,6 @@ function render_custom_reading_html(frm, cdt, cdn) {
         const params      = collect_params(allReadings);
         const draft       = build_existing_map(allReadings, params);
 
-        console.log("[render_custom_reading_html] formula:", formula);
-        console.log("[render_custom_reading_html] item_field_map:", item_field_map);
-        console.log("[render_custom_reading_html] params:", params.map(p => p.spec));
-        console.log("[render_custom_reading_html] draft:", JSON.stringify(draft));
-
         render_paginated_reading_table(
             $(wrapper.wrapper),
             Object.entries(valueDetails),
@@ -535,7 +512,8 @@ function render_custom_reading_html(frm, cdt, cdn) {
             formula,
             item_field_map,
             params,
-            draft
+            draft,
+            approvals
         );
     });
 }
@@ -543,11 +521,12 @@ function render_custom_reading_html(frm, cdt, cdn) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Build & open the main dialog
 // ─────────────────────────────────────────────────────────────────────────────
-function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks) {
+function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks, existingApprovals) {
 
     const noParams   = params.length === 0;
     const PAGE_SIZE  = 10;
     const totalPages = Math.max(1, Math.ceil(heatNumbers.length / PAGE_SIZE));
+    const isApprover = can_approve();
     let currentPage  = 1;
 
     // draft[spec][hn] = value
@@ -558,6 +537,9 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
 
     // remarkDraft[hn] = remark string
     const remarkDraft = Object.assign({}, existingRemarks || {});
+
+    // approvalDraft[hn] = user who approved
+    const approvalDraft = Object.assign({}, existingApprovals || {});
 
     function rawRange() {
         return (frm.doc.custom_nmtg_heat_number || "").trim();
@@ -581,6 +563,15 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
             const hn  = $(this).data("hn");
             const val = $(this).val().trim();
             if (val) { remarkDraft[hn] = val; } else { delete remarkDraft[hn]; }
+        });
+
+        dialog.$wrapper.find(".qir-approve").each(function () {
+            const hn = $(this).data("hn");
+            if ($(this).is(":checked")) {
+                approvalDraft[hn] = approvalDraft[hn] || frappe.session.user;
+            } else {
+                delete approvalDraft[hn];
+            }
         });
     }
 
@@ -609,12 +600,14 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
 
     function build_table_html() {
         const pageHeatNumbers = get_page_slice(currentPage);
-        const hnStatusMap     = build_hn_status_map(heatNumbers, params, draft);
+        // effective status (manager approval applied) + raw status (before approval)
+        const hnStatusMap = build_hn_status_map(heatNumbers, params, draft, approvalDraft);
+        const hnRawMap    = build_hn_status_map(heatNumbers, params, draft, {});
 
         const paramStatus = {};
         if (!noParams) {
             for (const p of params) {
-                paramStatus[p.spec] = compute_row_overall_status(p, heatNumbers, draft[p.spec]);
+                paramStatus[p.spec] = compute_row_overall_status(p, heatNumbers, draft[p.spec], approvalDraft);
             }
         }
 
@@ -649,12 +642,19 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
         }
 
         headerCells += `<th class="qir-th qir-th--remark">Remark</th>`;
+        headerCells += `<th class="qir-th qir-th--approval">Manager Approval</th>`;
 
         let bodyRows = "";
         for (const hn of pageHeatNumbers) {
-            const hnSt    = hnStatusMap[hn];
+            const hnSt     = hnStatusMap[hn];
+            const rawSt    = hnRawMap[hn];
+            const isReject = rawSt === "rejected" || rawSt === "approved"; // raw-failed
+            const approver = approvalDraft[hn];
+
             const hnBadge = hnSt === "accepted"
                 ? `<span class="qir-badge qir-badge--pass">✓ Accepted</span>`
+                : hnSt === "approved"
+                ? `<span class="qir-badge qir-badge--approved" title="Approved by ${frappe.utils.escape_html(String(approver || ""))}">✓ Approved</span>`
                 : hnSt === "rejected"
                 ? `<span class="qir-badge qir-badge--fail">✗ Rejected</span>`
                 : `<span class="qir-badge qir-badge--na">— N/A</span>`;
@@ -685,19 +685,39 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 }
             }
 
-        const remark    = remarkDraft[hn] || "";
-        const isReject  = hnStatusMap[hn] === "rejected";
-        cells += `<td class="qir-td qir-td--remark">
-                    <input
-                        class="qir-remark${isReject ? " qir-remark--required" : ""}"
-                        data-hn="${frappe.utils.escape_html(hn)}"
-                        data-required="${isReject ? "1" : "0"}"
-                        type="text"
-                        value="${frappe.utils.escape_html(String(remark))}"
-                        autocomplete="off"
-                        placeholder="${isReject ? "Remark required ✱" : "Remark…"}"
-                    />
-                </td>`;
+            const remark = remarkDraft[hn] || "";
+            cells += `<td class="qir-td qir-td--remark">
+                        <input
+                            class="qir-remark${isReject ? " qir-remark--required" : ""}"
+                            data-hn="${frappe.utils.escape_html(hn)}"
+                            data-required="${isReject ? "1" : "0"}"
+                            type="text"
+                            value="${frappe.utils.escape_html(String(remark))}"
+                            autocomplete="off"
+                            placeholder="${isReject ? "Remark required ✱" : "Remark…"}"
+                        />
+                    </td>`;
+
+            // Manager approval — only meaningful when the heat number failed its values
+            if (isReject) {
+                const disabledAttr = isApprover ? "" : "disabled";
+                const tip = approver
+                    ? `Approved by ${frappe.utils.escape_html(String(approver))}`
+                    : (isApprover ? "Tick to approve this rejected heat number" : "Only a manager can approve");
+                cells += `<td class="qir-td qir-td--approval" title="${tip}">
+                            <label class="qir-approve-label">
+                                <input
+                                    type="checkbox"
+                                    class="qir-approve"
+                                    data-hn="${frappe.utils.escape_html(hn)}"
+                                    ${approver ? "checked" : ""}
+                                    ${disabledAttr}
+                                /> Approve
+                            </label>
+                        </td>`;
+            } else {
+                cells += `<td class="qir-td qir-td--approval qir-td--approval-na">—</td>`;
+            }
 
             bodyRows += `<tr class="qir-row">${cells}</tr>`;
         }
@@ -751,6 +771,12 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 color: #5e35b1;
                 min-width: 200px;
             }
+            .qir-th--approval {
+                background: #fff8e1;
+                color: #8a6d00;
+                min-width: 140px;
+                text-align: center;
+            }
             .qir-td {
                 border: 1px solid #e4e9ef;
                 padding: 6px 8px;
@@ -796,10 +822,31 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 vertical-align: middle;
                 background: #faf8ff;
             }
+            .qir-td--approval {
+                border: 1px solid #e4e9ef;
+                padding: 6px 12px;
+                vertical-align: middle;
+                background: #fffdf5;
+                text-align: center;
+                white-space: nowrap;
+            }
+            .qir-td--approval-na { color: #bbb; }
+            .qir-approve-label {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                margin: 0;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            .qir-approve-label input { margin: 0; }
+            .qir-approve:disabled { cursor: not-allowed; }
             .qir-row:hover .qir-td,
             .qir-row:hover .qir-td--cell-pass,
             .qir-row:hover .qir-td--cell-fail,
-            .qir-row:hover .qir-td--remark { filter: brightness(.97); }
+            .qir-row:hover .qir-td--remark,
+            .qir-row:hover .qir-td--approval { filter: brightness(.97); }
             .qir-badge {
                 display: inline-block;
                 padding: 2px 9px;
@@ -809,10 +856,11 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 letter-spacing: .03em;
                 vertical-align: middle;
             }
-            .qir-badge--pass    { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-            .qir-badge--fail    { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-            .qir-badge--partial { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-            .qir-badge--na      { background: #e9ecef; color: #6c757d; border: 1px solid #dee2e6; }
+            .qir-badge--pass     { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+            .qir-badge--fail     { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+            .qir-badge--partial  { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+            .qir-badge--approved { background: #d6e9f8; color: #0c4a7a; border: 1px solid #b8d6ee; }
+            .qir-badge--na       { background: #e9ecef; color: #6c757d; border: 1px solid #dee2e6; }
             .qir-range-hint {
                 display: block;
                 font-size: 10px;
@@ -884,8 +932,8 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
                 border: 1px solid var(--border-color, #d1d8dd);
             }
             .qir-remark--required {
-            border-color: #f5c6cb !important;
-            background: #fff8f8 !important;
+                border-color: #f5c6cb !important;
+                background: #fff8f8 !important;
             }
             .qir-remark--required:focus {
                 border-color: #dc3545 !important;
@@ -937,6 +985,11 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
         dialog.$wrapper.find(".qir-page-select").off("change").on("change", function () {
             go_to_page(parseInt($(this).val()));
         });
+        // Manager approval toggled → capture everything, re-render so statuses refresh
+        dialog.$wrapper.find(".qir-approve").off("change").on("change", function () {
+            capture_visible_inputs();
+            render();
+        });
     }
 
     const dialog = new frappe.ui.Dialog({
@@ -950,51 +1003,51 @@ function open_reading_dialog(frm, heatNumbers, params, existing, existingRemarks
             }
         ],
         primary_action_label: __("Save Readings"),
-       // REPLACE WITH:
-primary_action() {
-    capture_visible_inputs();
+        primary_action() {
+            capture_visible_inputs();
 
-    // Validate: remark mandatory for rejected heat numbers
-    const hnStatusMap = build_hn_status_map(heatNumbers, params, draft);
-    const missing = heatNumbers.filter(hn =>
-        hnStatusMap[hn] === "rejected" &&
-        !(remarkDraft[hn] || "").trim()
-    );
+            // Validate: remark mandatory for every heat number whose values failed
+            // (even if a manager approved it)
+            const rawMap  = build_hn_status_map(heatNumbers, params, draft, {});
+            const missing = heatNumbers.filter(hn =>
+                rawMap[hn] === "rejected" &&
+                !(remarkDraft[hn] || "").trim()
+            );
 
-    if (missing.length) {
-        // Navigate to the page containing the first offending HN
-        const firstIdx  = heatNumbers.indexOf(missing[0]);
-        const needsPage = Math.floor(firstIdx / PAGE_SIZE) + 1;
-        if (needsPage !== currentPage) {
-            currentPage = needsPage;
-            render();
-        }
-
-        // Highlight all missing remark inputs on the current page
-        setTimeout(() => {
-            dialog.$wrapper.find(".qir-remark[data-required='1']").each(function () {
-                if (!$(this).val().trim()) {
-                    $(this).addClass("qir-remark--required").css("border-color", "#dc3545");
+            if (missing.length) {
+                // Navigate to the page containing the first offending HN
+                const firstIdx  = heatNumbers.indexOf(missing[0]);
+                const needsPage = Math.floor(firstIdx / PAGE_SIZE) + 1;
+                if (needsPage !== currentPage) {
+                    currentPage = needsPage;
+                    render();
                 }
-            });
-            const firstInput = dialog.$wrapper.find(".qir-remark[data-required='1']").filter(function () {
-                return !$(this).val().trim();
-            }).first();
-            if (firstInput.length) firstInput.focus();
-        }, 50);
 
-        frappe.msgprint({
-            title    : __("Remark Required"),
-            message  : __(`<b>${missing.length}</b> rejected heat number(s) are missing a remark:<br><br>`)
-                     + missing.slice(0, 10).map(hn => `<b>${frappe.utils.escape_html(hn)}</b>`).join(", ")
-                     + (missing.length > 10 ? ` <i>… and ${missing.length - 10} more</i>` : ""),
-            indicator: "red"
-        });
-        return;
-    }
+                // Highlight all missing remark inputs on the current page
+                setTimeout(() => {
+                    dialog.$wrapper.find(".qir-remark[data-required='1']").each(function () {
+                        if (!$(this).val().trim()) {
+                            $(this).addClass("qir-remark--required").css("border-color", "#dc3545");
+                        }
+                    });
+                    const firstInput = dialog.$wrapper.find(".qir-remark[data-required='1']").filter(function () {
+                        return !$(this).val().trim();
+                    }).first();
+                    if (firstInput.length) firstInput.focus();
+                }, 50);
 
-    save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog);
-}
+                frappe.msgprint({
+                    title    : __("Remark Required"),
+                    message  : __(`<b>${missing.length}</b> rejected heat number(s) are missing a remark:<br><br>`)
+                             + missing.slice(0, 10).map(hn => `<b>${frappe.utils.escape_html(hn)}</b>`).join(", ")
+                             + (missing.length > 10 ? ` <i>… and ${missing.length - 10} more</i>` : ""),
+                    indicator: "red"
+                });
+                return;
+            }
+
+            save_readings(frm, params, heatNumbers, draft, remarkDraft, approvalDraft, dialog);
+        }
     });
 
     dialog.show();
@@ -1032,7 +1085,7 @@ primary_action() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Save readings back to child table rows + update parent totals
 // ─────────────────────────────────────────────────────────────────────────────
-function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
+function save_readings(frm, params, heatNumbers, draft, remarkDraft, approvalDraft, dialog) {
     if (!params.length) {
         dialog.hide();
         return;
@@ -1041,6 +1094,15 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
     const params_by_spec = {};
     params.forEach(p => { params_by_spec[p.spec] = p; });
 
+    // Keep approvals ONLY for heat numbers whose values actually failed
+    const rawMap = build_hn_status_map(heatNumbers, params, draft, {});
+    const approvalsToSave = {};
+    heatNumbers.forEach(hn => {
+        if (rawMap[hn] === "rejected" && approvalDraft[hn]) {
+            approvalsToSave[hn] = approvalDraft[hn];
+        }
+    });
+
     frappe.db.get_doc("Item", frm.doc.item_code).then(item_doc => {
         const formula        = item_doc.custom_formula_for_conversion || "";
         const item_field_map = build_item_field_map(item_doc);
@@ -1048,6 +1110,7 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
         console.log("[save_readings] formula:", formula);
         console.log("[save_readings] item_field_map:", item_field_map);
         console.log("[save_readings] draft:", JSON.stringify(draft));
+        console.log("[save_readings] approvals:", JSON.stringify(approvalsToSave));
 
         const set_value_promises = [];
 
@@ -1056,9 +1119,10 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
             const spec = (row.specification || "").trim();
             if (!draft[spec]) return;
 
-            // 1. Save reading details (values + remarks)
+            // 1. Save reading details (values + remarks + manager approvals)
             const detailsToSave = Object.assign({}, draft[spec], {
-                __remarks__: remarkDraft
+                __remarks__   : remarkDraft,
+                __approvals__ : approvalsToSave
             });
 
             set_value_promises.push(
@@ -1076,10 +1140,7 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
 
                 heatNumbers.forEach(hn => {
                     const param_value_map = build_param_value_map(params, draft, hn);
-                    console.log(`[save_readings] HN: ${hn} | param_value_map:`, param_value_map);
-
                     const w = evaluate_formula(formula, item_field_map, param_value_map);
-                    console.log(`[save_readings] HN: ${hn} | weight:`, w);
 
                     if (w !== null) {
                         total_weight += w;
@@ -1106,10 +1167,10 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
                 }
             }
 
-            // 3. Compute & save row-level status
+            // 3. Compute & save row-level status (manager approvals applied)
             const param_meta = params_by_spec[spec];
             const rowStatus  = param_meta
-                ? compute_row_overall_status(param_meta, heatNumbers, draft[spec])
+                ? compute_row_overall_status(param_meta, heatNumbers, draft[spec], approvalsToSave)
                 : null;
 
             if (rowStatus) {
@@ -1124,7 +1185,8 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
         });
 
         // ── Step 4: parent-level totals ──────────────────────────────────────
-        const hnStatusMap = build_hn_status_map(heatNumbers, params, draft);
+        // Effective status: "approved" heat numbers are treated as accepted
+        const hnStatusMap = build_hn_status_map(heatNumbers, params, draft, approvalsToSave);
 
         // Find the Length(mm) param — by name first, fallback to first manual_inspection param
         const lengthParam = params.find(p => p.spec === "Length(mm)")
@@ -1143,13 +1205,16 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
             // Skip HNs with no values entered
             if (hnStatus === "na") return;
 
+            const isAccepted = hnStatus === "accepted" || hnStatus === "approved";
+            const isRejected = hnStatus === "rejected";
+
             // MM contribution: sum of Length(mm) value for this HN
             if (lengthParam) {
                 const lengthVal = parseFloat((draft[lengthParam.spec] || {})[hn]);
                 if (!isNaN(lengthVal)) {
-                    if (hnStatus === "accepted") {
+                    if (isAccepted) {
                         total_accepted_mm += lengthVal;
-                    } else if (hnStatus === "rejected") {
+                    } else if (isRejected) {
                         total_rejected_mm += lengthVal;
                     }
                 }
@@ -1161,18 +1226,18 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
                 const w = evaluate_formula(formula, item_field_map, param_value_map);
 
                 if (w !== null) {
-                    if (hnStatus === "accepted") {
+                    if (isAccepted) {
                         total_accepted_kg += w;
-                    } else if (hnStatus === "rejected") {
+                    } else if (isRejected) {
                         total_rejected_kg += w;
                     }
                 }
             }
 
             // Qty contribution: count of accepted/rejected heat numbers
-            if (hnStatus === "accepted") {
+            if (isAccepted) {
                 total_accepted_qty++;
-            } else if (hnStatus === "rejected") {
+            } else if (isRejected) {
                 total_rejected_qty++;
             }
         });
@@ -1249,6 +1314,7 @@ function save_readings(frm, params, heatNumbers, draft, remarkDraft, dialog) {
         });
     });
 }
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Update Quality Inspection parent status from all reading row statuses
 // ─────────────────────────────────────────────────────────────────────────────
