@@ -269,7 +269,8 @@ doctype_js = {
      "Payment Request":"public/js/payment_request.js",
      "Payment Entry":"public/js/payment_entry.js",
      "Purchase Invoice": "public/js/purchase_invoice.js",
-     "Address":"public/js/address.js"
+     "Leave Application": "public/js/leave_application.js",
+     "Address": "public/js/address.js",
 }
 
 override_doctype_class = {
@@ -277,6 +278,7 @@ override_doctype_class = {
     "Purchase Receipt": "nmtg.override.purchase_receipt.CustomPurchaseReceipt",
     "Opportunity": "nmtg.override.opportunity.CustomOpportunity",
     "Customer": "nmtg.override.customer.CustomCustomer",
+    "Leave Application": "nmtg.override.leave_application.CustomLeaveApplication",
     
 }
 
@@ -362,10 +364,13 @@ doc_events = {
     },
     "Sales Person": {
         "validate": "nmtg.override.sales_person.validate_sales_person_weightage"
-},
- "Address": {
+   },
+    "Leave Application": {
+        "before_validate": "nmtg.override.leave_application.validate_short_leave"
+    },
+    "Address": {
         "before_naming": "nmtg.override.api.set_state_in_title"
-    }
+    },
      
 }
 
@@ -375,10 +380,14 @@ scheduler_events = {
         "nmtg.nmtg.doctype.supplier_performance_summary.supplier_performance_summary.create_monthly_supplier_performance"
     ],
     "daily": [
-    "nmtg.override.supplier.send_due_supplier_audit_reminders",
-    "nmtg.nmtg.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders"
-],
-
+        "nmtg.override.supplier.send_due_supplier_audit_reminders",
+        "nmtg.nmtg.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders",
+    ],
+    "cron": {
+        "0 1 1 * *": ["nmtg.override.leave_application.allocate_short_leave"],
+        "0 2 1 * *": ["nmtg.override.leave_credit.credit_monthly_leave"],
+        "0 3 1 1 *": ["nmtg.override.leave_credit.encash_casual_leave"],
+    },
 }
 
 fixtures = [
@@ -405,7 +414,18 @@ fixtures = [
         "filters": [
             ["name", "=", "Inward Qty"]
         ]
-    }
+    },
+
+    # ---- Leave dashboard ----
+    {
+        "dt": "Custom HTML Block",
+        "filters": [["name", "=", "My Leave Dashboard"]]
+    },
+    {
+        "dt": "Workspace",
+        "filters": [["name", "=", "Leaves"]]
+    },
+
 
 ]
 
