@@ -512,7 +512,7 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, dynamic_values) {
 			label: "Introduction Email",
 			icon: "👋",
 			offset_days: 0,
-			subject: "Introduction of NMTG Mechtrans Techniques Pvt. Ltd. – Manufacturer of Mechanical Power Transmission Products",
+			subject: "NMTG Introduction | Mechanical Power Transmission Solutions",
 			body: `
 				<p>Dear Sir/Madam,</p>
 				<p>Greetings from NMTG!</p>
@@ -554,7 +554,7 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, dynamic_values) {
 			label: "Follow-up 1",
 			icon: "📩",
 			offset_days: 3,
-			subject: "Gentle Follow-Up on Our Introduction – NMTG",
+			subject: "NMTG Introduction | Mechanical Power Transmission Solutions",
 			body: `
 				<p>Dear ${customer_name},</p>
 				<p>I hope you are doing well.</p>
@@ -573,7 +573,7 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, dynamic_values) {
 			label: "Follow-up 2",
 			icon: "🔁",
 			offset_days: 7,
-			subject: "Follow-Up: Introduction to NMTG Power Transmission Solutions",
+			subject: "NMTG Introduction | Mechanical Power Transmission Solutions",
 			body: `
 				<p>Dear ${customer_name},</p>
 				<p>Greetings from NMTG.</p>
@@ -593,7 +593,7 @@ function get_stage_defs(customer_name, NMTG_SIGNATURE, dynamic_values) {
 			label: "Final Follow-up",
 			icon: "🚪",
 			offset_days: 15,
-			subject: "Keeping the Door Open – NMTG Power Transmission Solutions",
+			subject: "NMTG Introduction | Mechanical Power Transmission Solutions",
 			body: `
 				<p>Dear ${customer_name},</p>
 				<p>I hope you are doing well.</p>

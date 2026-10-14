@@ -1372,13 +1372,74 @@ def send_technical_evaluation_questionary(technical_evaluation):
         </div>
     """
 
-    frappe.sendmail(
+    # ---- Subject: must match the Opportunity / Quotation notification subjects exactly ----
+    # Format: NMTG | Customer Name | Opportunity | Customer RFQ Number
+    opportunity_no = (doc.get("opportunity_no") or "").strip()
+    customer_name = ""
+    customer_rfq_number = ""
+
+    if opportunity_no:
+        opp = frappe.db.get_value(
+            "Opportunity",
+            opportunity_no,
+            ["customer_name", "custom_customer_rfq_number"],
+            as_dict=True,
+        )
+        if opp:
+            customer_name = (opp.customer_name or "").strip()
+            customer_rfq_number = (opp.custom_customer_rfq_number or "").strip()
+
+    if not customer_name:
+        customer_name = (doc.customer or "").strip()
+    if not customer_rfq_number:
+        customer_rfq_number = (doc.get("custom_customer_rfq_number") or "").strip()
+
+    subject = " | ".join(
+        part
+        for part in ["NMTG", customer_name, opportunity_no, customer_rfq_number]
+        if part
+    )
+
+    # ---- Same sender as the notifications ----
+    sender = frappe.db.get_value(
+        "Email Account",
+        {"enable_outgoing": 1, "email_id": "pragatiexam01@gmail.com"},
+        "email_id",
+    )
+
+    # ---- Thread with the first email sent on the Opportunity ----
+    in_reply_to = None
+    if opportunity_no:
+        message_id = frappe.db.get_value(
+            "Communication",
+            {
+                "reference_doctype": "Opportunity",
+                "reference_name": opportunity_no,
+                "communication_type": "Communication",
+                "sent_or_received": "Sent",
+            },
+            "message_id",
+            order_by="creation asc",
+        )
+        if message_id:
+            message_id = message_id.strip()
+            if not message_id.startswith("<"):
+                message_id = f"<{message_id}>"
+            in_reply_to = message_id
+
+    mail_args = dict(
         recipients=[doc.email],
-        subject=_("Technical Evaluation Questionary - {0}").format(doc.name),
+        subject=subject,
         message=message,
         reference_doctype=doc.doctype,
         reference_name=doc.name,
     )
+    if sender:
+        mail_args["sender"] = sender
+    if in_reply_to:
+        mail_args["in_reply_to"] = in_reply_to
+
+    frappe.sendmail(**mail_args)
 
     doc.add_comment(
         "Info",
@@ -1386,7 +1447,6 @@ def send_technical_evaluation_questionary(technical_evaluation):
     )
 
     return {"sent": True}
-
 
 
 @frappe.whitelist(allow_guest=True)
@@ -1667,6 +1727,39 @@ def get_prospect_recipients(doc):
 	return to, cc
 
 
+# @frappe.whitelist()
+# def send_prospect_stage_email(prospect, stage_key, subject, message):
+# 	if stage_key not in STAGE_FIELD_MAP:
+# 		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
+
+# 	if not frappe.has_permission("Prospect", "write", prospect):
+# 		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+# 	doc = frappe.get_doc("Prospect", prospect)
+
+# 	to, cc = get_prospect_recipients(doc)
+# 	if not to:
+# 		frappe.throw(_("No contact email addresses found to send to."))
+
+# 	frappe.sendmail(
+# 		recipients=[to],
+# 		cc=cc,
+# 		subject=subject,
+# 		message=message,
+# 		reference_doctype="Prospect",
+# 		reference_name=prospect,
+# 		attachments=get_email_attachments(),
+# 	)
+
+# 	field_key = STAGE_FIELD_MAP[stage_key]
+# 	sent_on = frappe.utils.now()
+# 	doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
+# 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
+
+# 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
+
+
+
 @frappe.whitelist()
 def send_prospect_stage_email(prospect, stage_key, subject, message):
 	if stage_key not in STAGE_FIELD_MAP:
@@ -1681,6 +1774,9 @@ def send_prospect_stage_email(prospect, stage_key, subject, message):
 	if not to:
 		frappe.throw(_("No contact email addresses found to send to."))
 
+	# Attach the company profile only with the Introduction Email
+	attachments = get_email_attachments() if stage_key == "intro" else []
+
 	frappe.sendmail(
 		recipients=[to],
 		cc=cc,
@@ -1688,7 +1784,7 @@ def send_prospect_stage_email(prospect, stage_key, subject, message):
 		message=message,
 		reference_doctype="Prospect",
 		reference_name=prospect,
-		attachments=get_email_attachments(),
+		attachments=attachments,
 	)
 
 	field_key = STAGE_FIELD_MAP[stage_key]
@@ -1698,7 +1794,7 @@ def send_prospect_stage_email(prospect, stage_key, subject, message):
 
 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
 
-
+    
 
 def set_custom_dealer(doc, method=None):
     

@@ -441,6 +441,153 @@ def _get_attachments_for_request_nos(doc, request_nos):
 	return attachments
 
 
+# @frappe.whitelist()
+# def send_drawing_verification_emails_for_doc(docname):
+# 	doc = frappe.get_doc("Technical Evaluation", docname)
+
+# 	recipients = _get_recipients(doc)
+
+# 	pending_items = [
+# 		item for item in doc.items
+# 		if item.drawing_approval_required == "Yes" and not item.get("drawing_email_sent")
+# 	]
+
+# 	sent = []
+# 	skipped = []
+
+# 	if not pending_items:
+# 		return {"sent": sent, "skipped": ["No pending items found"]}
+
+# 	if not recipients:
+# 		return {"sent": sent, "skipped": ["No recipient email configured on the document"]}
+
+	
+# 	request_nos = [item.request_no for item in pending_items]
+# 	available_attachments = {att.request_no for att in doc.get("attachment", []) if att.attachment}
+
+# 	items_to_email = []
+# 	for item in pending_items:
+# 		if item.request_no in available_attachments:
+# 			items_to_email.append(item)
+# 		else:
+# 			skipped.append(f"{item.request_no}: no attachment found")
+
+# 	if not items_to_email:
+# 		return {"sent": sent, "skipped": skipped}
+
+# 	body = frappe.render_template(
+# 		EMAIL_BODY_TEMPLATE,
+# 		{
+# 			"doc": doc,
+# 			"items": items_to_email,
+# 			"get_formatted_size": _get_formatted_size,
+# 		},
+# 	)
+
+# 	subject = EMAIL_SUBJECT_TEMPLATE.format(opportunity_no=doc.opportunity_no or doc.name)
+
+# 	attachments = _get_attachments_for_request_nos(
+# 		doc, {item.request_no for item in items_to_email}
+# 	)
+
+# 	try:
+# 		frappe.sendmail(
+# 			recipients=recipients,
+# 			subject=subject,
+# 			message=body,
+# 			attachments=attachments,
+# 			reference_doctype=doc.doctype,
+# 			reference_name=doc.name,
+# 		)
+# 	except Exception as e:
+# 		frappe.log_error(
+# 			title="Drawing Verification Email - Send Failed",
+# 			message=frappe.get_traceback(),
+# 		)
+# 		skipped.extend(f"{item.request_no}: email send failed - {str(e)}" for item in items_to_email)
+# 		return {"sent": sent, "skipped": skipped}
+
+	
+# 	for item in items_to_email:
+# 		sent.append(item.request_no)
+# 		try:
+# 			item.db_set("drawing_email_sent", 1, update_modified=False)
+# 		except Exception as e:
+# 			frappe.log_error(
+# 				title="Drawing Verification Email - Tracking Update Failed",
+# 				message=frappe.get_traceback(),
+# 			)
+# 			skipped.append(f"{item.request_no}: email sent, but failed to mark drawing_email_sent - {str(e)}")
+
+# 	try:
+# 		doc.db_set("attachment_email_sent", 1, update_modified=False)
+# 	except Exception:
+# 		frappe.log_error(
+# 			title="Drawing Verification Email - Parent Flag Update Failed",
+# 			message=frappe.get_traceback(),
+# 		)
+
+# 	return {"sent": sent, "skipped": skipped}
+
+
+
+
+def _get_thread_mail_args(doc):
+	"""Subject / sender / in_reply_to so TE emails thread with the Opportunity emails.
+	Subject format: NMTG | Customer Name | Opportunity | Customer RFQ Number
+	"""
+	opportunity_no = (doc.get("opportunity_no") or "").strip()
+	customer_name = ""
+	customer_rfq_number = ""
+
+	if opportunity_no:
+		opp = frappe.db.get_value(
+			"Opportunity",
+			opportunity_no,
+			["customer_name", "custom_customer_rfq_number"],
+			as_dict=True,
+		)
+		if opp:
+			customer_name = (opp.customer_name or "").strip()
+			customer_rfq_number = (opp.custom_customer_rfq_number or "").strip()
+
+	if not customer_name:
+		customer_name = (doc.get("customer") or "").strip()
+	if not customer_rfq_number:
+		customer_rfq_number = (doc.get("custom_customer_rfq_number") or "").strip()
+
+	subject = " | ".join(
+		part for part in ["NMTG", customer_name, opportunity_no, customer_rfq_number] if part
+	)
+
+	sender = frappe.db.get_value(
+		"Email Account",
+		{"enable_outgoing": 1, "email_id": "pragatiexam01@gmail.com"},
+		"email_id",
+	)
+
+	in_reply_to = None
+	if opportunity_no:
+		message_id = frappe.db.get_value(
+			"Communication",
+			{
+				"reference_doctype": "Opportunity",
+				"reference_name": opportunity_no,
+				"communication_type": "Communication",
+				"sent_or_received": "Sent",
+			},
+			"message_id",
+			order_by="creation asc",
+		)
+		if message_id:
+			message_id = message_id.strip()
+			if not message_id.startswith("<"):
+				message_id = f"<{message_id}>"
+			in_reply_to = message_id
+
+	return subject, sender, in_reply_to
+
+
 @frappe.whitelist()
 def send_drawing_verification_emails_for_doc(docname):
 	doc = frappe.get_doc("Technical Evaluation", docname)
@@ -461,8 +608,6 @@ def send_drawing_verification_emails_for_doc(docname):
 	if not recipients:
 		return {"sent": sent, "skipped": ["No recipient email configured on the document"]}
 
-	
-	request_nos = [item.request_no for item in pending_items]
 	available_attachments = {att.request_no for att in doc.get("attachment", []) if att.attachment}
 
 	items_to_email = []
@@ -484,21 +629,28 @@ def send_drawing_verification_emails_for_doc(docname):
 		},
 	)
 
-	subject = EMAIL_SUBJECT_TEMPLATE.format(opportunity_no=doc.opportunity_no or doc.name)
+	# Same subject / sender / thread as the Opportunity + Quotation notifications
+	subject, sender, in_reply_to = _get_thread_mail_args(doc)
 
 	attachments = _get_attachments_for_request_nos(
 		doc, {item.request_no for item in items_to_email}
 	)
 
+	mail_args = dict(
+		recipients=recipients,
+		subject=subject,
+		message=body,
+		attachments=attachments,
+		reference_doctype=doc.doctype,
+		reference_name=doc.name,
+	)
+	if sender:
+		mail_args["sender"] = sender
+	if in_reply_to:
+		mail_args["in_reply_to"] = in_reply_to
+
 	try:
-		frappe.sendmail(
-			recipients=recipients,
-			subject=subject,
-			message=body,
-			attachments=attachments,
-			reference_doctype=doc.doctype,
-			reference_name=doc.name,
-		)
+		frappe.sendmail(**mail_args)
 	except Exception as e:
 		frappe.log_error(
 			title="Drawing Verification Email - Send Failed",
@@ -507,7 +659,6 @@ def send_drawing_verification_emails_for_doc(docname):
 		skipped.extend(f"{item.request_no}: email send failed - {str(e)}" for item in items_to_email)
 		return {"sent": sent, "skipped": skipped}
 
-	
 	for item in items_to_email:
 		sent.append(item.request_no)
 		try:
@@ -528,5 +679,3 @@ def send_drawing_verification_emails_for_doc(docname):
 		)
 
 	return {"sent": sent, "skipped": skipped}
-
-

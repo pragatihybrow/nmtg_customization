@@ -1,6 +1,7 @@
 import frappe
 from erpnext.crm.doctype.opportunity.opportunity import Opportunity
 
+
 class CustomOpportunity(Opportunity):
     def validate(self):
         super().validate()
@@ -28,6 +29,7 @@ class CustomOpportunity(Opportunity):
 
         for row in self.items:
             row.custom_customer_code = ref_code_map.get(row.item_code, "")
+
     def before_insert(self):
         self.sync_contact_from_lead()
 
@@ -53,6 +55,7 @@ class CustomOpportunity(Opportunity):
                 "contact_no",
                 "whatsapp_no",
                 "custom_contact_ref",
+                "primary_contact",
             ],
             order_by="idx",
         )
@@ -67,6 +70,7 @@ class CustomOpportunity(Opportunity):
                     "contact_no": row.contact_no,
                     "whatsapp_no": row.whatsapp_no,
                     "custom_contact_ref": row.custom_contact_ref,
+                    "primary_contact": row.primary_contact or 0,
                 },
             )
 

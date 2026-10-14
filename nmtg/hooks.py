@@ -349,6 +349,8 @@ doc_events = {
         "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
         "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries",
         "validate": "nmtg.override.api.set_mr_creator",
+        "on_update_after_submit": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+
 
 
     },
