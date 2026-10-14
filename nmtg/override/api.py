@@ -812,6 +812,11 @@ def custom_set_rejection_remark(name, remark):
     frappe.db.set_value("Supplier", name, "custom_rejection_remark", remark)
     frappe.db.set_value("Material Request", name, "custom_rejection_remark", remark)
     frappe.db.set_value("Purchase Order", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Quality Inspection", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Supplier Registration Form", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Supplier Audit", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Quotation", name, "custom_rejection_remark", remark)
+    frappe.db.set_value("Sales Order", name, "custom_rejection_remark", remark)
 
     frappe.db.commit()
 
