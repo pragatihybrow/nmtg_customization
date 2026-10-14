@@ -1,0 +1,51 @@
+[
+ {
+  "app": "hrms",
+  "charts": [],
+  "content": "[{\"id\":\"f219923446\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Number of Employees on Leave (Today)\",\"col\":4}},{\"id\":\"363b6269bd\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Number of Employees on Leave (This Month)\",\"col\":4}},{\"id\":\"d95373613c\",\"type\":\"number_card\",\"data\":{\"number_card_name\":\"Holidays in this month\",\"col\":4}},{\"id\":\"MYah7sa8s8\",\"type\":\"custom_block\",\"data\":{\"custom_block_name\":\"My Leave Dashboard\",\"col\":12}}]",
+  "custom_blocks": [
+   {
+    "custom_block_name": "My Leave Dashboard",
+    "label": "My Leave Dashboard"
+   }
+  ],
+  "docstatus": 0,
+  "doctype": "Workspace",
+  "external_link": null,
+  "for_user": "",
+  "hide_custom": 0,
+  "icon": "tree-palm",
+  "indicator_color": null,
+  "is_hidden": 0,
+  "label": "Leaves",
+  "link_to": null,
+  "link_type": null,
+  "links": [],
+  "modified": "2026-10-14 15:22:34.119577",
+  "module": "Leaves",
+  "name": "Leaves",
+  "number_cards": [
+   {
+    "label": "Number of Employees on Leave (Today)",
+    "number_card_name": "Number of Employees on Leave (Today)"
+   },
+   {
+    "label": "Number of Employees on Leave (This Month)",
+    "number_card_name": "Number of Employees on Leave (This Month)"
+   },
+   {
+    "label": "Holidays in this month",
+    "number_card_name": "Holidays in this month"
+   }
+  ],
+  "parent_page": "",
+  "public": 1,
+  "quick_lists": [],
+  "restrict_to_domain": null,
+  "roles": [],
+  "sequence_id": 5.0,
+  "shortcuts": [],
+  "title": "Leaves",
+  "type": "Workspace"
+ }
+]
