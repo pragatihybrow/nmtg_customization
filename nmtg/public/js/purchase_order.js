@@ -226,6 +226,67 @@ frappe.ui.form.on("Purchase Order", {
             },
             __("Create")
         );
+    },
+    before_workflow_action: function (frm) {
+        if (frm.selected_workflow_action !== 'Reject') {
+            return;
+        }
+
+        frappe.dom.unfreeze();
+
+        return new Promise((resolve, reject) => {
+            let submitted = false;
+
+            const d = new frappe.ui.Dialog({
+                title: __('Reason for Rejection'),
+                fields: [
+                    {
+                        fieldname: 'custom_rejection_remark',
+                        fieldtype: 'Small Text',
+                        label: __('Rejection Remark'),
+                        reqd: 1
+                    }
+                ],
+                primary_action_label: __('Submit Rejection'),
+                primary_action: function (values) {
+                    submitted = true;
+                    d.disable_primary_action();
+
+                    frappe.call({
+                        method: 'nmtg.override.api.custom_set_rejection_remark',
+                        args: {
+                            doctype: frm.doctype,
+                            name: frm.docname,
+                            remark: values.custom_rejection_remark
+                        },
+                        callback: function () {
+                            // Mirror the saved remark onto the form's copy of the doc so the
+                            // workflow save can't overwrite it with the old (empty) value
+                            frm.doc.custom_rejection_remark = values.custom_rejection_remark;
+                            d.hide();
+                            resolve();
+                        },
+                        error: function () {
+                            // Saving the remark failed: keep the workflow action blocked
+                            d.hide();
+                            reject();
+                        }
+                    });
+                }
+            });
+
+            d.$wrapper.on('hidden.bs.modal', () => {
+                if (!submitted) {
+                    frappe.show_alert({
+                        message: __('Rejection cancelled — remark is required'),
+                        indicator: 'orange'
+                    });
+                    reject();
+                }
+            });
+
+            d.show();
+        });
     }
 });
 

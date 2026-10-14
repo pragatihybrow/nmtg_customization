@@ -24,6 +24,7 @@ frappe.ui.form.on("Opportunity", {
 		if (frm.doc.shipping_address_name && !frm.doc.custom_shipping_address) {
             fetch_shipping_address(frm);
         }
+         set_contact_email_from_primary(frm);
     },
     status: function(frm) {
         update_technical_status(frm);
@@ -59,6 +60,8 @@ frappe.ui.form.on("Opportunity", {
 				])
 			);
 		}
+                set_contact_email_from_primary(frm);
+
 	},
 	 shipping_address_name: function(frm) {
         fetch_shipping_address(frm);
@@ -181,4 +184,47 @@ function fetch_shipping_address(frm) {
             }
         }
     });
+}
+
+
+
+frappe.ui.form.on("Lead Contact Info", {
+    primary_contact(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        // Only one primary contact at a time:
+        // when this row is checked, uncheck all the others
+        if (row.primary_contact) {
+            (frm.doc.custom_contact || []).forEach((r) => {
+                if (r.name !== row.name && r.primary_contact) {
+                    frappe.model.set_value(r.doctype, r.name, "primary_contact", 0);
+                }
+            });
+        }
+
+        set_contact_email_from_primary(frm);
+    },
+
+    email_id(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
+        // If the primary row's email is edited, keep contact_email in sync
+        if (row.primary_contact) {
+            set_contact_email_from_primary(frm);
+        }
+    },
+
+    custom_contact_remove(frm) {
+        // If the primary row is deleted, re-evaluate
+        set_contact_email_from_primary(frm);
+    },
+});
+
+function set_contact_email_from_primary(frm) {
+    const primary = (frm.doc.custom_contact || []).find(
+        (r) => r.primary_contact && r.email_id
+    );
+
+    if (primary && frm.doc.contact_email !== primary.email_id) {
+        frm.set_value("contact_email", primary.email_id);
+    }
 }

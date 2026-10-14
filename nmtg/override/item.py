@@ -1,5 +1,6 @@
 import re
 import frappe
+from frappe import _
 from frappe.model.naming import getseries
 from erpnext.stock.doctype.item.item import Item
 
@@ -7,6 +8,42 @@ from erpnext.stock.doctype.item.item import Item
 class CustomItem(Item):
     def autoname(self):
         self.apply_item_settings()
+
+    def validate(self):
+        super().validate()
+        self.validate_required_item_settings_fields()
+
+    def validate_required_item_settings_fields(self):
+        settings = frappe.get_single("Item Settings")
+        matched_row = self.find_matching_item_settings_row(settings)
+
+        if not matched_row or not matched_row.feilds:
+            return
+
+        missing = []
+        for fieldname in matched_row.feilds.split(","):
+            fieldname = fieldname.strip()
+            if not fieldname or not self.meta.has_field(fieldname):
+                continue
+
+            value = self.get(fieldname)
+
+            # Table / Table MultiSelect fields come as lists
+            if isinstance(value, list):
+                is_empty = len(value) == 0
+            elif isinstance(value, str):
+                is_empty = not value.strip()
+            else:
+                is_empty = value in (None, "")
+
+            if is_empty:
+                missing.append(_(self.meta.get_label(fieldname) or fieldname))
+
+        if missing:
+            frappe.throw(
+                _("Mandatory fields required in Item: {0}").format(", ".join(missing)),
+                frappe.MandatoryError,
+            )
 
     def apply_item_settings(self):
         settings = frappe.get_single("Item Settings")

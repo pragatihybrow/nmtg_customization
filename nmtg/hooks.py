@@ -269,7 +269,8 @@ doctype_js = {
      "Payment Request":"public/js/payment_request.js",
      "Payment Entry":"public/js/payment_entry.js",
      "Purchase Invoice": "public/js/purchase_invoice.js",
-    "Leave Application": "public/js/leave_application.js", 
+     "Leave Application": "public/js/leave_application.js",
+     "Address": "public/js/address.js",
 }
 
 override_doctype_class = {
@@ -282,7 +283,8 @@ override_doctype_class = {
 }
 
 doctype_list_js = {
-    "Quality Inspection": "public/js/quality_inspection_listview.js"
+    # "Quality Inspection": "public/js/quality_inspection_listview.js",
+    "Third Party Quality Inspection":"nmtg/doctype/third_party_quality_inspection/third_party_quality_inspection_listview.js"    
 }
 
 doc_events = {
@@ -347,7 +349,11 @@ doc_events = {
         "on_cancel": ["nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
               "nmtg.override.purchase_receipt.remove_inward_qty_entries"],
         "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
-        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries"
+        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+        "validate": "nmtg.override.api.set_mr_creator",
+        "on_update_after_submit": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+
+
 
     },
      "Material Request": {
@@ -358,10 +364,13 @@ doc_events = {
     },
     "Sales Person": {
         "validate": "nmtg.override.sales_person.validate_sales_person_weightage"
-},
+   },
     "Leave Application": {
         "before_validate": "nmtg.override.leave_application.validate_short_leave"
-    }
+    },
+    "Address": {
+        "before_naming": "nmtg.override.api.set_state_in_title"
+    },
      
 }
 

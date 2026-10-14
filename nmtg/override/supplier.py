@@ -65,7 +65,12 @@ def send_supplier_forms(supplier):
 	sender_designation = user.get("designation") or ""  # only exists if you have this field on User
 	sender_contact = user.get("mobile_no") or user.get("phone") or ""
 
-	registration_link = f"{base_url}/supplier-registration-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+	# registration_link = f"{base_url}/supplier-registration-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+	registration_link = (
+    f"{base_url}/supplier-registration-form"
+    f"?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+    f"&supplier_scope={frappe.utils.quote(doc.custom_supplier_scope or '')}"
+)
 	audit_link = f"{base_url}/supplier-audit-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
 
 	context = {

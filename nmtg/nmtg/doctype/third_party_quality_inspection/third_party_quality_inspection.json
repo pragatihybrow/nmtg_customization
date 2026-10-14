@@ -1,0 +1,255 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "naming_series:",
+ "creation": "2026-10-12 12:08:24.631165",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_y8xg",
+  "amended_from",
+  "lab_name",
+  "lab_report",
+  "naming_series",
+  "item_code",
+  "item_name",
+  "nmtg_heat_number",
+  "challan_status",
+  "column_break_uufu",
+  "challan_no",
+  "report_date",
+  "lab_invoice",
+  "grn",
+  "company",
+  "qty",
+  "qc_row_name",
+  "testing_type",
+  "qc_series",
+  "section_break_myjv",
+  "testing",
+  "testing_data",
+  "section_break_bwgo",
+  "accepted_qty",
+  "nmtg_code",
+  "column_break_swec",
+  "rejected_qty",
+  "nmtg_code_data",
+  "column_break_zpkc",
+  "rejected_bars",
+  "section_break_ubss",
+  "remark"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_y8xg",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Third Party Quality Inspection",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "lab_name",
+   "fieldtype": "Link",
+   "label": "Lab Name",
+   "link_filters": "[[\"Supplier\",\"supplier_group\",\"=\",\"Lab\"]]",
+   "options": "Supplier"
+  },
+  {
+   "fieldname": "lab_invoice",
+   "fieldtype": "Attach",
+   "label": "Lab Invoice"
+  },
+  {
+   "fieldname": "lab_report",
+   "fieldtype": "Attach",
+   "label": "Lab Report"
+  },
+  {
+   "fieldname": "challan_no",
+   "fieldtype": "Data",
+   "label": "Challan No",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_uufu",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "section_break_bwgo",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "accepted_qty",
+   "fieldtype": "Float",
+   "label": "Accepted Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_swec",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_zpkc",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "rejected_qty",
+   "fieldtype": "Float",
+   "label": "Rejected Qty",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rejected_bars",
+   "fieldtype": "Data",
+   "label": "Rejected Bars "
+  },
+  {
+   "fieldname": "nmtg_code",
+   "fieldtype": "HTML",
+   "label": "NMTG Code"
+  },
+  {
+   "fieldname": "section_break_ubss",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remark",
+   "fieldtype": "Small Text",
+   "label": "Remark"
+  },
+  {
+   "fieldname": "grn",
+   "fieldtype": "Link",
+   "label": "GRN",
+   "options": "Purchase Receipt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_break_myjv",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "testing",
+   "fieldtype": "HTML",
+   "label": "Testing"
+  },
+  {
+   "fieldname": "testing_data",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "Testing Data"
+  },
+  {
+   "default": "MAT-TPQA-.YYYY.-",
+   "fieldname": "naming_series",
+   "fieldtype": "Select",
+   "label": "Series",
+   "options": "MAT-TPQA-.YYYY.-"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Company"
+  },
+  {
+   "fieldname": "report_date",
+   "fieldtype": "Date",
+   "label": "Report Date"
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "label": "Qty"
+  },
+  {
+   "fieldname": "nmtg_heat_number",
+   "fieldtype": "Small Text",
+   "label": "NMTG Heat Number"
+  },
+  {
+   "fieldname": "qc_row_name",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "qc_row_name"
+  },
+  {
+   "fieldname": "testing_type",
+   "fieldtype": "Table MultiSelect",
+   "label": "Testing Type",
+   "options": "Testing Type CT"
+  },
+  {
+   "fieldname": "nmtg_code_data",
+   "fieldtype": "Small Text",
+   "hidden": 1,
+   "label": "NMTG Code Data"
+  },
+  {
+   "default": "Challan Pending",
+   "fieldname": "challan_status",
+   "fieldtype": "Select",
+   "label": "Challan Status",
+   "options": "\nChallan Pending\nChallan Created",
+   "read_only": 1
+  },
+  {
+   "fieldname": "qc_series",
+   "fieldtype": "Data",
+   "label": "QC Series",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-10-12 16:41:11.745541",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Third Party Quality Inspection",
+ "naming_rule": "By \"Naming Series\" field",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

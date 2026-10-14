@@ -605,7 +605,6 @@ def get_data(filters):
             po.grand_total AS po_grand_total,
             po.rounded_total AS po_rounded_total,
             po.total_taxes_and_charges AS po_taxes,
-            poi.name AS row_name,
             poi.item_code AS item_code,
             poi.item_name AS item_name,
             poi.schedule_date AS item_schedule_date,

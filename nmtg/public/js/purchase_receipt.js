@@ -1,90 +1,152 @@
+// ── Heat number helpers ──────────────────────────────────────────────
+function parse_heat_number(text) {
+    const m = String(text || "").replace(/\n/g, " ").trim().match(/^NK\s*(\d+)(?:\s*-\s*NK\s*(\d+))?$/i);
+    if (!m) return null;
+    const start = parseInt(m[1], 10);
+    const end = m[2] ? parseInt(m[2], 10) : start;
+    return { start: start, end: end };
+}
+
+function format_heat_number(start, end) {
+    return start === end ? `NK${start}` : `NK${start} - NK${end}`;
+}
+
+function fetch_item_qc_flags(item_codes, callback) {
+    item_codes = [...new Set((item_codes || []).filter(Boolean))];
+    if (!item_codes.length) {
+        callback({});
+        return;
+    }
+    frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Item",
+            filters: [["name", "in", item_codes]],
+            fields: ["name", "inspection_required_before_purchase", "custom_only_internal_qc"],
+            limit_page_length: item_codes.length,
+        },
+        callback: function(r) {
+            const flags = {};
+            (r.message || []).forEach(i => {
+                const required = cint(i.inspection_required_before_purchase) === 1;
+                const only_internal = cint(i.custom_only_internal_qc) === 1;
+                flags[i.name] = {
+                    internal: required,
+                    third_party: required && !only_internal,
+                };
+            });
+            callback(flags);
+        }
+    });
+}
+
+
 frappe.ui.form.on('Purchase Receipt Item', {
     form_render: function(frm, cdt, cdn) {
         render_qc_supplier_table(frm, cdt, cdn);
     },
 
-custom_create_heat_number(frm, cdt, cdn) {
-    let row = locals[cdt][cdn];
+    custom_create_heat_number(frm, cdt, cdn) {
+        let row = locals[cdt][cdn];
 
-    if (!row.custom_qty_in_no || row.custom_qty_in_no <= 0) {
-        frappe.msgprint("Please set a valid Qty In No before generating Heat Number.");
-        return;
-    }
-
-    let msg = row.custom_single_heat_number
-        ? __("Are you sure you want to create <b>Single Heat Number</b> for item <b>{0}</b>?", [row.item_code])
-        : __("Are you sure you want to create <b>Multiple Heat Numbers</b> for item <b>{0}</b>?", [row.item_code]);
-
-    frappe.confirm(
-        msg,
-
-        function () {
-            // YES
-            frappe.call({
-                method: "nmtg.override.api.create_heat_number",
-                args: {
-                    po: frm.doc.name,
-                    row_name: row.name
-                },
-                callback(r) {
-                    if (r.message) {
-                        frappe.model.set_value(
-                            cdt,
-                            cdn,
-                            "custom_nmtg_heat_number",
-                            r.message
-                        );
-
-                        (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
-                            if (qc.item === row.item_code) {
-                                frappe.model.set_value(
-                                    "Supplier Selection For QC",
-                                    qc.name,
-                                    "nmtg_heat_number",
-                                    r.message
-                                );
-                            }
-                        });
-
-                        frm.refresh_field("items");
-                        frm.refresh_field("custom_supplier_selection_for_qc");
-                    }
-                }
-            });
-        },
-
-        function () {
-            frappe.show_alert({
-                message: __("Heat Number creation cancelled"),
-                indicator: "orange"
-            });
+        if (!row.custom_qty_in_no || row.custom_qty_in_no <= 0) {
+            frappe.msgprint("Please set a valid Qty In No before generating Heat Number.");
+            return;
         }
-    );
-}
 
+        let msg = row.custom_single_heat_number
+            ? __("Are you sure you want to create <b>Single Heat Number</b> for item <b>{0}</b>?", [row.item_code])
+            : __("Are you sure you want to create <b>Multiple Heat Numbers</b> for item <b>{0}</b>?", [row.item_code]);
+
+        frappe.confirm(
+            msg,
+            function () {
+                frappe.call({
+                    method: "nmtg.override.api.create_heat_number",
+                    args: {
+                        po: frm.doc.name,
+                        row_name: row.name
+                    },
+                    callback(r) {
+                        if (r.message) {
+                            frappe.model.set_value(cdt, cdn, "custom_nmtg_heat_number", r.message);
+
+                            (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
+                                if (qc.item === row.item_code) {
+                                    frappe.model.set_value(
+                                        "Supplier Selection For QC",
+                                        qc.name,
+                                        "nmtg_heat_number",
+                                        r.message
+                                    );
+                                }
+                            });
+
+                            frm.refresh_field("items");
+                            frm.refresh_field("custom_supplier_selection_for_qc");
+                        }
+                    }
+                });
+            },
+            function () {
+                frappe.show_alert({
+                    message: __("Heat Number creation cancelled"),
+                    indicator: "orange"
+                });
+            }
+        );
+    }
 });
 
 frappe.ui.form.on("Purchase Receipt", {
     refresh: function(frm) {
+        // ── Internal QC (draft GRN) → only if at least one item requires inspection ──
         if (!frm.is_new() && frm.doc.docstatus === 0 && frappe.model.can_create("Quality Inspection")) {
-            setTimeout(() => {
-                frm.remove_custom_button(__("Quality Inspection(s)"), __("Create"));
-                frm.add_custom_button(__("Quality Inspection(s)"), function() {
-                    custom_make_quality_inspection(frm);
-                }, __("Create"));
-            }, 100);
+            fetch_item_qc_flags((frm.doc.items || []).map(i => i.item_code), function(flags) {
+                const any_internal = Object.values(flags).some(f => f.internal);
+
+                setTimeout(() => {
+                    frm.remove_custom_button(__("Quality Inspection(s)"), __("Create"));
+                    if (any_internal) {
+                        frm.add_custom_button(__("Quality Inspection(s)"), function() {
+                            custom_make_internal_quality_inspection(frm);
+                        }, __("Create"));
+                    }
+                }, 100);
+            });
         }
+
+        // ── Third Party QC (submitted GRN) → only if a lab-entry item is eligible ──
+        if (
+            frm.doc.docstatus === 1 &&
+            !frm.doc.is_return &&
+            (frm.doc.custom_supplier_selection_for_qc || []).length &&
+            frappe.model.can_create("Third Party Quality Inspection")
+        ) {
+            fetch_item_qc_flags(
+                (frm.doc.custom_supplier_selection_for_qc || []).map(r => r.item),
+                function(flags) {
+                    const any_third_party = Object.values(flags).some(f => f.third_party);
+                    if (any_third_party) {
+                        frm.remove_custom_button(__("Third Party Quality Inspection"), __("Create"));
+                        frm.add_custom_button(__("Third Party Quality Inspection"), function() {
+                            custom_make_third_party_quality_inspection(frm);
+                        }, __("Create"));
+                    }
+                }
+            );
+        }
+
         if (frm.doc.is_return && (frm.doc.custom_supplier_selection_for_qc || []).length) {
             frm.clear_table("custom_supplier_selection_for_qc");
             frm.refresh_field("custom_supplier_selection_for_qc");
         }
     },
-     setup(frm) {
+
+    setup(frm) {
         frm.fields_dict.custom_supplier_selection_for_qc.grid.get_field("item").get_query =
             function(doc, cdt, cdn) {
-                // Only show items that exist in the items child table
                 let item_list = (doc.items || []).map(row => row.item_code).filter(Boolean);
-
                 return {
                     filters: {
                         name: ["in", item_list.length ? item_list : [""]]
@@ -92,12 +154,14 @@ frappe.ui.form.on("Purchase Receipt", {
                 };
             };
     },
+
     is_return: function(frm) {
         if (frm.doc.is_return) {
             frm.clear_table("custom_supplier_selection_for_qc");
             frm.refresh_field("custom_supplier_selection_for_qc");
         }
     },
+
     validate: function(frm) {
         if (frm.doc.is_return && (frm.doc.custom_supplier_selection_for_qc || []).length) {
             frm.clear_table("custom_supplier_selection_for_qc");
@@ -162,9 +226,9 @@ function render_qc_supplier_table(frm, cdt, cdn) {
             html += `
                 <tr>
                     <td>${i + 1}</td>
-                    <td><span class="qc-badge">${r.supplier || ''}</span></td>
+                    <td><span class="qc-badge">${frappe.utils.escape_html(r.supplier || '')}</span></td>
                     <td>${r.qty || 0}</td>
-                    <td>${r.nmtg_heat_number || ''}</td>
+                    <td>${frappe.utils.escape_html(r.nmtg_heat_number || '')}</td>
                     <td>${testing_tags}</td>
                 </tr>`;
         });
@@ -175,8 +239,14 @@ function render_qc_supplier_table(frm, cdt, cdn) {
 }
 
 
-function custom_make_quality_inspection(frm) {
+// ════════════════════════════════════════════════════════════════════
+//  INTERNAL QC  →  standard "Quality Inspection"
+//  One document per GRN item row, for the full qty, NMTG code only.
+//  Lists only items with inspection_required_before_purchase checked.
+// ════════════════════════════════════════════════════════════════════
+function custom_make_internal_quality_inspection(frm) {
     let data = [];
+    const duplicate_rows = new Set();   // child_row_reference of items that already have a QI
 
     const fields = [
         {
@@ -190,28 +260,21 @@ function custom_make_quality_inspection(frm) {
             get_data: () => data,
             fields: [
                 { fieldtype: "Data", fieldname: "docname",                  hidden: true },
-                { fieldtype: "Data", fieldname: "child_row_reference",       hidden: true },
-                { fieldtype: "Data", fieldname: "qc_row_name",              hidden: true },
-                { fieldtype: "Data", fieldname: "supplier",                 hidden: true },
-                { fieldtype: "Data", fieldname: "nmtg_heat_number",          hidden: true },
+                { fieldtype: "Data", fieldname: "child_row_reference",      hidden: true },
+                { fieldtype: "Data", fieldname: "nmtg_heat_number",         hidden: true },
                 { fieldtype: "Data", fieldname: "custom_vendor_heat_number", hidden: true },
-                { fieldtype: "Data", fieldname: "custom_mill_tc",            hidden: true },
-                { fieldtype: "Data", fieldname: "testing_value",             hidden: true },
+                { fieldtype: "Data", fieldname: "custom_mill_tc",           hidden: true },
                 {
                     fieldtype: "Read Only", fieldname: "item_code",
                     label: __("Item Code"), in_list_view: true, columns: 2,
                 },
                 {
                     fieldtype: "Read Only", fieldname: "item_name",
-                    label: __("Item Name"), in_list_view: true, columns: 2,
-                },
-                {
-                    fieldtype: "Read Only", fieldname: "supplier_display",
-                    label: __("Lab"), in_list_view: true, columns: 2,
+                    label: __("Item Name"), in_list_view: true, columns: 3,
                 },
                 {
                     fieldtype: "Read Only", fieldname: "nmtg_heat_number_display",
-                    label: __("NMTG Heat Number"), in_list_view: true, columns: 2,
+                    label: __("NMTG Code"), in_list_view: true, columns: 2,
                 },
                 {
                     fieldtype: "Float", fieldname: "qty",
@@ -222,10 +285,6 @@ function custom_make_quality_inspection(frm) {
                     label: __("Sample Size"), reqd: true, in_list_view: true, columns: 1,
                 },
                 {
-                    fieldtype: "Read Only", fieldname: "testing_type_display",
-                    label: __("Testing Type"), in_list_view: true, columns: 2,
-                },
-                {
                     fieldtype: "Read Only", fieldname: "duplicate_label",
                     label: __("Status"), in_list_view: true, columns: 2,
                 },
@@ -234,7 +293,7 @@ function custom_make_quality_inspection(frm) {
     ];
 
     const dialog = new frappe.ui.Dialog({
-        title: __("Select Items for Quality Inspection"),
+        title: __("Select Items for Internal Quality Inspection"),
         size: "extra-large",
         fields: fields,
         primary_action_label: __("Create"),
@@ -247,17 +306,13 @@ function custom_make_quality_inspection(frm) {
                 return;
             }
 
-            const has_dup = selected.some(r => {
-                const key = `${r.item_code}||${r.supplier || ""}||${r.nmtg_heat_number || ""}`;
-                return duplicate_keys.has(key);
-            });
-            if (has_dup) {
+            if (selected.some(r => duplicate_rows.has(r.child_row_reference))) {
                 frappe.msgprint(__("One or more selected rows already have a Quality Inspection. Please deselect them."));
                 return;
             }
 
             frappe.call({
-                method: "nmtg.override.api.make_quality_inspections_custom",
+                method: "nmtg.override.purchase_receipt.make_quality_inspections_custom",
                 args: {
                     company: frm.doc.company,
                     doctype: frm.doc.doctype,
@@ -269,11 +324,9 @@ function custom_make_quality_inspection(frm) {
                         qty:                       r.qty,
                         sample_size:               r.sample_size,
                         child_row_reference:       r.child_row_reference,
-                        supplier:                  r.supplier,
                         nmtg_heat_number:          r.nmtg_heat_number,
                         custom_vendor_heat_number: r.custom_vendor_heat_number,
                         custom_mill_tc:            r.custom_mill_tc,
-                        testing_value:             r.testing_value || '[]',
                     })),
                 },
                 freeze: true,
@@ -296,20 +349,10 @@ function custom_make_quality_inspection(frm) {
         }
     });
 
-    const duplicate_keys = new Set();
-
-    const item_map = {};
-    (frm.doc.items || []).forEach(item => {
-        item_map[item.item_code] = item;
-    });
-
     let grid_field = dialog.fields_dict.items;
 
-    // ── Collect unique item codes to fetch custom_quality_inspection_percent ──
     const unique_item_codes = [
-        ...new Set(
-            (frm.doc.custom_supplier_selection_for_qc || []).map(qc => qc.item).filter(Boolean)
-        )
+        ...new Set((frm.doc.items || []).map(i => i.item_code).filter(Boolean))
     ];
 
     frappe.call({
@@ -317,62 +360,48 @@ function custom_make_quality_inspection(frm) {
         args: {
             doctype: "Item",
             filters: [["item_code", "in", unique_item_codes]],
-            fields: ["item_code", "custom_quality_inspection_percent"],
+            fields: ["item_code", "custom_quality_inspection_percent", "inspection_required_before_purchase"],
             limit_page_length: unique_item_codes.length || 1,
         },
         callback: function(res) {
-            // Build a map: item_code → inspection_percent
             const qc_percent_map = {};
+            const inspection_required = {};
             (res.message || []).forEach(item => {
                 qc_percent_map[item.item_code] = flt(item.custom_quality_inspection_percent) || 0;
+                inspection_required[item.item_code] = cint(item.inspection_required_before_purchase) === 1;
             });
 
-            (frm.doc.custom_supplier_selection_for_qc || []).forEach(qc => {
-                const parent_item = item_map[qc.item];
-                if (!parent_item) return;
+            (frm.doc.items || []).forEach(item => {
+                // Item-wise rule: skip items that don't require inspection
+                if (!inspection_required[item.item_code]) return;
 
-                let testing_type_display = '';
-                try {
-                    let types = JSON.parse(qc.testing_value || '[]');
-                    testing_type_display = types.join(', ') || '—';
-                } catch(e) {
-                    testing_type_display = '—';
-                }
-
-                // ── Sample size = ceil(qty * percent / 100), minimum 1 ──
-                const percent = qc_percent_map[qc.item] || 0;
-                const qty = flt(qc.qty) || 0;
+                const qty = flt(item.custom_qty_in_no || item.qty) || 0;
+                const percent = qc_percent_map[item.item_code] || 0;
                 const sample_size = percent > 0 ? Math.ceil(qty * percent / 100) : 0;
 
                 grid_field.df.data.push({
-                    docname:                   parent_item.name,
-                    item_code:                 qc.item,
-                    item_name:                 parent_item.item_name,
-                    supplier:                  qc.supplier,
-                    nmtg_heat_number:          qc.nmtg_heat_number,
-                    custom_vendor_heat_number: parent_item.custom_vendor_heat_number || "",
-                    custom_mill_tc:            parent_item.custom_mill_tc || "",
-                    supplier_display:          qc.supplier,
-                    nmtg_heat_number_display:  qc.nmtg_heat_number,
+                    docname:                   item.name,
+                    child_row_reference:       item.name,
+                    item_code:                 item.item_code,
+                    item_name:                 item.item_name,
+                    nmtg_heat_number:          item.custom_nmtg_heat_number || "",
+                    nmtg_heat_number_display:  item.custom_nmtg_heat_number || "",
+                    custom_vendor_heat_number: item.custom_vendor_heat_number || "",
+                    custom_mill_tc:            item.custom_mill_tc || "",
                     qty:                       qty,
                     sample_size:               sample_size,
-                    child_row_reference:       parent_item.name,
-                    qc_row_name:               qc.name,
-                    testing_value:             qc.testing_value || '[]',
-                    testing_type_display:      testing_type_display,
                     duplicate_label:           __("Checking…"),
                 });
             });
 
             if (!grid_field.df.data.length) {
-                frappe.msgprint(__("No supplier QC entries found."));
+                frappe.msgprint(__("None of the items in this GRN require inspection before purchase."));
                 return;
             }
 
             grid_field.grid.refresh();
             dialog.show();
 
-            // ── Check for existing QIs ──
             frappe.call({
                 method: "frappe.client.get_list",
                 args: {
@@ -382,36 +411,23 @@ function custom_make_quality_inspection(frm) {
                         reference_name: frm.doc.name,
                         docstatus: ["!=", 2],
                     },
-                    fields: ["name", "item_code", "custom_supplier", "custom_nmtg_heat_number"],
+                    fields: ["name", "child_row_reference"],
                     limit_page_length: 500,
                 },
                 callback: function(res) {
-                    const existing = res.message || [];
-
-                    existing.forEach(qi => {
-                        duplicate_keys.add(
-                            `${qi.item_code}||${qi.custom_supplier || ""}||${qi.custom_nmtg_heat_number || ""}`
-                        );
+                    (res.message || []).forEach(qi => {
+                        if (qi.child_row_reference) duplicate_rows.add(qi.child_row_reference);
                     });
 
                     grid_field.df.data.forEach(row => {
-                        const key = `${row.item_code}||${row.supplier || ""}||${row.nmtg_heat_number || ""}`;
-                        if (duplicate_keys.has(key)) {
-                            row.duplicate_label = __("⚠ QI Exists");
-                        } else {
-                            row.duplicate_label = __("✔ New");
-                        }
+                        row.duplicate_label = duplicate_rows.has(row.child_row_reference)
+                            ? __("⚠ QI Exists")
+                            : __("✔ New");
                     });
 
                     grid_field.grid.refresh();
 
-                    setTimeout(() => {
-                        apply_duplicate_row_styles(grid_field, duplicate_keys);
-                    }, 150);
-
-                    grid_field.grid.wrapper.on("change", ".grid-heading-row .select-like input", function() {
-                        setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_keys), 50);
-                    });
+                    setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_rows), 150);
                 }
             });
         }
@@ -419,35 +435,89 @@ function custom_make_quality_inspection(frm) {
 }
 
 
-// ── Walk every rendered grid row, match by data, disable duplicates ───────────
-function apply_duplicate_row_styles(grid_field, duplicate_keys) {
+function apply_duplicate_row_styles(grid_field, duplicate_rows) {
     grid_field.grid.wrapper.find(".grid-row").each(function() {
         const $row = $(this);
         const cdn  = $row.attr("data-name");
         if (!cdn) return;
 
         const row_data = grid_field.df.data.find(r => r.name === cdn);
-        if (!row_data) return;
+        if (!row_data || !duplicate_rows.has(row_data.child_row_reference)) return;
 
-        const key = `${row_data.item_code}||${row_data.supplier || ""}||${row_data.nmtg_heat_number || ""}`;
-        if (!duplicate_keys.has(key)) return;
-
-        const $cb = $row.find(".row-check input[type='checkbox']");
-        $cb.prop("checked", false).prop("disabled", true);
-
+        $row.find(".row-check input[type='checkbox']").prop("checked", false).prop("disabled", true);
         $row.css({ "opacity": "0.45", "pointer-events": "none" });
     });
 
     grid_field.grid.wrapper.off("change.dup_guard").on("change.dup_guard",
         ".grid-heading-row input[type='checkbox']", function() {
-            setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_keys), 30);
+            setTimeout(() => apply_duplicate_row_styles(grid_field, duplicate_rows), 30);
         }
     );
 }
 
+
+// ════════════════════════════════════════════════════════════════════
+//  THIRD PARTY QC  →  "Third Party Quality Inspection"
+//  One document per custom_supplier_selection_for_qc row (lab-wise),
+//  available only after the GRN is submitted, and only for items with
+//  inspection_required_before_purchase = 1 and custom_only_internal_qc = 0.
+// ════════════════════════════════════════════════════════════════════
+function custom_make_third_party_quality_inspection(frm) {
+    frappe.confirm(
+        __("Create Third Party Quality Inspection(s) for all eligible lab entries of this GRN that don't have one yet?"),
+        function() {
+            frappe.call({
+                method: "nmtg.override.purchase_receipt.make_third_party_quality_inspections",
+                args: { docname: frm.doc.name },
+                freeze: true,
+                freeze_message: __("Creating Third Party Quality Inspection(s)…"),
+                callback: function(r) {
+                    const res = r.message || {};
+                    const created = res.created || [];
+                    const skipped = res.skipped || 0;
+                    const not_applicable = res.not_applicable || 0;
+
+                    if (!created.length) {
+                        frappe.msgprint(__("All eligible lab entries already have a Third Party Quality Inspection."));
+                        return;
+                    }
+
+                    if (skipped) {
+                        frappe.show_alert({
+                            message: __("{0} entr(ies) skipped — already created.", [skipped]),
+                            indicator: "orange"
+                        });
+                    }
+
+                    if (not_applicable) {
+                        frappe.show_alert({
+                            message: __("{0} entr(ies) skipped — item does not allow third party QC.", [not_applicable]),
+                            indicator: "orange"
+                        });
+                    }
+
+                    if (created.length === 1) {
+                        frappe.set_route("Form", "Third Party Quality Inspection", created[0]);
+                    } else {
+                        frappe.route_options = { grn: frm.doc.name };
+                        frappe.set_route("List", "Third Party Quality Inspection");
+                    }
+                }
+            });
+        }
+    );
+}
+
+
+// ════════════════════════════════════════════════════════════════════
+//  Supplier Selection For QC — auto-fills NMTG code on qty:
+//    qty = 1  → single code (NK533)
+//    qty > 1  → range (NK533 - NK535)
+// ════════════════════════════════════════════════════════════════════
 frappe.ui.form.on("Supplier Selection For QC", {
     item(frm, cdt, cdn) {
         frappe.model.set_value(cdt, cdn, "qty", 0);
+        frappe.model.set_value(cdt, cdn, "nmtg_heat_number", "");
     },
 
     form_render: function(frm, cdt, cdn) {
@@ -457,13 +527,22 @@ frappe.ui.form.on("Supplier Selection For QC", {
     qty(frm, cdt, cdn) {
         let row = locals[cdt][cdn];
 
-        if (!row.item || !row.qty) return;
+        if (!row.item || !row.qty) {
+            frappe.model.set_value(cdt, cdn, "nmtg_heat_number", "");
+            return;
+        }
 
-        // Use custom_qty_in_no if available, else fall back to qty
+        let qty = cint(row.qty);
+        if (qty !== flt(row.qty) || qty < 1) {
+            frappe.msgprint(__("Qty must be a whole number of at least 1."));
+            frappe.model.set_value(cdt, cdn, "qty", 0);
+            return;
+        }
+
         let total_qty = 0;
         (frm.doc.items || []).forEach(d => {
             if (d.item_code === row.item) {
-                total_qty += flt(d.custom_qty_in_no || d.qty);  // ✅
+                total_qty += flt(d.custom_qty_in_no || d.qty);
             }
         });
 
@@ -476,13 +555,59 @@ frappe.ui.form.on("Supplier Selection For QC", {
 
         let remaining = total_qty - qc_qty;
 
-        if (flt(row.qty) > remaining) {
+        if (qty > remaining) {
             frappe.msgprint(
                 `<b>${row.item}</b>: Only <b>${remaining}</b> qty remaining to allocate ` +
                 `(Total: ${total_qty}, already allocated in other rows: ${qc_qty}).`
             );
             frappe.model.set_value(cdt, cdn, "qty", 0);
+            return;
         }
+
+        // ── Auto-fill NMTG code from the GRN item's heat number ──
+        let pr_item = (frm.doc.items || []).find(d => d.item_code === row.item);
+        if (!pr_item || !pr_item.custom_nmtg_heat_number) {
+            frappe.msgprint(__("Heat Number not generated yet for item <b>{0}</b>.", [row.item]));
+            return;
+        }
+
+        let pr = parse_heat_number(pr_item.custom_nmtg_heat_number);
+        if (!pr) return;
+
+        // Single heat number item → every row carries the same one code
+        if (pr_item.custom_single_heat_number) {
+            frappe.model.set_value(cdt, cdn, "nmtg_heat_number", format_heat_number(pr.start, pr.start));
+            return;
+        }
+
+        // Ranges already used by other rows of the same item
+        let used = [];
+        (frm.doc.custom_supplier_selection_for_qc || []).forEach(d => {
+            if (d.item === row.item && d.name !== row.name) {
+                let p = parse_heat_number(d.nmtg_heat_number);
+                if (p) used.push(p);
+            }
+        });
+        used.sort((a, b) => a.start - b.start);
+
+        // First free block of `qty` consecutive codes inside the GRN range
+        let start = pr.start;
+        for (let u of used) {
+            if (start + qty - 1 < u.start) break;     // fits before this used block
+            if (u.end + 1 > start) start = u.end + 1; // otherwise jump past it
+        }
+        let end = start + qty - 1;
+
+        if (end > pr.end) {
+            frappe.msgprint(
+                __("No free Heat Numbers left for {0} qty in <b>{1}</b> (GRN range: {2}).",
+                    [qty, row.item, pr_item.custom_nmtg_heat_number])
+            );
+            frappe.model.set_value(cdt, cdn, "qty", 0);
+            return;
+        }
+
+        frappe.model.set_value(cdt, cdn, "nmtg_heat_number", format_heat_number(start, end));
     }
 });
 
@@ -554,13 +679,11 @@ function render_testing_type_checkboxes(frm, cdt, cdn) {
 
                     let val_str = JSON.stringify(current);
 
-                    // update locals and frm.doc
                     locals[cdt][cdn].testing_value = val_str;
                     let doc_row = (frm.doc.custom_supplier_selection_for_qc || [])
                         .find(d => d.name === cdn);
                     if (doc_row) doc_row.testing_value = val_str;
 
-                    // persist directly to DB
                     frappe.call({
                         method: 'nmtg.override.api.update_qc_testing_type',
                         args: {

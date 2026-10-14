@@ -71,6 +71,65 @@ frappe.ui.form.on("Supplier Audit", {
             calculate_scores(frm);
         }
     },
+     before_workflow_action: function (frm) {
+        if (frm.selected_workflow_action !== 'Reject') {
+            return;
+        }
+
+        frappe.dom.unfreeze();
+
+        return new Promise((resolve, reject) => {
+            let submitted = false;
+
+            const d = new frappe.ui.Dialog({
+                title: __('Reason for Rejection'),
+                fields: [
+                    {
+                        fieldname: 'custom_rejection_remark',
+                        fieldtype: 'Small Text',
+                        label: __('Rejection Remark'),
+                        reqd: 1
+                    }
+                ],
+                primary_action_label: __('Submit Rejection'),
+                primary_action: function (values) {
+                    submitted = true;
+                    d.disable_primary_action();
+
+                    frappe.call({
+                        method: 'nmtg.override.api.custom_set_rejection_remark',
+                        args: {
+                            doctype: frm.doctype,
+                            name: frm.docname,
+                            remark: values.custom_rejection_remark
+                        },
+                        callback: function () {
+                            frm.doc.custom_rejection_remark = values.custom_rejection_remark;
+                            d.hide();
+                            resolve();
+                        },
+                        error: function () {
+                            // Saving the remark failed: keep the workflow action blocked
+                            d.hide();
+                            reject();
+                        }
+                    });
+                }
+            });
+
+            d.$wrapper.on('hidden.bs.modal', () => {
+                if (!submitted) {
+                    frappe.show_alert({
+                        message: __('Rejection cancelled — remark is required'),
+                        indicator: 'orange'
+                    });
+                    reject();
+                }
+            });
+
+            d.show();
+        });
+    }
 });
 
 frappe.ui.form.on("Supplier Audit CT", {
