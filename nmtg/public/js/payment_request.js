@@ -5,7 +5,7 @@
     frappe.ui.form.on("Payment Request", {
         setup(frm) {
             frm.set_query(TERM_FIELD, function () {
-                const terms = frm.__pr_po_terms;
+                const terms = frm.__pr_order_terms;
                 if (!terms) {
                     return {};
                 }
@@ -13,17 +13,19 @@
             });
         },
         async refresh(frm) {
-            await pr_load_po_terms(frm);
+            await pr_load_order_terms(frm, false);
             pr_terms_v6_render(frm);
             render_item_payment(frm);
+            pr_add_payment_entry_button(frm);
         },
         async reference_name(frm) {
-            await pr_load_po_terms(frm);
+            // reference changed by the user -> regenerate subject / message
+            await pr_load_order_terms(frm, true);
             pr_terms_v6_render(frm);
             render_item_payment(frm);
         },
         async reference_doctype(frm) {
-            await pr_load_po_terms(frm);
+            await pr_load_order_terms(frm, true);
             pr_terms_v6_render(frm);
         },
         custom_payment_term(frm) {
@@ -33,7 +35,6 @@
         after_save(frm) {
             pr_terms_v6_render(frm);
         },
-
         custom_items_add(frm) {
             render_item_payment(frm);
         },
@@ -42,41 +43,154 @@
         },
     });
 
-    // Resolve the Purchase Order for the reference:
-    // Purchase Order -> itself; Purchase Invoice -> the PO on its item rows
-    async function pr_resolve_po(frm) {
+    function pr_add_payment_entry_button(frm) {
+        if (
+            frm.doc.docstatus !== 1 ||
+            frm.doc.status !== "Requested" ||
+            frm.doc.payment_request_type !== "Inward"
+        ) {
+            return;
+        }
+
+        frm.add_custom_button(
+            __("Payment Entry"),
+            function () {
+                frappe.call({
+                    method: "erpnext.accounts.doctype.payment_request.payment_request.make_payment_entry",
+                    args: { docname: frm.doc.name },
+                    freeze: true,
+                    callback: function (r) {
+                        if (!r.message) {
+                            return;
+                        }
+                        frappe.model.sync(r.message);
+                        frappe.set_route("Form", r.message.doctype, r.message.name);
+                    }
+                });
+            },
+            __("Create")
+        );
+    }
+
+    // Which order / invoice doctypes belong together for a reference doctype
+    function pr_get_config(dt) {
+        if (dt === "Purchase Order" || dt === "Purchase Invoice") {
+            return {
+                order_dt: "Purchase Order",
+                invoice_dt: "Purchase Invoice",
+                invoice_item_dt: "Purchase Invoice Item",
+                order_link_field: "purchase_order",
+                order_label: "PO",
+            };
+        }
+        if (dt === "Sales Order" || dt === "Sales Invoice") {
+            return {
+                order_dt: "Sales Order",
+                invoice_dt: "Sales Invoice",
+                invoice_item_dt: "Sales Invoice Item",
+                order_link_field: "sales_order",
+                order_label: "SO",
+            };
+        }
+        return null;
+    }
+
+    // Resolve the order for the reference:
+    // Purchase/Sales Order -> itself; Purchase/Sales Invoice -> the order on its item rows
+    async function pr_resolve_order(frm) {
         const dt = frm.doc.reference_doctype;
         const dn = frm.doc.reference_name;
-        if (!dn) return null;
+        const cfg = pr_get_config(dt);
+        if (!dn || !cfg) return null;
 
-        if (dt === "Purchase Order") return dn;
+        if (dt === cfg.order_dt) return { name: dn, cfg };
 
-        if (dt === "Purchase Invoice") {
-            const pi = await frappe.db.get_doc("Purchase Invoice", dn);
-            const row = (pi.items || []).find((i) => i.purchase_order);
-            return row ? row.purchase_order : null;
+        if (dt === cfg.invoice_dt) {
+            const inv = await frappe.db.get_doc(cfg.invoice_dt, dn);
+            const row = (inv.items || []).find((i) => i[cfg.order_link_field]);
+            return row ? { name: row[cfg.order_link_field], cfg } : null;
         }
 
         return null;
     }
 
-    // Load the payment terms of the related Purchase Order (used by the Link filter)
-    async function pr_load_po_terms(frm) {
+   
+    // async function pr_load_order_terms(frm, force) {
+    //     try {
+    //         const resolved = await pr_resolve_order(frm);
+    //         if (!resolved) {
+    //             frm.__pr_order_terms = null;
+    //             return;
+    //         }
+
+    //         const order = await frappe.db.get_doc(resolved.cfg.order_dt, resolved.name);
+    //         const terms = [];
+    //         (order.payment_schedule || []).forEach((s) => {
+    //             if (s.payment_term && !terms.includes(s.payment_term)) terms.push(s.payment_term);
+    //         });
+    //         frm.__pr_order_terms = terms;
+
+    //         // clear a selected term that does not belong to this order (drafts only)
+    //         if (
+    //             frm.doc.docstatus === 0 &&
+    //             frm.doc[TERM_FIELD] &&
+    //             !terms.includes(frm.doc[TERM_FIELD])
+    //         ) {
+    //             await frm.set_value(TERM_FIELD, "");
+    //         }
+
+    //         if (frm.doc.docstatus === 0 && resolved.cfg.order_dt === "Sales Order") {
+    //             // Subject: Payment Request for <Sales Order> - <Customer PO No>
+    //             if (force || frm.is_new() || !frm.doc.subject) {
+    //                 let subject = `Payment Request for ${order.name}`;
+    //                 if (order.po_no) {
+    //                     subject += ` - ${order.po_no}`;
+    //                 }
+    //                 if (frm.doc.subject !== subject) {
+    //                     await frm.set_value("subject", subject);
+    //                 }
+    //             }
+
+    //             // Message: only for Inward requests
+    //             if (frm.doc.payment_request_type === "Inward") {
+    //                 if (force || frm.is_new() || !frm.doc.message) {
+    //                     const customer_name = order.customer_name || frm.doc.party || "";
+    //                     const proforma_invoice_no = order.name; // change here if the proforma number comes from elsewhere
+    //                     const message = pr_inward_message(customer_name, proforma_invoice_no);
+
+    //                     const current = frm.doc.message || "";
+    //                     // overwrite only if empty or still an earlier auto-generated message
+    //                     const is_auto = !current || current.includes("NMTG Sales Team");
+    //                     if (is_auto && current !== message) {
+    //                         await frm.set_value("message", message);
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     } catch (e) {
+    //         console.error("Could not load order payment terms:", e);
+    //         frm.__pr_order_terms = null;
+    //     }
+    // }
+
+
+
+    async function pr_load_order_terms(frm, force) {
         try {
-            const po_name = await pr_resolve_po(frm);
-            if (!po_name) {
-                frm.__pr_po_terms = null;
+            const resolved = await pr_resolve_order(frm);
+            if (!resolved) {
+                frm.__pr_order_terms = null;
                 return;
             }
 
-            const po = await frappe.db.get_doc("Purchase Order", po_name);
+            const order = await frappe.db.get_doc(resolved.cfg.order_dt, resolved.name);
             const terms = [];
-            (po.payment_schedule || []).forEach((s) => {
+            (order.payment_schedule || []).forEach((s) => {
                 if (s.payment_term && !terms.includes(s.payment_term)) terms.push(s.payment_term);
             });
-            frm.__pr_po_terms = terms;
+            frm.__pr_order_terms = terms;
 
-            // clear a selected term that does not belong to this PO (drafts only)
+            // clear a selected term that does not belong to this order (drafts only)
             if (
                 frm.doc.docstatus === 0 &&
                 frm.doc[TERM_FIELD] &&
@@ -84,37 +198,78 @@
             ) {
                 await frm.set_value(TERM_FIELD, "");
             }
+
+            if (frm.doc.docstatus === 0 && resolved.cfg.order_dt === "Sales Order") {
+                // Subject: Payment Request for <Sales Order name> - <Customer PO No from SO>
+                const po_no = (order.po_no || "").trim();
+                const subject = po_no
+                    ? `Payment Request for ${order.name} - ${po_no}`
+                    : `Payment Request for ${order.name}`;
+
+                if (frm.doc.subject !== subject) {
+                    await frm.set_value("subject", subject);
+                }
+
+                // Message: only for Inward requests
+                if (
+                    frm.doc.payment_request_type === "Inward" &&
+                    (force || frm.is_new() || !frm.doc.message)
+                ) {
+                    const customer_name = order.customer_name || frm.doc.party || "";
+                    const proforma_invoice_no = order.name; // change here if the proforma number comes from elsewhere
+                    const message = pr_inward_message(customer_name, proforma_invoice_no);
+
+                    const current = frm.doc.message || "";
+                    // overwrite only if empty or still an earlier auto-generated message
+                    const is_auto = !current || current.includes("NMTG Sales Team");
+                    if (is_auto && current !== message) {
+                        await frm.set_value("message", message);
+                    }
+                }
+            }
         } catch (e) {
-            console.error("Could not load PO payment terms:", e);
-            frm.__pr_po_terms = null;
+            console.error("Could not load order payment terms:", e);
+            frm.__pr_order_terms = null;
         }
     }
 
-    // Active (submitted, not cancelled/failed) Payment Requests against the PO
-    // and against every submitted Purchase Invoice that has items from that PO
-    async function pr_fetch_requests(frm, po_name) {
+    function pr_inward_message(customer_name, proforma_invoice_no) {
+        const e = frappe.utils.escape_html;
+        return `<p>Dear ${e(customer_name)},</p>
+    <p>Greetings from NMTG Mechtrans Techniques Pvt. Ltd.</p>
+    <p>With reference to your requirement / order, please find attached our Proforma Invoice ${e(proforma_invoice_no)} for your review and further processing.</p>
+    <p>Kindly review the attached Proforma Invoice and confirm your acceptance. In case you require any clarification or amendment, please feel free to reply to this email and our team will be glad to assist you.</p>
+    <p>Upon receiving your confirmation, we will proceed with the subsequent order processing activities accordingly.</p>
+    <p>Thank you for your continued association with NMTG.</p>
+    <p>Best Regards,<br>
+    NMTG Sales Team<br>
+    NMTG Mechtrans Techniques Pvt. Ltd.<br>
+    <a href="https://www.nmtgindia.com">www.nmtgindia.com</a></p>`;
+    }
+
+    async function pr_fetch_requests(frm, order_name, cfg) {
         const active = { docstatus: 1, status: ["not in", ["Cancelled", "Failed"]] };
 
-        // Purchase Invoices linked to the PO (filter on the child table field)
-        let pi_names = [];
+        // Invoices linked to the order (filter on the child table field)
+        let inv_names = [];
         try {
-            const pis = await frappe.db.get_list("Purchase Invoice", {
+            const invs = await frappe.db.get_list(cfg.invoice_dt, {
                 filters: [
-                    ["Purchase Invoice Item", "purchase_order", "=", po_name],
-                    ["Purchase Invoice", "docstatus", "=", 1],
+                    [cfg.invoice_item_dt, cfg.order_link_field, "=", order_name],
+                    [cfg.invoice_dt, "docstatus", "=", 1],
                 ],
                 fields: ["name"],
                 limit: 0,
             });
-            pi_names = (pis || []).map((r) => r.name);
+            inv_names = (invs || []).map((r) => r.name);
         } catch (e) {
-            console.error("Could not load Purchase Invoices for PO:", e);
+            console.error("Could not load invoices for order:", e);
         }
 
         // always include the invoice this request points to
-        if (frm.doc.reference_doctype === "Purchase Invoice" && frm.doc.reference_name) {
-            if (!pi_names.includes(frm.doc.reference_name)) {
-                pi_names.push(frm.doc.reference_name);
+        if (frm.doc.reference_doctype === cfg.invoice_dt && frm.doc.reference_name) {
+            if (!inv_names.includes(frm.doc.reference_name)) {
+                inv_names.push(frm.doc.reference_name);
             }
         }
 
@@ -122,18 +277,18 @@
         lists.push(
             await frappe.db.get_list("Payment Request", {
                 filters: Object.assign(
-                    { reference_doctype: "Purchase Order", reference_name: po_name },
+                    { reference_doctype: cfg.order_dt, reference_name: order_name },
                     active
                 ),
                 fields: ["name"],
                 limit: 0,
             })
         );
-        if (pi_names.length) {
+        if (inv_names.length) {
             lists.push(
                 await frappe.db.get_list("Payment Request", {
                     filters: Object.assign(
-                        { reference_doctype: "Purchase Invoice", reference_name: ["in", pi_names] },
+                        { reference_doctype: cfg.invoice_dt, reference_name: ["in", inv_names] },
                         active
                     ),
                     fields: ["name"],
@@ -162,14 +317,15 @@
         const token = (frm.__pr_terms_token = (frm.__pr_terms_token || 0) + 1);
 
         try {
-            const po_name = await pr_resolve_po(frm);
-            if (!po_name) {
+            const resolved = await pr_resolve_order(frm);
+            if (!resolved) {
                 $wrapper.html("");
                 return;
             }
+            const cfg = resolved.cfg;
 
-            const po = await frappe.db.get_doc("Purchase Order", po_name);
-            const prqs = await pr_fetch_requests(frm, po_name);
+            const po = await frappe.db.get_doc(cfg.order_dt, resolved.name);
+            const prqs = await pr_fetch_requests(frm, resolved.name, cfg);
 
             if (token !== frm.__pr_terms_token) return; // a newer render started
 
@@ -188,7 +344,7 @@
             const items_part_of = (amount) =>
                 grand_total ? flt((amount * net_total) / grand_total, 2) : 0;
 
-            // Requested / paid amounts per PO payment schedule row
+            // Requested / paid amounts per payment schedule row
             const by_schedule = {};
             const add = (key, requested, paid) => {
                 const e = (by_schedule[key] = by_schedule[key] || { requested: 0, paid: 0 });
@@ -418,7 +574,7 @@
                     }
                     <div class="text-muted small" style="margin-top:6px;">
                         ${esc(po.name)} &mdash; Items Total: ${fmt(net_total)} | Taxes: ${fmt(total_tax)} | Grand Total: ${fmt(grand_total)}
-                        <span style="float:right; opacity:.5;">v8</span>
+                        <span style="float:right; opacity:.5;">v9</span>
                     </div>
                 </div>`;
 
@@ -466,8 +622,13 @@ async function render_item_payment(frm) {
     const $wrap = field.$wrapper;
 
     const rows = frm.doc.custom_items || [];
+    const order_dt = frm.doc.reference_doctype;
 
-    if (frm.doc.reference_doctype !== "Purchase Order" || !frm.doc.reference_name || !rows.length) {
+    if (
+        !["Purchase Order", "Sales Order"].includes(order_dt) ||
+        !frm.doc.reference_name ||
+        !rows.length
+    ) {
         $wrap.html("");
         return;
     }
@@ -479,11 +640,11 @@ async function render_item_payment(frm) {
     try {
         const r = await frappe.call({
             method: "frappe.client.get",
-            args: { doctype: "Purchase Order", name: frm.doc.reference_name },
+            args: { doctype: order_dt, name: frm.doc.reference_name },
         });
         po = r.message;
     } catch (e) {
-        $wrap.html(`<div class="text-muted">Could not load Purchase Order ${esc(frm.doc.reference_name)}.</div>`);
+        $wrap.html(`<div class="text-muted">Could not load ${esc(order_dt)} ${esc(frm.doc.reference_name)}.</div>`);
         return;
     }
     if (token !== frm.__item_payment_token || !po) return;
@@ -494,7 +655,7 @@ async function render_item_payment(frm) {
     const currency = frm.doc.currency || po.currency;
     const fmt = (v) => format_currency(v, currency);
 
-    // Tax factor from the PO: (net total + total taxes) / net total
+    // Tax factor from the order: (net total + total taxes) / net total
     const po_net_total = flt(po.net_total) || flt(po.total);
     const po_taxes = flt(po.total_taxes_and_charges);
     const tax_factor = po_net_total ? (po_net_total + po_taxes) / po_net_total : 1;
@@ -535,7 +696,7 @@ async function render_item_payment(frm) {
                 <td>${esc(row.item_name)}</td>
                 <td class="text-right">${po_qty}</td>
                 <td class="text-right"${qty_warn}>${ready_qty}</td>
-                <td class="text-right">${po_item ? fmt(rate) : '<span class="text-muted">Not in PO</span>'}</td>
+                <td class="text-right">${po_item ? fmt(rate) : '<span class="text-muted">Not in order</span>'}</td>
                 <td class="text-right">${fmt(po_amount)}</td>
                 <td class="text-right">${fmt(ready_amount)}</td>
                 <td class="text-right">${fmt(ready_with_tax)}</td>
@@ -546,7 +707,7 @@ async function render_item_payment(frm) {
 
     const html = `
         <div style="margin-bottom:8px;">
-            <span class="text-muted">Purchase Order:</span> <b>${esc(po.name)}</b>
+            <span class="text-muted">${esc(order_dt)}:</span> <b>${esc(po.name)}</b>
             &nbsp;|&nbsp;
             <span class="text-muted">Payment Term:</span> <b>${esc(frm.doc.custom_payment_term || "-")}</b>
             &nbsp;|&nbsp;
@@ -561,10 +722,10 @@ async function render_item_payment(frm) {
                         <th>#</th>
                         <th>Item Code</th>
                         <th>Item Name</th>
-                        <th class="text-right">PO Qty</th>
+                        <th class="text-right">Order Qty</th>
                         <th class="text-right">Ready Qty</th>
                         <th class="text-right">Rate</th>
-                        <th class="text-right">PO Amount</th>
+                        <th class="text-right">Order Amount</th>
                         <th class="text-right">Ready Amount</th>
                         <th class="text-right">Ready Amount (incl. Tax)</th>
                         <th class="text-right">Payable (${percent}%)</th>

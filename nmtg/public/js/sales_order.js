@@ -63,6 +63,19 @@ frappe.ui.form.on("Sales Order", {
                 );
             }).addClass("btn-primary");
         }
+        if (frm.doc.docstatus !== 1) {
+            return;
+        }
+
+        frm.remove_custom_button("Payment Request", "Create");
+
+        frm.add_custom_button(
+            __("Payment Request"),
+            function () {
+                show_so_payment_term_dialog(frm);
+            },
+            __("Create")
+        );
     },
 
     customer(frm) {
@@ -587,4 +600,81 @@ function nmtg_fetch_sales_team_by_address(frm) {
             }
         },
     });
+}
+
+
+function show_so_payment_term_dialog(frm) {
+
+    const payment_schedule = frm.doc.payment_schedule || [];
+
+    // Only terms available in this Sales Order
+    const payment_terms = payment_schedule
+        .filter(row => row.payment_term)
+        .map(row => row.payment_term);
+
+    if (!payment_terms.length) {
+        frappe.msgprint({
+            title: __("No Payment Terms"),
+            message: __("No payment terms are available in this Sales Order."),
+            indicator: "orange"
+        });
+
+        return;
+    }
+
+    const dialog = new frappe.ui.Dialog({
+        title: __("Create Payment Request"),
+
+        fields: [
+            {
+                fieldname: "payment_term",
+                fieldtype: "Select",
+                label: __("Payment Term"),
+                options: payment_terms.join("\n"),
+                reqd: 1
+            }
+        ],
+
+        primary_action_label: __("Create Payment Request"),
+
+        primary_action(values) {
+
+            if (!values.payment_term) {
+                frappe.msgprint(__("Please select a Payment Term."));
+                return;
+            }
+
+            dialog.hide();
+
+            frappe.call({
+                // lives next to create_po_payment_request
+                method: "nmtg.override.payment_request.create_so_payment_request",
+
+                args: {
+                    so: frm.doc.name,
+                    payment_term: values.payment_term
+                },
+
+                freeze: true,
+
+                freeze_message: __("Creating Payment Request..."),
+
+                callback: function (r) {
+
+                    if (!r.message) {
+                        return;
+                    }
+
+                    frappe.show_alert({
+                        message: __("Payment Request {0} created", [r.message]),
+                        indicator: "green"
+                    });
+
+                    frappe.set_route("Form", "Payment Request", r.message);
+                }
+            });
+        }
+    });
+
+    dialog.show();
 }
