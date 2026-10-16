@@ -8,7 +8,7 @@ from hrms.hr.doctype.leave_application.leave_application import (
 )
 
 SHORT_LEAVE_TYPE = "Short Leave"
-MAX_HOURS_PER_MONTH = 4
+MAX_HOURS_PER_MONTH = 2
 FROM_FIELD = "custom_from_hours"   # verify full fieldname in Customize Form
 TO_FIELD = "custom_to_hours"       # verify full fieldname in Customize Form
 
