@@ -1,6 +1,7 @@
 (function () {
     const FIELD = "custom_payment_terms"; // HTML field that shows the table
     const TERM_FIELD = "custom_payment_term"; // Link field to Payment Term
+    const PRINT_FORMAT = "Proforma Invoice With Payment Term"; // Sales Order print format, name must match exactly
 
     frappe.ui.form.on("Payment Request", {
         setup(frm) {
@@ -19,7 +20,7 @@
             pr_add_payment_entry_button(frm);
         },
         async reference_name(frm) {
-            // reference changed by the user -> regenerate subject / message
+            // reference changed by the user -> regenerate subject / message / print format
             await pr_load_order_terms(frm, true);
             pr_terms_v6_render(frm);
             render_item_payment(frm);
@@ -114,67 +115,6 @@
         return null;
     }
 
-   
-    // async function pr_load_order_terms(frm, force) {
-    //     try {
-    //         const resolved = await pr_resolve_order(frm);
-    //         if (!resolved) {
-    //             frm.__pr_order_terms = null;
-    //             return;
-    //         }
-
-    //         const order = await frappe.db.get_doc(resolved.cfg.order_dt, resolved.name);
-    //         const terms = [];
-    //         (order.payment_schedule || []).forEach((s) => {
-    //             if (s.payment_term && !terms.includes(s.payment_term)) terms.push(s.payment_term);
-    //         });
-    //         frm.__pr_order_terms = terms;
-
-    //         // clear a selected term that does not belong to this order (drafts only)
-    //         if (
-    //             frm.doc.docstatus === 0 &&
-    //             frm.doc[TERM_FIELD] &&
-    //             !terms.includes(frm.doc[TERM_FIELD])
-    //         ) {
-    //             await frm.set_value(TERM_FIELD, "");
-    //         }
-
-    //         if (frm.doc.docstatus === 0 && resolved.cfg.order_dt === "Sales Order") {
-    //             // Subject: Payment Request for <Sales Order> - <Customer PO No>
-    //             if (force || frm.is_new() || !frm.doc.subject) {
-    //                 let subject = `Payment Request for ${order.name}`;
-    //                 if (order.po_no) {
-    //                     subject += ` - ${order.po_no}`;
-    //                 }
-    //                 if (frm.doc.subject !== subject) {
-    //                     await frm.set_value("subject", subject);
-    //                 }
-    //             }
-
-    //             // Message: only for Inward requests
-    //             if (frm.doc.payment_request_type === "Inward") {
-    //                 if (force || frm.is_new() || !frm.doc.message) {
-    //                     const customer_name = order.customer_name || frm.doc.party || "";
-    //                     const proforma_invoice_no = order.name; // change here if the proforma number comes from elsewhere
-    //                     const message = pr_inward_message(customer_name, proforma_invoice_no);
-
-    //                     const current = frm.doc.message || "";
-    //                     // overwrite only if empty or still an earlier auto-generated message
-    //                     const is_auto = !current || current.includes("NMTG Sales Team");
-    //                     if (is_auto && current !== message) {
-    //                         await frm.set_value("message", message);
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     } catch (e) {
-    //         console.error("Could not load order payment terms:", e);
-    //         frm.__pr_order_terms = null;
-    //     }
-    // }
-
-
-
     async function pr_load_order_terms(frm, force) {
         try {
             const resolved = await pr_resolve_order(frm);
@@ -210,26 +150,54 @@
                     await frm.set_value("subject", subject);
                 }
 
-                // Message: only for Inward requests
-                if (
-                    frm.doc.payment_request_type === "Inward" &&
-                    (force || frm.is_new() || !frm.doc.message)
-                ) {
-                    const customer_name = order.customer_name || frm.doc.party || "";
-                    const proforma_invoice_no = order.name; // change here if the proforma number comes from elsewhere
-                    const message = pr_inward_message(customer_name, proforma_invoice_no);
+                // Inward requests only: message first, then print format
+                if (frm.doc.payment_request_type === "Inward") {
+                    // Message (set first so the print format step can never block it)
+                    if (force || frm.is_new() || !frm.doc.message) {
+                        const customer_name = order.customer_name || frm.doc.party || "";
+                        const proforma_invoice_no = order.name; // change here if the proforma number comes from elsewhere
+                        const message = pr_inward_message(customer_name, proforma_invoice_no);
 
-                    const current = frm.doc.message || "";
-                    // overwrite only if empty or still an earlier auto-generated message
-                    const is_auto = !current || current.includes("NMTG Sales Team");
-                    if (is_auto && current !== message) {
-                        await frm.set_value("message", message);
+                        const current = frm.doc.message || "";
+                        // overwrite only if empty or still an earlier auto-generated message
+                        const is_auto = !current || current.includes("NMTG Sales Team");
+                        if (is_auto && current !== message) {
+                            await frm.set_value("message", message);
+                        }
                     }
+
+                    // Print format (separate and failure-safe)
+                    await pr_set_print_format(frm);
                 }
             }
         } catch (e) {
             console.error("Could not load order payment terms:", e);
             frm.__pr_order_terms = null;
+        }
+    }
+
+    async function pr_set_print_format(frm) {
+        try {
+            const field = frm.fields_dict.print_format;
+            if (!field) {
+                console.warn("Payment Request has no print_format field, skipping.");
+                return;
+            }
+
+            // Select field: make sure our format is one of the options
+            if (field.df.fieldtype === "Select") {
+                const opts = (field.df.options || "").split("\n");
+                if (!opts.includes(PRINT_FORMAT)) {
+                    field.df.options = (field.df.options ? field.df.options + "\n" : "") + PRINT_FORMAT;
+                    frm.refresh_field("print_format");
+                }
+            }
+
+            if (frm.doc.print_format !== PRINT_FORMAT) {
+                await frm.set_value("print_format", PRINT_FORMAT);
+            }
+        } catch (e) {
+            console.warn("Could not set print format:", e);
         }
     }
 

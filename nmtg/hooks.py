@@ -279,7 +279,7 @@ override_doctype_class = {
     "Opportunity": "nmtg.override.opportunity.CustomOpportunity",
     "Customer": "nmtg.override.customer.CustomCustomer",
     "Leave Application": "nmtg.override.leave_application.CustomLeaveApplication",
-    
+    "Payment Request": "nmtg.override.payment_request.CustomPaymentRequest",    
 }
 
 doctype_list_js = {
@@ -371,7 +371,9 @@ doc_events = {
     "Address": {
         "before_naming": "nmtg.override.api.set_state_in_title"
     },
-     
+   "Payment Request": {
+        "on_submit": "nmtg.override.payment_request.send_proforma_invoice_email",
+    },
 }
 
 
