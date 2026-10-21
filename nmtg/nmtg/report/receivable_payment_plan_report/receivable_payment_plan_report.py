@@ -14,6 +14,10 @@ LD_FIELD_CANDIDATES = ["custom_ld_so"]
 # Delivery Note Item field holding the customer side GRN / material received date
 GRN_DATE_FIELD = "custom_delivery_date"
 
+# Payment Request child table field holding the Before Dispatch ready qty per item
+PR_ITEM_DOCTYPE = "Payment Request CT"
+PR_ITEM_READY_FIELD = "before_dispatch_ready_qty"
+
 # Payment term classification (matched against payment term name + description, lower case)
 ADVANCE_KEYWORDS = ["advance"]
 BEFORE_DISPATCH_KEYWORDS = ["before dispatch", "prior to dispatch", "pre dispatch", "pre-dispatch",
@@ -22,11 +26,17 @@ BEFORE_DISPATCH_KEYWORDS = ["before dispatch", "prior to dispatch", "pre dispatc
 
 def execute(filters=None):
     filters = filters or {}
-    return get_columns(), get_data(filters)
+    data = get_data(filters)
+    max_entries = 0
+    for row in data:
+        for key in row:
+            if key.startswith("bd_pr_"):
+                max_entries = max(max_entries, int(key.rsplit("_", 1)[1]))
+    return get_columns(max_entries), data
 
 
-def get_columns():
-    return [
+def get_columns(max_entries=0):
+    columns = [
         {"label": _("Sales Order / Item"), "fieldname": "name", "fieldtype": "Data", "width": 200},
         {"label": _("Customer Name"), "fieldname": "customer_name", "fieldtype": "Data", "width": 200},
         {"label": _("Item"), "fieldname": "item_code", "fieldtype": "Data", "width": 160},
@@ -59,6 +69,26 @@ def get_columns():
         {"label": _("Pending Payment Type(s)"), "fieldname": "pending_types", "fieldtype": "Data", "width": 220},
     ]
 
+    # One Payment Request + ready qty column pair per Before Dispatch Payment Request,
+    # placed right after the total "Before Dispatch Ready Qty" column.
+    entry_columns = []
+    for n in range(1, max_entries + 1):
+        entry_columns.append({
+            "label": _("Before Dispatch Payment Request {0}").format(n),
+            "fieldname": "bd_pr_{0}".format(n),
+            "fieldtype": "Link",
+            "options": "Payment Request",
+            "width": 170,
+        })
+        entry_columns.append({
+            "label": _("Before Dispatch Ready Qty {0}").format(n),
+            "fieldname": "bd_qty_{0}".format(n),
+            "fieldtype": "Float",
+            "width": 150,
+        })
+    at = [c["fieldname"] for c in columns].index("ready_qty") + 1
+    return columns[:at] + entry_columns + columns[at:]
+
 
 # ---------------------------------------------------------------------------
 # helpers
@@ -84,6 +114,7 @@ def first_existing_column(doctype, candidates):
 
 
 def get_si_so_map(so_names):
+    """{sales_invoice: set(sales_order)} for submitted Sales Invoices linked to the given SOs."""
     if not so_names:
         return {}
     rows = frappe.db.sql(
@@ -102,16 +133,45 @@ def get_si_so_map(so_names):
     return result
 
 
-def get_received(so_names):
-    """Receipts per Sales Order, split by payment term (same logic as the Payment Schedule report)."""
+def get_payment_request_terms(pr_names):
+    """{payment_request_name: normalised custom_payment_term}"""
+    pr_names = [p for p in pr_names if p]
+    if not pr_names or not frappe.db.has_column("Payment Request", "custom_payment_term"):
+        return {}
+    rows = frappe.db.sql(
+        """
+        SELECT name, custom_payment_term
+        FROM `tabPayment Request`
+        WHERE name IN %(names)s
+        """,
+        {"names": tuple(set(pr_names))},
+        as_dict=True,
+    )
+    return {r.name: norm_term(r.custom_payment_term) for r in rows}
+
+
+def get_received(so_names, si_to_sos):
+    """
+    Receipts per Sales Order, split by payment term.
+
+    Payment Entries can be against the Sales Order, or (after the advance is pulled
+    into the invoice) against a Sales Invoice of that SO. The term of each allocation
+    is resolved in this order:
+      1. Payment Entry Reference.payment_term
+      2. Payment Entry.custom_payment_term (header)
+      3. Payment Request.custom_payment_term, where the Payment Request is
+         Payment Entry Reference.payment_request or, when empty, the
+         Payment Entry's reference_no
+    """
     if not so_names:
         return {}
 
     pe_term_select = "pe.custom_payment_term" if frappe.db.has_column("Payment Entry", "custom_payment_term") else "NULL"
 
     select_sql = """
-        SELECT per.reference_name, per.payment_term, per.allocated_amount,
-               pe.posting_date, {pe_term_select} AS pe_term
+        SELECT per.reference_name, per.payment_term, per.payment_request, per.allocated_amount,
+               pe.posting_date, pe.reference_no, pe.unallocated_amount, pe.total_allocated_amount,
+               {pe_term_select} AS pe_term
         FROM `tabPayment Entry Reference` per
         INNER JOIN `tabPayment Entry` pe ON pe.name = per.parent
         WHERE pe.docstatus = 1
@@ -124,18 +184,33 @@ def get_received(so_names):
     for e in frappe.db.sql(select_sql, {"doctype": "Sales Order", "names": tuple(so_names)}, as_dict=True):
         entries.append((e.reference_name, e))
 
-    si_to_sos = get_si_so_map(so_names)
     if si_to_sos:
         for e in frappe.db.sql(select_sql, {"doctype": "Sales Invoice", "names": tuple(si_to_sos.keys())}, as_dict=True):
             sos = si_to_sos.get(e.reference_name, set())
             if len(sos) == 1:
                 entries.append((next(iter(sos)), e))
 
+    # Payment Request terms (payment_request link, else reference_no)
+    candidate_prs = []
+    for _so, e in entries:
+        if e.payment_request:
+            candidate_prs.append(e.payment_request)
+        elif e.reference_no:
+            candidate_prs.append(e.reference_no)
+    pr_terms = get_payment_request_terms(candidate_prs)
+
     result = {}
     for so, e in entries:
         d = result.setdefault(so, {"by_term": {}, "by_term_date": {}, "no_term": 0, "no_term_date": None})
-        term = norm_term(e.payment_term) or norm_term(e.pe_term)
+
         amt = flt(e.allocated_amount)
+        # excess of a Payment Entry stays "unallocated" - add it back pro rata
+        if flt(e.unallocated_amount) > 0 and flt(e.total_allocated_amount) > 0:
+            amt += flt(e.unallocated_amount) * (amt / flt(e.total_allocated_amount))
+
+        pr_name = e.payment_request or e.reference_no
+        term = norm_term(e.payment_term) or norm_term(e.pe_term) or pr_terms.get(pr_name, "")
+
         if term:
             d["by_term"][term] = d["by_term"].get(term, 0) + amt
             cur = d["by_term_date"].get(term)
@@ -180,6 +255,97 @@ def allocate_schedule(rows, rec):
         if amount:
             c["received"] = min(c["received"], amount)
     return out
+
+
+def get_before_dispatch_entries(so_names, si_to_sos):
+    """
+    Returns {sales_order: [{"name", "request_date", "items": {item_code: ready_qty}}, ...]}
+    for submitted Before Dispatch Payment Requests (raised against the Sales Order or
+    against one of its Sales Invoices) that have rows in the Payment Request child table.
+    Oldest request first.
+    """
+    if not so_names or not frappe.db.table_exists(PR_ITEM_DOCTYPE):
+        return {}
+
+    pr_rows = frappe.db.sql(
+        """
+        SELECT
+            pr.name,
+            pr.reference_doctype,
+            pr.reference_name,
+            pr.custom_payment_term AS payment_term,
+            COALESCE(pr.transaction_date, DATE(pr.creation)) AS request_date
+        FROM `tabPayment Request` pr
+        WHERE pr.docstatus = 1
+            AND pr.payment_request_type = 'Inward'
+            AND (
+                (pr.reference_doctype = 'Sales Order' AND pr.reference_name IN %(sos)s)
+                OR
+                (pr.reference_doctype = 'Sales Invoice' AND pr.reference_name IN %(sis)s)
+            )
+        """,
+        {"sos": tuple(so_names), "sis": tuple(si_to_sos.keys()) or ("",)},
+        as_dict=True,
+    )
+
+    pr_so = {}
+    for pr in pr_rows:
+        if classify(pr.payment_term, "") != "Before Dispatch":
+            continue
+        if pr.reference_doctype == "Sales Order":
+            pr_so[pr.name] = (pr.reference_name, pr.request_date)
+        else:
+            sos = si_to_sos.get(pr.reference_name, set())
+            if len(sos) == 1:
+                pr_so[pr.name] = (next(iter(sos)), pr.request_date)
+
+    if not pr_so:
+        return {}
+
+    item_rows = frappe.db.sql(
+        """
+        SELECT parent, item_code, `{field}` AS ready_qty
+        FROM `tab{dt}`
+        WHERE parenttype = 'Payment Request'
+            AND parent IN %(prs)s
+        """.format(field=PR_ITEM_READY_FIELD, dt=PR_ITEM_DOCTYPE),
+        {"prs": tuple(pr_so.keys())},
+        as_dict=True,
+    )
+
+    per_pr = {}
+    for r in item_rows:
+        if not r.item_code:
+            continue
+        items = per_pr.setdefault(r.parent, {})
+        items[r.item_code] = items.get(r.item_code, 0) + flt(r.ready_qty)
+
+    result = {}
+    for pr_name, items in per_pr.items():
+        so, request_date = pr_so[pr_name]
+        result.setdefault(so, []).append({"name": pr_name, "request_date": request_date, "items": items})
+
+    for so in result:
+        result[so].sort(key=lambda e: (str(e["request_date"] or ""), e["name"]))
+    return result
+
+
+def get_item_taxes(so_names):
+    """Returns {item_row_name: total tax amount} from Item Wise Tax Detail."""
+    if not so_names:
+        return {}
+    rows = frappe.db.sql(
+        """
+        SELECT item_row, SUM(amount) AS tax
+        FROM `tabItem Wise Tax Detail`
+        WHERE parenttype = 'Sales Order'
+            AND parent IN %(sos)s
+        GROUP BY item_row
+        """,
+        {"sos": tuple(so_names)},
+        as_dict=True,
+    )
+    return {r.item_row: flt(r.tax) for r in rows}
 
 
 def get_dispatch_info(item_rows):
@@ -254,12 +420,16 @@ def get_data(filters):
             so.name AS sales_order,
             so.transaction_date AS so_date,
             so.customer_name,
-            COALESCE(NULLIF(so.rounded_total, 0), so.grand_total) AS so_value,
+            so.grand_total AS so_grand_total,
+            so.rounded_total AS so_rounded_total,
+            so.total_taxes_and_charges AS so_taxes,
             {ld_select},
             soi.name AS so_detail,
             soi.idx,
             soi.item_code,
             soi.qty,
+            soi.amount,
+            soi.net_amount,
             soi.delivered_qty,
             COALESCE(soi.delivery_date, so.delivery_date) AS delivery_plan_date
         FROM `tabSales Order` so
@@ -290,7 +460,10 @@ def get_data(filters):
     for r in schedule_rows:
         schedule_by_so.setdefault(r.sales_order, []).append(r)
 
-    received_map = get_received(so_names)
+    si_to_sos = get_si_so_map(so_names)
+    received_map = get_received(so_names, si_to_sos)
+    bd_entries_map = get_before_dispatch_entries(so_names, si_to_sos)
+    item_taxes = get_item_taxes(so_names)
     dispatch_map, ready_map = get_dispatch_info(item_rows)
     today_date = getdate(today())
     empty_rec = {"by_term": {}, "by_term_date": {}, "no_term": 0, "no_term_date": None}
@@ -356,15 +529,81 @@ def get_data(filters):
         if filters.get("pending_only") and total_pending <= 0.005:
             continue
 
+        # ---- SO totals used to split the order value item-wise ----
+        first = items[0]
+        grand_total = flt(first.so_grand_total)
+        # payment schedule is calculated on rounded_total
+        so_total = flt(first.so_rounded_total) or grand_total
+        rounding_diff = so_total - grand_total
+        so_taxes = flt(first.so_taxes)
+        so_net = sum(flt(i.net_amount or i.amount) for i in items)
+
+        # If item wise tax rows are not available, spread the SO tax total over the
+        # items by amount, so item totals always add up to the SO total.
+        item_tax_found = sum(flt(item_taxes.get(i.so_detail, 0)) for i in items)
+        spread_so_taxes = (not item_tax_found) and so_taxes and so_net
+
+        # ---- Before Dispatch Payment Requests (oldest first) -> column number ----
+        bd_entries = bd_entries_map.get(so, [])
+        bd_entry_no = {e["name"]: n for n, e in enumerate(bd_entries, 1)}
+        remaining_ready = {}
+        for entry in bd_entries:
+            for code, qty in entry["items"].items():
+                remaining_ready.setdefault(code, []).append((entry["name"], qty))
+
         # ---- child (item) rows ----
         child_rows = []
         for i in items:
             d = dispatch_map.get(i.so_detail)
             item_ld = bool(cint(i.ld_flag)) if has_ld_field else False
+
+            # item total = net amount + item tax + share of the rounding difference
+            item_net = flt(i.net_amount or i.amount)
+            if spread_so_taxes:
+                item_tax = flt(so_taxes * item_net / so_net, 2)
+            else:
+                item_tax = flt(item_taxes.get(i.so_detail, 0), 2)
+            item_gross = item_net + item_tax
+            item_rounding = rounding_diff * item_gross / grand_total if grand_total else 0
+            item_total = flt(item_gross + item_rounding, 2)
+
+            # item amounts per payment bucket (percent applied on the item's own total)
+            def bucket_amounts(b):
+                amt = flt(item_total * b["pct"] / 100, 2)
+                ratio = (b["received"] / b["amount"]) if b["amount"] else 0
+                return amt, flt(amt * ratio, 2)
+
+            item_adv, item_adv_rec = bucket_amounts(adv)
+            item_bd, item_bd_rec = bucket_amounts(bd)
+            item_ad, item_ad_rec = bucket_amounts(ad)
+
+            item_out = {
+                "Advance": max(flt(item_adv - item_adv_rec, 2), 0),
+                "Before Dispatch": max(flt(item_bd - item_bd_rec, 2), 0),
+                "After Delivery": max(flt(item_ad - item_ad_rec, 2), 0),
+            }
+            item_pending_total = sum(item_out.values())
+            item_pending_types = ", ".join(k for k, v in item_out.items() if v > 0.005)
+
+            # ready qty: from Before Dispatch Payment Requests (per item code, entries are
+            # shown on the first row of the item code only); fall back to draft Delivery Notes
+            item_entries = remaining_ready.pop(i.item_code, []) if bd_entries else []
+            if bd_entries:
+                item_ready = sum(q for _pr, q in item_entries)
+            else:
+                item_ready = ready_map.get(i.so_detail, 0)
+
+            # item level remaining credit days
+            item_remaining = None
+            item_base = (d.grn_date if (d and item_ld) else None) if item_ld else (d.dispatch_date if d else None)
+            if item_base and item_ad:
+                item_due = add_days(getdate(item_base), ad["credit_days"])
+                item_remaining = date_diff(item_due, today_date)
+
             # tree rows need a unique "name": show the item code, padded with invisible
             # zero-width spaces so the same item in two orders / twice in one order stays unique
             row_counter += 1
-            child_rows.append({
+            row = {
                 "name": (i.item_code or "") + "\u200b" * row_counter,
                 "parent_so": so,
                 "indent": 1,
@@ -375,16 +614,35 @@ def get_data(filters):
                 "delivery_plan_date": i.delivery_plan_date,
                 "dispatch_date": d.dispatch_date if d else None,
                 "ld": "Yes" if item_ld else "No",
-                "ready_qty": ready_map.get(i.so_detail, 0),
+                "so_value": item_total,
+                "adv_pct": adv["pct"],
+                "adv_amount": item_adv,
+                "adv_received": item_adv_rec,
+                "adv_date": adv["date"],
+                "bd_pct": bd["pct"],
+                "ready_qty": item_ready,
                 "pending_qty": max(flt(i.qty) - flt(i.delivered_qty), 0),
+                "bd_amount": item_bd,
+                "bd_received": item_bd_rec,
+                "ad_term": ", ".join(ad["terms"]),
+                "credit_days": ad["credit_days"],
                 "grn_date": d.grn_date if (d and item_ld) else None,
-            })
+                "ad_amount": item_ad,
+                "ad_received": item_ad_rec,
+                "ad_remaining_days": item_remaining,
+                "total_pending": item_pending_total,
+                "pending_types": item_pending_types,
+            }
+            for pr_name, pr_qty in item_entries:
+                n = bd_entry_no[pr_name]
+                row["bd_pr_{0}".format(n)] = pr_name
+                row["bd_qty_{0}".format(n)] = pr_qty
+            child_rows.append(row)
 
         plan_dates = [c["delivery_plan_date"] for c in child_rows if c["delivery_plan_date"]]
-        first = items[0]
 
         # ---- parent (Sales Order) row ----
-        data.append({
+        parent = {
             "name": so,
             "parent_so": None,
             "indent": 0,
@@ -394,7 +652,7 @@ def get_data(filters):
             "delivery_plan_date": min(plan_dates) if plan_dates else None,
             "dispatch_date": so_dispatch,
             "ld": "Yes" if is_ld else "No",
-            "so_value": flt(first.so_value),
+            "so_value": so_total,
             "adv_pct": adv["pct"],
             "adv_amount": adv["amount"],
             "adv_received": adv["received"],
@@ -412,7 +670,12 @@ def get_data(filters):
             "ad_remaining_days": remaining_days,
             "total_pending": total_pending,
             "pending_types": pending_types,
-        })
+        }
+        for n, e in enumerate(bd_entries, 1):
+            parent["bd_pr_{0}".format(n)] = e["name"]
+            parent["bd_qty_{0}".format(n)] = sum(e["items"].values())
+
+        data.append(parent)
         data.extend(child_rows)
 
     return data

@@ -444,5 +444,11 @@ jinja = {
 # }
 override_whitelisted_methods = {
     "erpnext.accounts.doctype.payment_request.payment_request.make_payment_request":
-        "nmtg.override.payment_request.make_payment_request"
+        "nmtg.override.payment_request.make_payment_request",
+    "erpnext.crm.doctype.opportunity.opportunity.make_quotation":
+        "nmtg.override.opportunity.make_quotation",
+    "erpnext.crm.doctype.opportunity.opportunity.make_request_for_quotation":
+        "nmtg.override.opportunity.make_request_for_quotation",
+    "erpnext.crm.doctype.opportunity.opportunity.make_supplier_quotation":
+        "nmtg.override.opportunity.make_supplier_quotation",
 }

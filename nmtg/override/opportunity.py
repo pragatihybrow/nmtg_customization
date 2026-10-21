@@ -1,5 +1,7 @@
 import frappe
 from erpnext.crm.doctype.opportunity.opportunity import Opportunity
+from erpnext.setup.utils import get_exchange_rate
+from frappe.model.mapper import get_mapped_doc
 
 
 class CustomOpportunity(Opportunity):
@@ -97,3 +99,108 @@ def set_contact_recipient_emails(doc, method=None):
 
     doc.custom_primary_contact_email = primary_email
     doc.custom_other_contact_emails = ", ".join(cc_emails)
+
+
+def _in_nmtg_scope(item):
+    return not frappe.utils.cint(item.get("custom_not_in_nmtg_scope"))
+
+
+@frappe.whitelist()
+def make_quotation(source_name, target_doc=None):
+    def set_missing_values(source, target):
+        from erpnext.controllers.accounts_controller import (
+            get_default_taxes_and_charges,
+        )
+
+        quotation = frappe.get_doc(target)
+
+        company_currency = frappe.get_cached_value(
+            "Company", quotation.company, "default_currency"
+        )
+
+        if company_currency == quotation.currency:
+            exchange_rate = 1
+        else:
+            exchange_rate = get_exchange_rate(
+                quotation.currency,
+                company_currency,
+                quotation.transaction_date,
+                args="for_selling",
+            )
+
+        quotation.conversion_rate = exchange_rate
+
+        taxes = get_default_taxes_and_charges(
+            "Sales Taxes and Charges Template", company=quotation.company
+        )
+        if taxes.get("taxes"):
+            quotation.update(taxes)
+
+        quotation.run_method("set_missing_values")
+        quotation.run_method("calculate_taxes_and_totals")
+        if not source.with_items:
+            quotation.opportunity = source.name
+
+    return get_mapped_doc(
+        "Opportunity",
+        source_name,
+        {
+            "Opportunity": {
+                "doctype": "Quotation",
+                "field_map": {"opportunity_from": "quotation_to", "name": "enq_no"},
+            },
+            "Opportunity Item": {
+                "doctype": "Quotation Item",
+                "field_map": {
+                    "parent": "prevdoc_docname",
+                    "parenttype": "prevdoc_doctype",
+                    "uom": "stock_uom",
+                },
+                "add_if_empty": True,
+                "condition": _in_nmtg_scope,
+            },
+        },
+        target_doc,
+        set_missing_values,
+    )
+
+
+@frappe.whitelist()
+def make_request_for_quotation(source_name, target_doc=None):
+    return get_mapped_doc(
+        "Opportunity",
+        source_name,
+        {
+            "Opportunity": {"doctype": "Request for Quotation"},
+            "Opportunity Item": {
+                "doctype": "Request for Quotation Item",
+                "field_map": [
+                    ["name", "opportunity_item"],
+                    ["parent", "opportunity"],
+                    ["uom", "uom"],
+                ],
+                "condition": _in_nmtg_scope,
+            },
+        },
+        target_doc,
+    )
+
+
+@frappe.whitelist()
+def make_supplier_quotation(source_name, target_doc=None):
+    return get_mapped_doc(
+        "Opportunity",
+        source_name,
+        {
+            "Opportunity": {
+                "doctype": "Supplier Quotation",
+                "field_map": {"name": "opportunity"},
+            },
+            "Opportunity Item": {
+                "doctype": "Supplier Quotation Item",
+                "field_map": {"uom": "stock_uom"},
+                "condition": _in_nmtg_scope,
+            },
+        },
+        target_doc,
+    )
