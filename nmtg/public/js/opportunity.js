@@ -7,6 +7,16 @@ frappe.ui.form.on("Opportunity", {
 				},
 			};
 		});
+        frm.set_query("shipping_address_name", function (doc) {
+			return {
+				query: "frappe.contacts.doctype.address.address.address_query",
+				filters: {
+					link_doctype: doc.opportunity_from,
+					link_name: doc.party_name,
+					address_type: "Shipping",
+				},
+			};
+		});
 	},
 
 	set_contact_link: function (frm) {
@@ -24,6 +34,10 @@ frappe.ui.form.on("Opportunity", {
 		if (frm.doc.shipping_address_name && !frm.doc.custom_shipping_address) {
             fetch_shipping_address(frm);
         }
+       
+        setTimeout(() => {
+            frm.remove_custom_button("Customer", "Create");
+        }, 300);
          set_contact_email_from_primary(frm);
     },
     status: function(frm) {
