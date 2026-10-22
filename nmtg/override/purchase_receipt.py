@@ -220,81 +220,13 @@ def calculate_qty_in_kg(doc, method):
             else:
                 item.custom_qty_in_kg = 0
 
+def _get_rejected_inward_qty(grn, item):
+    """Find the rejected Inward Qty of a GRN row without needing a link field on the row."""
+    filters = {"grn": grn, "source_row": item.name}
+    if item.get("inward_qty"):
+        filters["name"] = ["!=", item.inward_qty]
+    return frappe.db.get_value("Inward Qty", filters, "name")
 
-# def create_inward_qty_entries(doc, method=None):
-#     current_row_names = {item.name for item in doc.items}
-
-#     # Remove orphaned Inward Qty records
-#     orphaned = frappe.get_all(
-#         "Inward Qty",
-#         filters={
-#             "grn": doc.name,
-#             "source_row": ["not in", list(current_row_names) or [""]],
-#         },
-#         pluck="name",
-#     )
-
-#     for name in orphaned:
-#         frappe.delete_doc("Inward Qty", name, ignore_permissions=True)
-
-#     for item in doc.items:
-
-#         # -----------------------------------------
-#         # Accepted quantity
-#         # -----------------------------------------
-#         accepted_values = {
-#             "item_code": item.item_code,
-#             "item_name": item.item_name,
-#             "received_quantity": item.qty,
-#             "received_quantity_uom": item.uom,
-#             "received_quantity_in_numbers": item.get("custom_qty_in_no") or 0,
-#         }
-
-#         if not item.get("inward_qty"):
-#             accepted_doc = frappe.get_doc({
-#                 "doctype": "Inward Qty",
-#                 **accepted_values,
-#                 "grn": doc.name,
-#                 "source_row": item.name,
-#             }).insert(ignore_permissions=True)
-
-#             # Link Inward Qty to Purchase Receipt Item
-#             item.inward_qty = accepted_doc.name
-#         else:
-#             # Keep existing record in sync with the GRN row
-#             frappe.db.set_value(
-#                 "Inward Qty", item.inward_qty, accepted_values,
-#                 update_modified=False,
-#             )
-
-#         # -----------------------------------------
-#         # Rejected quantity
-#         # -----------------------------------------
-#         if item.get("rejected_qty"):
-#             rejected_values = {
-#                 "item_code": item.item_code,
-#                 "item_name": item.item_name,
-#                 "received_quantity": item.rejected_qty,
-#                 "received_quantity_uom": item.uom,
-#                 "received_quantity_in_numbers": 0,
-#             }
-
-#             if not item.get("rejected_inward_qty"):
-#                 rejected_doc = frappe.get_doc({
-#                     "doctype": "Inward Qty",
-#                     **rejected_values,
-#                     "grn": doc.name,
-#                     "source_row": item.name,
-#                 }).insert(ignore_permissions=True)
-
-#                 # Link rejected Inward Qty
-#                 item.rejected_inward_qty = rejected_doc.name
-#             else:
-#                 frappe.db.set_value(
-#                     "Inward Qty", item.rejected_inward_qty, rejected_values,
-#                     update_modified=False,
-#                 )
-                
 
 def create_inward_qty_entries(doc, method=None):
     current_row_names = {item.name for item in doc.items}
@@ -314,8 +246,6 @@ def create_inward_qty_entries(doc, method=None):
 
     for item in doc.items:
 
-        # If a Quality Inspection is linked, its accepted/rejected Nos were
-        # written to the row. Otherwise fall back to the Nos entered on the GRN.
         if item.get("quality_inspection"):
             accepted_nos = flt(item.get("custom_accepted_quantity_in_nos"))
             rejected_nos = flt(item.get("custom_rejected_quantity_in_nos"))
@@ -324,7 +254,7 @@ def create_inward_qty_entries(doc, method=None):
             rejected_nos = 0
 
         # -----------------------------------------
-        # Accepted quantity (Kg = item.qty, Nos = accepted nos)
+        # Accepted quantity
         # -----------------------------------------
         accepted_values = {
             "item_code": item.item_code,
@@ -352,7 +282,7 @@ def create_inward_qty_entries(doc, method=None):
             )
 
         # -----------------------------------------
-        # Rejected quantity (Kg = rejected_qty, Nos = rejected nos)
+        # Rejected quantity
         # -----------------------------------------
         if flt(item.get("rejected_qty")):
             rejected_values = {
@@ -363,7 +293,9 @@ def create_inward_qty_entries(doc, method=None):
                 "received_quantity_in_numbers": rejected_nos,
             }
 
-            if not item.get("rejected_inward_qty"):
+            rejected_name = item.get("rejected_inward_qty") or _get_rejected_inward_qty(doc.name, item)
+
+            if not rejected_name:
                 rejected_doc = frappe.get_doc({
                     "doctype": "Inward Qty",
                     **rejected_values,
@@ -371,14 +303,14 @@ def create_inward_qty_entries(doc, method=None):
                     "source_row": item.name,
                 }).insert(ignore_permissions=True)
 
-                # Link rejected Inward Qty
+                # Link rejected Inward Qty (kept for setups where the field exists)
                 item.rejected_inward_qty = rejected_doc.name
             else:
                 frappe.db.set_value(
-                    "Inward Qty", item.rejected_inward_qty, rejected_values,
+                    "Inward Qty", rejected_name, rejected_values,
                     update_modified=False,
                 )
-                
+
 
 def remove_inward_qty_entries(doc, method=None):
     frappe.db.delete("Inward Qty", {"grn": doc.name})
@@ -396,16 +328,22 @@ def sync_qty_in_numbers_to_sle(doc, method=None):
 
     for item in doc.items:
         # Accepted quantity
-        if item.get("inward_qty_on_grn"):
+        accepted_name = item.get("inward_qty_on_grn") or item.get("inward_qty")
+        if accepted_name:
             numbers = frappe.db.get_value(
-                "Inward Qty", item.inward_qty_on_grn, "received_quantity_in_numbers"
+                "Inward Qty", accepted_name, "received_quantity_in_numbers"
             ) or 0
             _update_sle_qty_in_numbers(doc.name, item.name, item.warehouse, numbers)
 
         # Rejected quantity, if tracked
-        if item.get("rejected_inward_qty_on_grn") and item.get("rejected_warehouse"):
+        rejected_name = (
+            item.get("rejected_inward_qty_on_grn")
+            or item.get("rejected_inward_qty")
+            or _get_rejected_inward_qty(doc.name, item)
+        )
+        if rejected_name and item.get("rejected_warehouse"):
             numbers = frappe.db.get_value(
-                "Inward Qty", item.rejected_inward_qty_on_grn, "received_quantity_in_numbers"
+                "Inward Qty", rejected_name, "received_quantity_in_numbers"
             ) or 0
             _update_sle_qty_in_numbers(doc.name, item.name, item.rejected_warehouse, numbers)
 
@@ -427,6 +365,7 @@ def _update_sle_qty_in_numbers(voucher_no, voucher_detail_no, warehouse, numbers
             "warehouse": warehouse,
         },
     )
+
 
 def get_item_qc_flags(item_codes):
     """Returns {item_code: {'internal': bool, 'third_party': bool}} from Item flags."""
@@ -456,7 +395,7 @@ def get_item_qc_flags(item_codes):
 # ════════════════════════════════════════════════════════════════════
 @frappe.whitelist()
 def make_quality_inspections_custom(company, doctype, docname, inspection_type, items):
-    
+
     if isinstance(items, str):
         items = json.loads(items)
 
@@ -522,12 +461,6 @@ def make_quality_inspections_custom(company, doctype, docname, inspection_type, 
 
     return created
 
-
-# ════════════════════════════════════════════════════════════════════
-#  THIRD PARTY QC  →  "Third Party Quality Inspection"
-#  Only for items with inspection_required_before_purchase = 1
-#  AND custom_only_internal_qc = 0.
-# ════════════════════════════════════════════════════════════════════
 @frappe.whitelist()
 def make_third_party_quality_inspections(docname):
 
