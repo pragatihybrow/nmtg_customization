@@ -220,12 +220,34 @@ def calculate_qty_in_kg(doc, method):
             else:
                 item.custom_qty_in_kg = 0
 
+
+# ════════════════════════════════════════════════════════════════════
+#  INWARD QTY
+# ════════════════════════════════════════════════════════════════════
 def _get_rejected_inward_qty(grn, item):
-    """Find the rejected Inward Qty of a GRN row without needing a link field on the row."""
+    """Find the rejected Inward Qty of a GRN row: any record of that row that is not the accepted one."""
     filters = {"grn": grn, "source_row": item.name}
     if item.get("inward_qty"):
         filters["name"] = ["!=", item.inward_qty]
-    return frappe.db.get_value("Inward Qty", filters, "name")
+    return frappe.db.get_value("Inward Qty", filters, "name", order_by="creation asc")
+
+
+def _get_rejected_qty(item):
+    """rejected_qty may not be populated yet when the hook runs, so fall back to received - accepted."""
+    rejected = flt(item.get("rejected_qty"))
+    if not rejected:
+        rejected = max(flt(item.get("received_qty")) - flt(item.get("qty")), 0)
+    return flt(rejected, 3)
+
+
+def _set_row_link(item, fieldname, value):
+    """Save a link on the GRN item row in the DB (in-memory changes made in on_update are not saved)."""
+    setattr(item, fieldname, value)
+    if frappe.get_meta("Purchase Receipt Item").has_field(fieldname):
+        frappe.db.set_value(
+            "Purchase Receipt Item", item.name, fieldname, value,
+            update_modified=False,
+        )
 
 
 def create_inward_qty_entries(doc, method=None):
@@ -240,7 +262,6 @@ def create_inward_qty_entries(doc, method=None):
         },
         pluck="name",
     )
-
     for name in orphaned:
         frappe.delete_doc("Inward Qty", name, ignore_permissions=True)
 
@@ -272,8 +293,7 @@ def create_inward_qty_entries(doc, method=None):
                 "source_row": item.name,
             }).insert(ignore_permissions=True)
 
-            # Link Inward Qty to Purchase Receipt Item
-            item.inward_qty = accepted_doc.name
+            _set_row_link(item, "inward_qty", accepted_doc.name)
         else:
             # Keep existing record in sync with the GRN row
             frappe.db.set_value(
@@ -284,16 +304,17 @@ def create_inward_qty_entries(doc, method=None):
         # -----------------------------------------
         # Rejected quantity
         # -----------------------------------------
-        if flt(item.get("rejected_qty")):
+        rejected_qty = _get_rejected_qty(item)
+        rejected_name = item.get("rejected_inward_qty") or _get_rejected_inward_qty(doc.name, item)
+
+        if rejected_qty > 0:
             rejected_values = {
                 "item_code": item.item_code,
                 "item_name": item.item_name,
-                "received_quantity": flt(item.rejected_qty),
+                "received_quantity": rejected_qty,
                 "received_quantity_uom": item.uom,
                 "received_quantity_in_numbers": rejected_nos,
             }
-
-            rejected_name = item.get("rejected_inward_qty") or _get_rejected_inward_qty(doc.name, item)
 
             if not rejected_name:
                 rejected_doc = frappe.get_doc({
@@ -303,13 +324,20 @@ def create_inward_qty_entries(doc, method=None):
                     "source_row": item.name,
                 }).insert(ignore_permissions=True)
 
-                # Link rejected Inward Qty (kept for setups where the field exists)
-                item.rejected_inward_qty = rejected_doc.name
+                _set_row_link(item, "rejected_inward_qty", rejected_doc.name)
             else:
                 frappe.db.set_value(
                     "Inward Qty", rejected_name, rejected_values,
                     update_modified=False,
                 )
+                if not item.get("rejected_inward_qty"):
+                    _set_row_link(item, "rejected_inward_qty", rejected_name)
+
+        elif rejected_name:
+            # Nothing rejected any more, so drop the stale record and clear the link
+            frappe.delete_doc("Inward Qty", rejected_name, ignore_permissions=True)
+            if item.get("rejected_inward_qty"):
+                _set_row_link(item, "rejected_inward_qty", None)
 
 
 def remove_inward_qty_entries(doc, method=None):
@@ -460,6 +488,7 @@ def make_quality_inspections_custom(company, doctype, docname, inspection_type, 
         created.append(qi.name)
 
     return created
+
 
 @frappe.whitelist()
 def make_third_party_quality_inspections(docname):
