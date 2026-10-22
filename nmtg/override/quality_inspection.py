@@ -211,6 +211,112 @@ def _compute_diameter_weight(diameter, length_val):
 
 
 
+# def update_purchase_receipt_qty(doc, method=None):
+#     if doc.reference_type != "Purchase Receipt" or not doc.reference_name:
+#         return
+#     if not doc.child_row_reference:
+#         return
+
+#     pr = frappe.get_doc("Purchase Receipt", doc.reference_name)
+
+#     if pr.docstatus != 0:
+#         frappe.msgprint(
+#             f"Purchase Receipt {pr.name} is not in Draft, so quantities were not updated.",
+#             indicator="orange",
+#             alert=True,
+#         )
+#         return
+
+#     row = next((d for d in pr.items if d.name == doc.child_row_reference), None)
+#     if not row:
+#         frappe.msgprint(
+#             f"Row {doc.child_row_reference} not found in Purchase Receipt {pr.name}.",
+#             indicator="orange",
+#             alert=True,
+#         )
+#         return
+
+#     accepted_kg = flt(doc.custom_total_accepted_in_kg)
+#     rejected_kg = flt(doc.custom_total_rejected_in_kg)
+
+#     row.qty = accepted_kg
+#     row.rejected_qty = rejected_kg
+#     row.received_qty = accepted_kg + rejected_kg
+#     row.custom_accepted_quantity_in_nos = flt(doc.custom_total_accepted_qty)
+#     row.custom_rejected_quantity_in_nos = flt(doc.custom_total_rejected_qty)
+
+#     pr.flags.ignore_permissions = True
+#     pr.save()
+
+HEAT_CODE_RE = re.compile(r"^NK\s*(\d+)(?:\s*-\s*NK\s*(\d+))?$", re.IGNORECASE)
+SINGLE_HEAT_RE = re.compile(r"^NK\s*(\d+)$", re.IGNORECASE)
+
+
+def _qi_expand_heat_numbers(text):
+    """'NK553 - NK557' -> ['NK553', ..., 'NK557']; 'NK553' -> ['NK553']."""
+    m = HEAT_CODE_RE.match((text or "").replace("\n", " ").strip())
+    if not m:
+        return []
+    start = int(m.group(1))
+    end = int(m.group(2)) if m.group(2) else start
+    if end < start:
+        return []
+    return [f"NK{n}" for n in range(start, end + 1)]
+
+
+def _qi_join_heat_numbers(codes):
+    """['NK557','NK553','NK554'] -> 'NK553, NK554, NK557' (sorted by number)."""
+    valid = [c for c in set(codes) if SINGLE_HEAT_RE.match(c)]
+    valid.sort(key=lambda c: int(SINGLE_HEAT_RE.match(c).group(1)))
+    return ", ".join(valid)
+
+
+def _qi_get_accepted_rejected_heat_numbers(doc):
+    """Work out accepted / rejected heat numbers from the Quality Inspection readings.
+
+    A heat number is rejected when any numeric reading with a min/max range is outside that
+    range (unless that heat number is approved in the reading's '__approvals__').
+    Returns (accepted_codes, rejected_codes) as sets of 'NKxxx'.
+    """
+    all_heats = set(_qi_expand_heat_numbers(doc.get("custom_nmtg_heat_number")))
+    rejected = set()
+
+    for reading in doc.get("readings") or []:
+        try:
+            details = json.loads(reading.get("custom_reading_details") or "{}")
+        except Exception:
+            continue
+        if not isinstance(details, dict):
+            continue
+
+        approvals = details.get("__approvals__") or {}
+        min_value = flt(reading.get("min_value"))
+        max_value = flt(reading.get("max_value"))
+        check_range = bool(reading.get("numeric")) and (min_value or max_value)
+
+        for heat, value in details.items():
+            if heat.startswith("__"):
+                continue
+
+            heat = heat.replace(" ", "").upper()
+            if not SINGLE_HEAT_RE.match(heat):
+                continue
+            all_heats.add(heat)
+
+            if not check_range or approvals.get(heat) or value in (None, ""):
+                continue
+
+            try:
+                value = flt(value)
+            except Exception:
+                continue
+
+            if value < min_value or value > max_value:
+                rejected.add(heat)
+
+    return all_heats - rejected, rejected
+
+
 def update_purchase_receipt_qty(doc, method=None):
     if doc.reference_type != "Purchase Receipt" or not doc.reference_name:
         return
@@ -238,12 +344,38 @@ def update_purchase_receipt_qty(doc, method=None):
 
     accepted_kg = flt(doc.custom_total_accepted_in_kg)
     rejected_kg = flt(doc.custom_total_rejected_in_kg)
+    accepted_nos = flt(doc.custom_total_accepted_qty)
+    rejected_nos = flt(doc.custom_total_rejected_qty)
 
     row.qty = accepted_kg
     row.rejected_qty = rejected_kg
     row.received_qty = accepted_kg + rejected_kg
-    row.custom_accepted_quantity_in_nos = flt(doc.custom_total_accepted_qty)
-    row.custom_rejected_quantity_in_nos = flt(doc.custom_total_rejected_qty)
+    row.custom_accepted_quantity_in_nos = accepted_nos
+    row.custom_rejected_quantity_in_nos = rejected_nos
+
+    # ── Accepted / Rejected NMTG codes from the Quality Inspection (comma separated) ──
+    accepted_codes, rejected_codes = _qi_get_accepted_rejected_heat_numbers(doc)
+    all_codes = accepted_codes | rejected_codes
+
+    if len(all_codes) == 1:
+        # Single NMTG code shared by every piece: same code on both sides when both have qty
+        code = next(iter(all_codes))
+        row.custom_accepted_nmtg_code = code if accepted_nos > 0 else ""
+        row.custom_rejected_nmtg_code = code if rejected_nos > 0 else ""
+    else:
+        row.custom_accepted_nmtg_code = _qi_join_heat_numbers(accepted_codes) if accepted_nos > 0 else ""
+        row.custom_rejected_nmtg_code = _qi_join_heat_numbers(rejected_codes) if rejected_nos > 0 else ""
+
+        # Safety check: the derived codes should agree with the QI totals
+        if len(accepted_codes) != int(accepted_nos) or len(rejected_codes) != int(rejected_nos):
+            frappe.msgprint(
+                f"Quality Inspection {doc.name}: accepted/rejected NMTG codes "
+                f"({len(accepted_codes)} / {len(rejected_codes)}) do not match the "
+                f"accepted/rejected quantities in Nos ({int(accepted_nos)} / {int(rejected_nos)}). "
+                f"Please check the NMTG codes on the Purchase Receipt row.",
+                indicator="orange",
+                alert=True,
+            )
 
     pr.flags.ignore_permissions = True
     pr.save()

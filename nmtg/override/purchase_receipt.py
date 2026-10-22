@@ -250,7 +250,23 @@ def _set_row_link(item, fieldname, value):
         )
 
 
+def _clear_copied_inward_links(doc):
+    """A return GRN copies inward_qty / rejected_inward_qty from the original GRN row.
+    Those records belong to the original GRN, so unlink them from the return rows."""
+    for item in doc.items:
+        for fieldname in ("inward_qty", "rejected_inward_qty"):
+            if item.get(fieldname):
+                owner = frappe.db.get_value("Inward Qty", item.get(fieldname), "grn")
+                if owner != doc.name:
+                    _set_row_link(item, fieldname, None)
+
+
 def create_inward_qty_entries(doc, method=None):
+    # Returns must never create, update or delete the original GRN's Inward Qty records
+    if doc.get("is_return"):
+        _clear_copied_inward_links(doc)
+        return
+
     current_row_names = {item.name for item in doc.items}
 
     # Remove orphaned Inward Qty records
@@ -341,6 +357,7 @@ def create_inward_qty_entries(doc, method=None):
 
 
 def remove_inward_qty_entries(doc, method=None):
+    # A return GRN owns no Inward Qty records; this only removes records whose grn is this document
     frappe.db.delete("Inward Qty", {"grn": doc.name})
 
 
@@ -352,6 +369,14 @@ def sync_qty_in_numbers_to_sle(doc, method=None):
             f"{doc.name}",
             "NMTG: SLE qty in numbers sync skipped",
         )
+        return
+
+    # Returns have no Inward Qty records of their own; use the numbers entered on the return row
+    if doc.get("is_return"):
+        for item in doc.items:
+            numbers = flt(item.get("custom_qty_in_no"))
+            if numbers:
+                _update_sle_qty_in_numbers(doc.name, item.name, item.warehouse, numbers)
         return
 
     for item in doc.items:
