@@ -296,7 +296,8 @@ doc_events = {
             
         ],
         "on_submit":[
-            "nmtg.override.quality_inspection.on_submit",    
+            "nmtg.override.quality_inspection.on_submit",   
+            "nmtg.override.quality_inspection.update_purchase_receipt_qty"
         ],
     },
 

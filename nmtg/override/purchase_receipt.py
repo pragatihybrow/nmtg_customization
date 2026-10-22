@@ -221,6 +221,81 @@ def calculate_qty_in_kg(doc, method):
                 item.custom_qty_in_kg = 0
 
 
+# def create_inward_qty_entries(doc, method=None):
+#     current_row_names = {item.name for item in doc.items}
+
+#     # Remove orphaned Inward Qty records
+#     orphaned = frappe.get_all(
+#         "Inward Qty",
+#         filters={
+#             "grn": doc.name,
+#             "source_row": ["not in", list(current_row_names) or [""]],
+#         },
+#         pluck="name",
+#     )
+
+#     for name in orphaned:
+#         frappe.delete_doc("Inward Qty", name, ignore_permissions=True)
+
+#     for item in doc.items:
+
+#         # -----------------------------------------
+#         # Accepted quantity
+#         # -----------------------------------------
+#         accepted_values = {
+#             "item_code": item.item_code,
+#             "item_name": item.item_name,
+#             "received_quantity": item.qty,
+#             "received_quantity_uom": item.uom,
+#             "received_quantity_in_numbers": item.get("custom_qty_in_no") or 0,
+#         }
+
+#         if not item.get("inward_qty"):
+#             accepted_doc = frappe.get_doc({
+#                 "doctype": "Inward Qty",
+#                 **accepted_values,
+#                 "grn": doc.name,
+#                 "source_row": item.name,
+#             }).insert(ignore_permissions=True)
+
+#             # Link Inward Qty to Purchase Receipt Item
+#             item.inward_qty = accepted_doc.name
+#         else:
+#             # Keep existing record in sync with the GRN row
+#             frappe.db.set_value(
+#                 "Inward Qty", item.inward_qty, accepted_values,
+#                 update_modified=False,
+#             )
+
+#         # -----------------------------------------
+#         # Rejected quantity
+#         # -----------------------------------------
+#         if item.get("rejected_qty"):
+#             rejected_values = {
+#                 "item_code": item.item_code,
+#                 "item_name": item.item_name,
+#                 "received_quantity": item.rejected_qty,
+#                 "received_quantity_uom": item.uom,
+#                 "received_quantity_in_numbers": 0,
+#             }
+
+#             if not item.get("rejected_inward_qty"):
+#                 rejected_doc = frappe.get_doc({
+#                     "doctype": "Inward Qty",
+#                     **rejected_values,
+#                     "grn": doc.name,
+#                     "source_row": item.name,
+#                 }).insert(ignore_permissions=True)
+
+#                 # Link rejected Inward Qty
+#                 item.rejected_inward_qty = rejected_doc.name
+#             else:
+#                 frappe.db.set_value(
+#                     "Inward Qty", item.rejected_inward_qty, rejected_values,
+#                     update_modified=False,
+#                 )
+                
+
 def create_inward_qty_entries(doc, method=None):
     current_row_names = {item.name for item in doc.items}
 
@@ -239,15 +314,24 @@ def create_inward_qty_entries(doc, method=None):
 
     for item in doc.items:
 
+        # If a Quality Inspection is linked, its accepted/rejected Nos were
+        # written to the row. Otherwise fall back to the Nos entered on the GRN.
+        if item.get("quality_inspection"):
+            accepted_nos = flt(item.get("custom_accepted_quantity_in_nos"))
+            rejected_nos = flt(item.get("custom_rejected_quantity_in_nos"))
+        else:
+            accepted_nos = flt(item.get("custom_qty_in_no"))
+            rejected_nos = 0
+
         # -----------------------------------------
-        # Accepted quantity
+        # Accepted quantity (Kg = item.qty, Nos = accepted nos)
         # -----------------------------------------
         accepted_values = {
             "item_code": item.item_code,
             "item_name": item.item_name,
-            "received_quantity": item.qty,
+            "received_quantity": flt(item.qty),
             "received_quantity_uom": item.uom,
-            "received_quantity_in_numbers": item.get("custom_qty_in_no") or 0,
+            "received_quantity_in_numbers": accepted_nos,
         }
 
         if not item.get("inward_qty"):
@@ -268,15 +352,15 @@ def create_inward_qty_entries(doc, method=None):
             )
 
         # -----------------------------------------
-        # Rejected quantity
+        # Rejected quantity (Kg = rejected_qty, Nos = rejected nos)
         # -----------------------------------------
-        if item.get("rejected_qty"):
+        if flt(item.get("rejected_qty")):
             rejected_values = {
                 "item_code": item.item_code,
                 "item_name": item.item_name,
-                "received_quantity": item.rejected_qty,
+                "received_quantity": flt(item.rejected_qty),
                 "received_quantity_uom": item.uom,
-                "received_quantity_in_numbers": 0,
+                "received_quantity_in_numbers": rejected_nos,
             }
 
             if not item.get("rejected_inward_qty"):

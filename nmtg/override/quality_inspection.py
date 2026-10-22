@@ -208,3 +208,42 @@ def _compute_diameter_weight(diameter, length_val):
     except (TypeError, ValueError):
         return None
     return d * d * l_mm * 0.000006165
+
+
+
+def update_purchase_receipt_qty(doc, method=None):
+    if doc.reference_type != "Purchase Receipt" or not doc.reference_name:
+        return
+    if not doc.child_row_reference:
+        return
+
+    pr = frappe.get_doc("Purchase Receipt", doc.reference_name)
+
+    if pr.docstatus != 0:
+        frappe.msgprint(
+            f"Purchase Receipt {pr.name} is not in Draft, so quantities were not updated.",
+            indicator="orange",
+            alert=True,
+        )
+        return
+
+    row = next((d for d in pr.items if d.name == doc.child_row_reference), None)
+    if not row:
+        frappe.msgprint(
+            f"Row {doc.child_row_reference} not found in Purchase Receipt {pr.name}.",
+            indicator="orange",
+            alert=True,
+        )
+        return
+
+    accepted_kg = flt(doc.custom_total_accepted_in_kg)
+    rejected_kg = flt(doc.custom_total_rejected_in_kg)
+
+    row.qty = accepted_kg
+    row.rejected_qty = rejected_kg
+    row.received_qty = accepted_kg + rejected_kg
+    row.custom_accepted_quantity_in_nos = flt(doc.custom_total_accepted_qty)
+    row.custom_rejected_quantity_in_nos = flt(doc.custom_total_rejected_qty)
+
+    pr.flags.ignore_permissions = True
+    pr.save()
