@@ -430,7 +430,11 @@ function apply_item_settings_fields(frm) {
         "custom_quality_category_required",
         "custom_mr_uom",
         "custom_special_item",
-        "custom_special_characteristics"
+        "custom_special_characteristics",
+        "total_projected_qty",
+        "custom_manufacture_timeline",
+        "custom_weeks",
+        "custom_days"
     ];
 
     // Remember each field's original "reqd" (from the doctype) the first time,
