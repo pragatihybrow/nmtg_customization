@@ -283,6 +283,14 @@ def create_inward_qty_entries(doc, method=None):
 
     for item in doc.items:
 
+        # Split rejected row (created from the Quality Inspection): qty 0, only rejected qty.
+        # It has no accepted Inward Qty of its own and must not touch the accepted row's record.
+        is_split_rejected = (
+            bool(item.get("quality_inspection"))
+            and flt(item.get("qty")) == 0
+            and flt(item.get("rejected_qty")) > 0
+        )
+
         if item.get("quality_inspection"):
             accepted_nos = flt(item.get("custom_accepted_quantity_in_nos"))
             rejected_nos = flt(item.get("custom_rejected_quantity_in_nos"))
@@ -293,29 +301,34 @@ def create_inward_qty_entries(doc, method=None):
         # -----------------------------------------
         # Accepted quantity
         # -----------------------------------------
-        accepted_values = {
-            "item_code": item.item_code,
-            "item_name": item.item_name,
-            "received_quantity": flt(item.qty),
-            "received_quantity_uom": item.uom,
-            "received_quantity_in_numbers": accepted_nos,
-        }
-
-        if not item.get("inward_qty"):
-            accepted_doc = frappe.get_doc({
-                "doctype": "Inward Qty",
-                **accepted_values,
-                "grn": doc.name,
-                "source_row": item.name,
-            }).insert(ignore_permissions=True)
-
-            _set_row_link(item, "inward_qty", accepted_doc.name)
+        if is_split_rejected:
+            # Drop any accepted link copied from the accepted row (do NOT delete the record)
+            if item.get("inward_qty"):
+                _set_row_link(item, "inward_qty", None)
         else:
-            # Keep existing record in sync with the GRN row
-            frappe.db.set_value(
-                "Inward Qty", item.inward_qty, accepted_values,
-                update_modified=False,
-            )
+            accepted_values = {
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "received_quantity": flt(item.qty),
+                "received_quantity_uom": item.uom,
+                "received_quantity_in_numbers": accepted_nos,
+            }
+
+            if not item.get("inward_qty"):
+                accepted_doc = frappe.get_doc({
+                    "doctype": "Inward Qty",
+                    **accepted_values,
+                    "grn": doc.name,
+                    "source_row": item.name,
+                }).insert(ignore_permissions=True)
+
+                _set_row_link(item, "inward_qty", accepted_doc.name)
+            else:
+                # Keep existing record in sync with the GRN row
+                frappe.db.set_value(
+                    "Inward Qty", item.inward_qty, accepted_values,
+                    update_modified=False,
+                )
 
         # -----------------------------------------
         # Rejected quantity

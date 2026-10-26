@@ -210,44 +210,6 @@ def _compute_diameter_weight(diameter, length_val):
     return d * d * l_mm * 0.000006165
 
 
-
-# def update_purchase_receipt_qty(doc, method=None):
-#     if doc.reference_type != "Purchase Receipt" or not doc.reference_name:
-#         return
-#     if not doc.child_row_reference:
-#         return
-
-#     pr = frappe.get_doc("Purchase Receipt", doc.reference_name)
-
-#     if pr.docstatus != 0:
-#         frappe.msgprint(
-#             f"Purchase Receipt {pr.name} is not in Draft, so quantities were not updated.",
-#             indicator="orange",
-#             alert=True,
-#         )
-#         return
-
-#     row = next((d for d in pr.items if d.name == doc.child_row_reference), None)
-#     if not row:
-#         frappe.msgprint(
-#             f"Row {doc.child_row_reference} not found in Purchase Receipt {pr.name}.",
-#             indicator="orange",
-#             alert=True,
-#         )
-#         return
-
-#     accepted_kg = flt(doc.custom_total_accepted_in_kg)
-#     rejected_kg = flt(doc.custom_total_rejected_in_kg)
-
-#     row.qty = accepted_kg
-#     row.rejected_qty = rejected_kg
-#     row.received_qty = accepted_kg + rejected_kg
-#     row.custom_accepted_quantity_in_nos = flt(doc.custom_total_accepted_qty)
-#     row.custom_rejected_quantity_in_nos = flt(doc.custom_total_rejected_qty)
-
-#     pr.flags.ignore_permissions = True
-#     pr.save()
-
 HEAT_CODE_RE = re.compile(r"^NK\s*(\d+)(?:\s*-\s*NK\s*(\d+))?$", re.IGNORECASE)
 SINGLE_HEAT_RE = re.compile(r"^NK\s*(\d+)$", re.IGNORECASE)
 
@@ -317,6 +279,106 @@ def _qi_get_accepted_rejected_heat_numbers(doc):
     return all_heats - rejected, rejected
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Conversion factor (MM per Kg) driven by the Quality Inspection
+#   Accepted row : factor = accepted mm / accepted kg
+#   Rejected row : factor = rejected mm / rejected kg
+# ─────────────────────────────────────────────────────────────────────────────
+def _qi_calc_ratio(mm, kg):
+    mm = flt(mm)
+    kg = flt(kg)
+    if mm > 0 and kg > 0:
+        return flt(mm / kg, 9)
+    return 0
+
+
+def _qi_find_rejected_row(pr, accepted_row, qi_name):
+    """The split-off rejected row: same item + same QI, qty 0, rejected_qty > 0."""
+    for d in pr.get("items") or []:
+        if d.name == accepted_row.name:
+            continue
+        if (
+            d.get("quality_inspection") == qi_name
+            and d.item_code == accepted_row.item_code
+            and flt(d.qty) == 0
+            and flt(d.rejected_qty) > 0
+        ):
+            return d
+    return None
+
+
+def apply_qi_conversion_factor(doc, method=None):
+    """Purchase Receipt before_validate: keep conversion_factor on the accepted row
+    and the split rejected row in line with the submitted Quality Inspection, so
+    ERPNext's standard validate recalculates stock_qty / received_stock_qty from it.
+
+    Register in hooks.py:
+        doc_events = {
+            "Purchase Receipt": {
+                "before_validate": "<your_module_path>.apply_qi_conversion_factor",
+            },
+        }
+    """
+    if doc.docstatus == 2:
+        return
+
+    for row in doc.get("items") or []:
+        if not row.get("quality_inspection"):
+            continue
+        if not row.uom or not row.stock_uom or row.uom == row.stock_uom:
+            continue
+
+        qi = frappe.db.get_value(
+            "Quality Inspection",
+            row.quality_inspection,
+            [
+                "docstatus",
+                "child_row_reference",
+                "custom_total_accepted_in_kg",
+                "custom_total_rejected_in_kg",
+                "custom_total_accepted_in_mm",
+                "custom_total_rejected_in_mm",
+            ],
+            as_dict=True,
+        )
+        if not qi or qi.docstatus != 1:
+            continue
+
+        if row.name == qi.child_row_reference:
+            # Accepted row
+            new_cf = _qi_calc_ratio(qi.custom_total_accepted_in_mm, qi.custom_total_accepted_in_kg)
+            if not new_cf:
+                # Nothing accepted: fall back to overall received ratio
+                new_cf = _qi_calc_ratio(
+                    flt(qi.custom_total_accepted_in_mm) + flt(qi.custom_total_rejected_in_mm),
+                    flt(qi.custom_total_accepted_in_kg) + flt(qi.custom_total_rejected_in_kg),
+                )
+        elif flt(row.qty) == 0 and flt(row.rejected_qty) > 0:
+            # Split rejected row
+            new_cf = _qi_calc_ratio(qi.custom_total_rejected_in_mm, qi.custom_total_rejected_in_kg)
+        else:
+            continue
+
+        if new_cf > 0:
+            row.conversion_factor = new_cf
+
+
+def _qi_restore_row_factor(row_name, cf, qty, received_qty):
+    """Safety net: if anything reset the factor during save, write it back."""
+    saved_cf = flt(frappe.db.get_value("Purchase Receipt Item", row_name, "conversion_factor"), 9)
+    if abs(saved_cf - cf) > 0.000001:
+        frappe.db.set_value(
+            "Purchase Receipt Item",
+            row_name,
+            {
+                "conversion_factor": cf,
+                "stock_qty": flt(qty * cf, 3),
+                "received_stock_qty": flt(received_qty * cf, 3),
+            },
+            update_modified=False,
+        )
+
+
 def update_purchase_receipt_qty(doc, method=None):
     if doc.reference_type != "Purchase Receipt" or not doc.reference_name:
         return
@@ -344,27 +406,24 @@ def update_purchase_receipt_qty(doc, method=None):
 
     accepted_kg = flt(doc.custom_total_accepted_in_kg)
     rejected_kg = flt(doc.custom_total_rejected_in_kg)
+    accepted_mm = flt(doc.custom_total_accepted_in_mm)
+    rejected_mm = flt(doc.custom_total_rejected_in_mm)
     accepted_nos = flt(doc.custom_total_accepted_qty)
     rejected_nos = flt(doc.custom_total_rejected_qty)
 
-    row.qty = accepted_kg
-    row.rejected_qty = rejected_kg
-    row.received_qty = accepted_kg + rejected_kg
-    row.custom_accepted_quantity_in_nos = accepted_nos
-    row.custom_rejected_quantity_in_nos = rejected_nos
+    can_convert = bool(row.uom and row.stock_uom and row.uom != row.stock_uom)
 
-    # ── Accepted / Rejected NMTG codes from the Quality Inspection (comma separated) ──
+    # ── Accepted / Rejected NMTG codes from the Quality Inspection ──
     accepted_codes, rejected_codes = _qi_get_accepted_rejected_heat_numbers(doc)
     all_codes = accepted_codes | rejected_codes
 
     if len(all_codes) == 1:
-        # Single NMTG code shared by every piece: same code on both sides when both have qty
         code = next(iter(all_codes))
-        row.custom_accepted_nmtg_code = code if accepted_nos > 0 else ""
-        row.custom_rejected_nmtg_code = code if rejected_nos > 0 else ""
+        accepted_code_str = code if accepted_nos > 0 else ""
+        rejected_code_str = code if rejected_nos > 0 else ""
     else:
-        row.custom_accepted_nmtg_code = _qi_join_heat_numbers(accepted_codes) if accepted_nos > 0 else ""
-        row.custom_rejected_nmtg_code = _qi_join_heat_numbers(rejected_codes) if rejected_nos > 0 else ""
+        accepted_code_str = _qi_join_heat_numbers(accepted_codes) if accepted_nos > 0 else ""
+        rejected_code_str = _qi_join_heat_numbers(rejected_codes) if rejected_nos > 0 else ""
 
         # Safety check: the derived codes should agree with the QI totals
         if len(accepted_codes) != int(accepted_nos) or len(rejected_codes) != int(rejected_nos):
@@ -377,5 +436,69 @@ def update_purchase_receipt_qty(doc, method=None):
                 alert=True,
             )
 
+    # ── ROW 1: ACCEPTED ─────────────────────────────────────────────────────
+    row.qty = accepted_kg
+    row.received_qty = accepted_kg
+    row.rejected_qty = 0
+    row.custom_accepted_quantity_in_nos = accepted_nos
+    row.custom_rejected_quantity_in_nos = 0
+    row.custom_accepted_nmtg_code = accepted_code_str
+    row.custom_rejected_nmtg_code = ""
+
+    acc_cf = 0
+    if can_convert:
+        acc_cf = _qi_calc_ratio(accepted_mm, accepted_kg)
+        if not acc_cf:
+            acc_cf = _qi_calc_ratio(accepted_mm + rejected_mm, accepted_kg + rejected_kg)
+        if acc_cf > 0:
+            row.conversion_factor = acc_cf
+            row.stock_qty = flt(row.qty * acc_cf, 3)
+            row.received_stock_qty = flt(row.received_qty * acc_cf, 3)
+
+    # ── ROW 2: REJECTED (separate row so it can carry its own factor) ───────
+    rej_row = _qi_find_rejected_row(pr, row, doc.name)
+    rej_cf = 0
+
+    if rejected_kg > 0:
+        if not rej_row:
+            data = row.as_dict()
+            for key in (
+                "name", "idx", "creation", "modified", "modified_by", "owner",
+                "parent", "parentfield", "parenttype", "docstatus",
+                # Inward Qty links belong to the accepted row; never share them
+                "inward_qty", "rejected_inward_qty",
+            ):
+                data.pop(key, None)
+            rej_row = pr.append("items", data)
+
+        rej_row.qty = 0
+        rej_row.received_qty = rejected_kg
+        rej_row.rejected_qty = rejected_kg
+        rej_row.rejected_warehouse = row.rejected_warehouse or pr.rejected_warehouse
+        rej_row.quality_inspection = doc.name
+        rej_row.custom_accepted_quantity_in_nos = 0
+        rej_row.custom_rejected_quantity_in_nos = rejected_nos
+        rej_row.custom_accepted_nmtg_code = ""
+        rej_row.custom_rejected_nmtg_code = rejected_code_str
+        # The split row must never point at the accepted row's Inward Qty
+        rej_row.inward_qty = None
+
+        if can_convert:
+            rej_cf = _qi_calc_ratio(rejected_mm, rejected_kg)
+            if rej_cf > 0:
+                rej_row.conversion_factor = rej_cf
+                rej_row.stock_qty = 0
+                rej_row.received_stock_qty = flt(rejected_kg * rej_cf, 3)
+    elif rej_row:
+        # Nothing rejected any more: drop the split row
+        pr.remove(rej_row)
+        rej_row = None
+
     pr.flags.ignore_permissions = True
     pr.save()
+
+    # ── Safety net: if anything reset a factor during save, write it back ──
+    if acc_cf > 0:
+        _qi_restore_row_factor(row.name, acc_cf, accepted_kg, accepted_kg)
+    if rej_row and rej_cf > 0:
+        _qi_restore_row_factor(rej_row.name, rej_cf, 0, rejected_kg)
