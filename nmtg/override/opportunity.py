@@ -138,7 +138,16 @@ def make_quotation(source_name, target_doc=None):
 
         quotation.run_method("set_missing_values")
         quotation.run_method("calculate_taxes_and_totals")
-        if not source.with_items:
+
+        # `with_items` may not exist on this site's Opportunity (removed/renamed
+        # in newer versions). If it's absent, fall back to "no in-scope items
+        # were mapped", which is the case the link is meant to cover.
+        if hasattr(source, "with_items"):
+            has_items = bool(source.with_items)
+        else:
+            has_items = bool(quotation.get("items"))
+
+        if not has_items:
             quotation.opportunity = source.name
 
     return get_mapped_doc(
