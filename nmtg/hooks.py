@@ -271,6 +271,7 @@ doctype_js = {
      "Purchase Invoice": "public/js/purchase_invoice.js",
      "Leave Application": "public/js/leave_application.js",
      "Address": "public/js/address.js",
+     "Job Card":"public/mfg_js/job_card.js",
 }
 
 override_doctype_class = {
@@ -279,7 +280,9 @@ override_doctype_class = {
     "Opportunity": "nmtg.override.opportunity.CustomOpportunity",
     "Customer": "nmtg.override.customer.CustomCustomer",
     "Leave Application": "nmtg.override.leave_application.CustomLeaveApplication",
-    "Payment Request": "nmtg.override.payment_request.CustomPaymentRequest",    
+    "Payment Request": "nmtg.override.payment_request.CustomPaymentRequest", 
+    "Job Card": "nmtg.override.mfg_py.job_card.CustomJobCard",   
+    "Stock Entry": "nmtg.override.mfg_py.stock_entry.CustomStockEntry",
 }
 
 doctype_list_js = {
@@ -372,6 +375,10 @@ doc_events = {
     },
     "Payment Request": {
         "on_submit": "nmtg.override.payment_request.send_proforma_invoice_email",
+    },
+     "Stock Entry": {
+        "on_cancel": "nmtg.override.mfg_py.stock_entry.on_cancel_reset",
+        "on_trash": "nmtg.override.mfg_py.stock_entry.on_trash_reset",
     },
 }
 
