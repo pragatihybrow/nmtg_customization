@@ -1,0 +1,47 @@
+[
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-05 16:21:56.230048",
+  "name": "Draft",
+  "style": "Danger",
+  "workflow_state_name": "Draft"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "remove",
+  "modified": "2026-07-31 16:24:46.196296",
+  "name": "Rejected",
+  "style": "Danger",
+  "workflow_state_name": "Rejected"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-08-05 16:21:56.459778",
+  "name": "Approved",
+  "style": "Primary",
+  "workflow_state_name": "Approved"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-30 17:09:36.910188",
+  "name": "Pending HR Approval",
+  "style": "",
+  "workflow_state_name": "Pending HR Approval"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow State",
+  "icon": "",
+  "modified": "2026-10-30 17:09:09.075178",
+  "name": "Pending HOD Approval",
+  "style": "",
+  "workflow_state_name": "Pending HOD Approval"
+ }
+]
