@@ -429,11 +429,35 @@ fixtures = [
         "dt": "Custom HTML Block",
         "filters": [["name", "=", "My Leave Dashboard"]]
     },
-    {
+       {
         "dt": "Workspace",
         "filters": [["name", "=", "Leaves"]]
     },
 
+    # ---- Expense approval workflow ----
+    {
+        "dt": "Workflow State",
+        "filters": [["name", "in", [
+            "Draft", "Pending HOD Approval", "Pending HR Approval",
+            "Approved", "Rejected"
+        ]]]
+    },
+    {
+        "dt": "Workflow Action Master",
+        "filters": [["name", "in", ["Submit for Approval", "Submit to Approval", "Approve", "Reject"]]]
+    },
+    {
+        "dt": "Workflow",
+        "filters": [["name", "in", ["Expense Approval", "Leave Approval"]]]
+    },
+    {
+        "dt": "Notification",
+        "filters": [["name", "in", [
+            "Expense Approved - Accounts Manager",
+            "Leave Submitted - HOD",
+            "Leave Approved by HOD - HR Manager"
+        ]]]
+    },
 
 ]
 
