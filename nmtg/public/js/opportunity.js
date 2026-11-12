@@ -3,7 +3,7 @@ frappe.ui.form.on("Opportunity", {
 		frm.set_query("opportunity_from", function () {
 			return {
 				filters: {
-					name: ["in", ["Customer", "Lead", "Prospect", "Enquiry"]],
+					name: ["in", ["Customer", "Lead", "Enquiry"]],
 				},
 			};
 		});
@@ -39,6 +39,7 @@ frappe.ui.form.on("Opportunity", {
             frm.remove_custom_button("Customer", "Create");
         }, 300);
          set_contact_email_from_primary(frm);
+         set_dealer(frm);
     },
     status: function(frm) {
         update_technical_status(frm);
@@ -80,6 +81,15 @@ frappe.ui.form.on("Opportunity", {
 	 shipping_address_name: function(frm) {
         fetch_shipping_address(frm);
     },
+    party_name(frm) {
+		set_dealer(frm);
+	},
+	opportunity_from(frm) {
+		set_dealer(frm);
+	},
+	onload(frm) {
+		if (frm.is_new()) set_dealer(frm);
+	},
    
 });
 
@@ -241,4 +251,20 @@ function set_contact_email_from_primary(frm) {
     if (primary && frm.doc.contact_email !== primary.email_id) {
         frm.set_value("contact_email", primary.email_id);
     }
+}
+
+
+function set_dealer(frm) {
+	if (frm.doc.opportunity_from !== "Customer" || !frm.doc.party_name) {
+		frm.set_value("custom_dealer", "");
+		return;
+	}
+
+	frappe.call({
+		method: "nmtg.override.api.get_dealer_for_customer",
+		args: { customer: frm.doc.party_name },
+		callback(r) {
+			frm.set_value("custom_dealer", r.message || "");
+		},
+	});
 }

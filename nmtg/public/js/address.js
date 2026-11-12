@@ -1,12 +1,43 @@
 frappe.ui.form.on("Address", {
     refresh: function(frm) {
         frm.__loaded_state = frm.doc.state || "";
+
+        if (frm.is_new()) {
+            fetch_company_from_lead(frm);
+        }
     },
 
     before_save: function(frm) {
         set_state_in_address_title(frm);
     }
 });
+
+frappe.ui.form.on("Dynamic Link", {
+    link_doctype: function(frm, cdt, cdn) {
+        if (frm.is_new()) fetch_company_from_lead(frm, true);
+    },
+    link_name: function(frm, cdt, cdn) {
+        if (frm.is_new()) fetch_company_from_lead(frm, true);
+    }
+});
+
+function fetch_company_from_lead(frm, force) {
+    if (frm.__company_fetched && !force) return;
+
+    const row = (frm.doc.links || []).find(
+        (d) => d.link_doctype === "Lead" && d.link_name
+    );
+    if (!row) return;
+
+    frappe.db.get_value("Lead", row.link_name, ["company_name", "lead_name"]).then((r) => {
+        const v = r.message || {};
+        const company = (v.company_name || v.lead_name || "").trim();
+        if (!company) return;
+
+        frm.__company_fetched = true;
+        frm.set_value("address_title", company);
+    });
+}
 
 function set_state_in_address_title(frm) {
     const state = (frm.doc.state || "").trim();

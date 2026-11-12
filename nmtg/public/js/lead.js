@@ -34,9 +34,11 @@ frappe.ui.form.on('Lead', {
 
     first_name(frm) {
         set_first_row_name(frm);
+		check_duplicate_customer(frm);
     },
     company_name(frm) {
         set_first_row_name(frm);
+		check_duplicate_customer(frm);
     },
     qualification_status: function (frm) {
 		render_email_preview(frm);
@@ -49,6 +51,7 @@ frappe.ui.form.on('Lead', {
 		if (primary_count > 1) {
 			frappe.throw(__("Only one Contact can be marked as Primary Contact."));
 		}
+		check_duplicate_customer(frm);
 	},
 	before_workflow_action: function (frm) {
 		const action = frm.selected_workflow_action;
@@ -706,7 +709,13 @@ function render_preview_body(frm, $wrapper, customer_name, anchor_str, NMTG_SIGN
 			const send_control = already_sent
 				? `<span style="font-size:11px; font-weight:600; color:#2e7d32; background:#e8f5e9; padding:3px 10px; border-radius:10px;">
 					✓ Sent${sent_on ? ` on ${frappe.datetime.str_to_user(sent_on)}` : ""}
-				   </span>`
+				   </span>
+				   <button type="button"
+					class="btn btn-xs btn-default"
+					style="font-size:11px;"
+					onclick="event.stopPropagation(); send_lead_stage_email_ui('${stage.key}');">
+					Resend
+				</button>`
 				: `<button type="button"
 					class="btn btn-xs btn-default"
 					style="font-size:11px;"
@@ -794,9 +803,13 @@ function send_lead_stage_email_ui(stage_key) {
 		return;
 	}
 
+	const field_key_for_confirm = get_stage_field_key(stage.key);
+	const is_resend = !!frm.doc[`custom_${field_key_for_confirm}_email_sent`];
+	const verb = is_resend ? __("Resend") : __("Send");
+
 	const confirm_msg = cc.length
-		? __("Send \"{0}\" to {1} (cc: {2})?", [stage.label, to, cc.join(", ")])
-		: __("Send \"{0}\" to {1}?", [stage.label, to]);
+		? __("{0} \"{1}\" to {2} (cc: {3})?", [verb, stage.label, to, cc.join(", ")])
+		: __("{0} \"{1}\" to {2}?", [verb, stage.label, to]);
 
 	frappe.confirm(
 		confirm_msg,
@@ -808,6 +821,8 @@ function send_lead_stage_email_ui(stage_key) {
 					stage_key: stage.key,
 					subject: stage.subject,
 					message: stage.body,
+					// Attachment only for the Introduction Email (same as Prospect)
+					attach_files: stage.key === "intro" ? 1 : 0,
 				},
 				freeze: true,
 				freeze_message: __("Sending email…"),
@@ -887,4 +902,27 @@ function build_product_group_list_html(product_group_list) {
 		: DEFAULT_PRODUCT_GROUP_LIST;
 
 	return `<ul>${items.map(name => `<li>${frappe.utils.escape_html(name)}</li>`).join("")}</ul>`;
+}
+
+
+function check_duplicate_customer(frm, block) {
+    if (!frm.is_new()) return;
+
+    const name_to_check = (frm.doc.company_name || frm.doc.lead_name || "").trim();
+    if (!name_to_check) return;
+
+    return frappe.db.get_value("Customer", { customer_name: name_to_check }, "name").then((r) => {
+        const existing = r.message && r.message.name;
+        if (!existing) return;
+
+        frappe.msgprint({
+            title: __("Duplicate Customer"),
+            indicator: "red",
+            message: __("Customer <b>{0}</b> already exists with the same name. Lead cannot be created.", [existing])
+        });
+
+        if (block) {
+            frappe.validated = false;
+        }
+    });
 }

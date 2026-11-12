@@ -4,7 +4,7 @@
 frappe.ui.form.on("Enquiry", {
 	refresh(frm) {
 		if (!frm.is_new() && frm.doc.docstatus == 1 && !frm.doc.opportunity) {
-			frm.add_custom_button(__("Create Opportunity"), () => {
+			frm.add_custom_button(__("Create Enquiry"), () => {
 				frappe.call({
 					method: "nmtg.nmtg.doctype.enquiry.enquiry.create_opportunity",
 					args: {

@@ -19,6 +19,8 @@ from frappe.utils import cint
 from frappe.desk.form.assign_to import add as assign_to_add
 from functools import partial
 from frappe.utils import get_fullname
+from frappe.utils import escape_html, get_url
+
 
 
 
@@ -1090,6 +1092,37 @@ def get_email_attachments():
 		return []
 
 
+# @frappe.whitelist()
+# def send_lead_stage_email(lead, stage_key, subject, message):
+# 	if stage_key not in STAGE_FIELD_MAP:
+# 		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
+
+# 	if not frappe.has_permission("Lead", "write", lead):
+# 		frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+# 	doc = frappe.get_doc("Lead", lead)
+
+# 	to, cc = get_lead_recipients(doc)
+# 	if not to:
+# 		frappe.throw(_("No contact email addresses found to send to."))
+
+# 	frappe.sendmail(
+# 		recipients=[to],
+# 		cc=cc,
+# 		subject=subject,
+# 		message=message,
+# 		reference_doctype="Lead",
+# 		reference_name=lead,
+# 		attachments=get_email_attachments(),
+# 	)
+
+# 	field_key = STAGE_FIELD_MAP[stage_key]
+# 	sent_on = frappe.utils.now()
+# 	doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
+# 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
+
+# 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
+
 @frappe.whitelist()
 def send_lead_stage_email(lead, stage_key, subject, message):
 	if stage_key not in STAGE_FIELD_MAP:
@@ -1104,6 +1137,9 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 	if not to:
 		frappe.throw(_("No contact email addresses found to send to."))
 
+	# Attach the company profile only with the Introduction Email (same as Prospect)
+	attachments = get_email_attachments() if stage_key == "intro" else []
+
 	frappe.sendmail(
 		recipients=[to],
 		cc=cc,
@@ -1111,7 +1147,7 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 		message=message,
 		reference_doctype="Lead",
 		reference_name=lead,
-		attachments=get_email_attachments(),
+		attachments=attachments,
 	)
 
 	field_key = STAGE_FIELD_MAP[stage_key]
@@ -1120,13 +1156,6 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
 
 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
-
-
-import json
-
-import frappe
-from frappe import _
-from frappe.utils import escape_html, get_url
 
 
 ITEM_FIELDS = [
@@ -1733,37 +1762,6 @@ def get_prospect_recipients(doc):
 	return to, cc
 
 
-# @frappe.whitelist()
-# def send_prospect_stage_email(prospect, stage_key, subject, message):
-# 	if stage_key not in STAGE_FIELD_MAP:
-# 		frappe.throw(_("Invalid stage key: {0}").format(stage_key))
-
-# 	if not frappe.has_permission("Prospect", "write", prospect):
-# 		frappe.throw(_("Not permitted"), frappe.PermissionError)
-
-# 	doc = frappe.get_doc("Prospect", prospect)
-
-# 	to, cc = get_prospect_recipients(doc)
-# 	if not to:
-# 		frappe.throw(_("No contact email addresses found to send to."))
-
-# 	frappe.sendmail(
-# 		recipients=[to],
-# 		cc=cc,
-# 		subject=subject,
-# 		message=message,
-# 		reference_doctype="Prospect",
-# 		reference_name=prospect,
-# 		attachments=get_email_attachments(),
-# 	)
-
-# 	field_key = STAGE_FIELD_MAP[stage_key]
-# 	sent_on = frappe.utils.now()
-# 	doc.db_set(f"custom_{field_key}_email_sent", 1, update_modified=False)
-# 	doc.db_set(f"custom_{field_key}_email_sent_on", sent_on, update_modified=False)
-
-# 	return {"sent_on": sent_on, "recipient": to, "cc": cc}
-
 
 
 @frappe.whitelist()
@@ -1802,38 +1800,38 @@ def send_prospect_stage_email(prospect, stage_key, subject, message):
 
     
 
-def set_custom_dealer(doc, method=None):
+# def set_custom_dealer(doc, method=None):
     
-    if not doc.is_new():
-        return
+#     if not doc.is_new():
+#         return
 
-    if not doc.customer_name:
-        doc.custom_dealer = ""
-        return
+#     if not doc.customer_name:
+#         doc.custom_dealer = ""
+#         return
 
-    customer_name = doc.customer_name.strip().lower()
+#     customer_name = doc.customer_name.strip().lower()
 
-    rows = frappe.get_all(
-        "Dealer Customer CT",
-        fields=["parent", "dealer_customer"],
-        ignore_permissions=True,
-    )
+#     rows = frappe.get_all(
+#         "Dealer Customer CT",
+#         fields=["parent", "dealer_customer"],
+#         ignore_permissions=True,
+#     )
 
-    matched_parent = ""
-    for row in rows:
-        if row.dealer_customer and row.dealer_customer.strip().lower() == customer_name:
-            matched_parent = row.parent
-            break
+#     matched_parent = ""
+#     for row in rows:
+#         if row.dealer_customer and row.dealer_customer.strip().lower() == customer_name:
+#             matched_parent = row.parent
+#             break
 
-    doc.custom_dealer = matched_parent
+#     doc.custom_dealer = matched_parent
 
-    if matched_parent:
-        frappe.msgprint(
-            msg=_("This customer is a Dealer Customer of <b>{0}</b>").format(matched_parent),
-            title=_("Dealer Customer"),
-            indicator="blue",
-            alert=True,
-        )
+#     if matched_parent:
+#         frappe.msgprint(
+#             msg=_("This customer is a Dealer Customer of <b>{0}</b>").format(matched_parent),
+#             title=_("Dealer Customer"),
+#             indicator="blue",
+#             alert=True,
+#         )
 
 
 
@@ -2475,3 +2473,56 @@ def set_mr_creator(doc, method=None):
             names.append(full_name)
 
     doc.custom_mr_creater = ", ".join(names)[:140]
+
+
+def _get_dealers_for_customer(customer):
+    """Return dealer name(s) whose 'Dealer Customer' table lists this customer."""
+    if not customer:
+        return []
+
+    keys = {customer.strip().lower()}
+    customer_name = frappe.db.get_value("Customer", customer, "customer_name")
+    if customer_name:
+        keys.add(customer_name.strip().lower())
+
+    rows = frappe.get_all(
+        "Dealer Customer CT",
+        filters={"parenttype": "Customer"},
+        fields=["parent", "dealer_customer"],
+        order_by="creation asc",
+        ignore_permissions=True,
+    )
+
+    dealers = []
+    for row in rows:
+        if row.dealer_customer and row.dealer_customer.strip().lower() in keys:
+            if row.parent not in dealers:
+                dealers.append(row.parent)
+    return dealers
+
+
+@frappe.whitelist()
+def get_dealer_for_customer(customer):
+    return ", ".join(_get_dealers_for_customer(customer))
+
+
+def set_custom_dealer(doc, method=None):
+    if doc.get("opportunity_from") == "Customer":
+        customer = doc.get("party_name")
+    else:
+        customer = None  # Leads/Prospects have no dealer mapping
+
+    # recompute on new docs or when the customer changed
+    if not (doc.is_new() or doc.has_value_changed("party_name")):
+        return
+
+    dealers = _get_dealers_for_customer(customer)
+    doc.custom_dealer = ", ".join(dealers)
+
+    if dealers:
+        frappe.msgprint(
+            msg=_("This customer is a Dealer Customer of <b>{0}</b>").format(doc.custom_dealer),
+            title=_("Dealer Customer"),
+            indicator="blue",
+            alert=True,
+        )
