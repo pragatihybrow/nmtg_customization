@@ -266,13 +266,14 @@ doctype_js = {
     "Sales Invoice": "public/js/sales_invoice.js",
     "Delivery Note": "public/js/delivery_note.js",
     "Work Order": "public/js/work_order.js",
-    "Payment Request":"public/js/payment_request.js",
-    "Payment Entry":"public/js/payment_entry.js",
+    "Payment Request": "public/js/payment_request.js",
+    "Payment Entry": "public/js/payment_entry.js",
     "Purchase Invoice": "public/js/purchase_invoice.js",
     "Leave Application": "public/js/leave_application.js",
     "Address": "public/js/address.js",
     "Interview Feedback": "public/js/interview_feedback.js",
     "Employee Onboarding": "public/js/employee_onboarding.js",
+    "Job Card": "public/mfg_js/job_card.js",
 }
 
 override_doctype_class = {
@@ -281,7 +282,9 @@ override_doctype_class = {
     "Opportunity": "nmtg.override.opportunity.CustomOpportunity",
     "Customer": "nmtg.override.customer.CustomCustomer",
     "Leave Application": "nmtg.override.leave_application.CustomLeaveApplication",
-    
+    "Payment Request": "nmtg.override.payment_request.CustomPaymentRequest", 
+    "Job Card": "nmtg.override.mfg_py.job_card.CustomJobCard",   
+    "Stock Entry": "nmtg.override.mfg_py.stock_entry.CustomStockEntry",
 }
 
 doctype_list_js = {
@@ -295,37 +298,39 @@ doc_events = {
             "nmtg.override.api.compute_row_status",
             "nmtg.override.api.update_parent_status",
             "nmtg.override.api.validate_heat_range_vs_sample_size",
-            
         ],
-        "on_submit":[
-            "nmtg.override.quality_inspection.on_submit",    
+        "on_submit": [
+            "nmtg.override.quality_inspection.on_submit",
+            "nmtg.override.quality_inspection.update_purchase_receipt_qty",
         ],
     },
 
     "Supplier Quotation": {
         "before_submit": "nmtg.override.api.validate_quality_category_before_submit",
         "before_validate": "nmtg.override.supplier_quotation.handle_transportation_item",
-        "validate": "nmtg.override.supplier_quotation.copy_header_fields_to_items"
+        "validate": "nmtg.override.supplier_quotation.copy_header_fields_to_items",
     },
-     "Supplier": {
-        "validate": "nmtg.override.supplier.validate"
+    "Supplier": {
+        "validate": "nmtg.override.supplier.validate",
     },
-        "Lead": {
-        "validate": "nmtg.override.api.validate_lead"
+    "Lead": {
+        "validate": "nmtg.override.api.validate_lead",
     },
     "Supplier Audit": {
-		"on_submit": "nmtg.override.supplier.update_supplier_next_audit_date",
-	},
-     "Customer": {
+        "on_submit": "nmtg.override.supplier.update_supplier_next_audit_date",
+    },
+    "Customer": {
         "validate": "nmtg.override.api.set_custom_dealer",
         # "before_validate": "nmtg.override.customer.set_sales_team_allocation",
     },
-     "Opportunity": {
+    "Opportunity": {
         "before_insert": "nmtg.override.opportunity.set_contact_recipient_emails",
-        "validate": "nmtg.override.opportunity.set_contact_recipient_emails"
+        "validate": "nmtg.override.opportunity.set_contact_recipient_emails",
     },
+    # was defined twice before, so the first definition was lost
     "Quotation": {
-        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_opportunity"
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_opportunity",
+        "validate": "nmtg.override.quotation.set_customer_ref_codes",
     },
     "Sales Order": {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_so",
@@ -334,44 +339,48 @@ doc_events = {
         "before_validate": "nmtg.override.customer.filter_sales_team_by_address",
     },
     "Sales Invoice": {
-        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_si"
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_si",
     },
     "Delivery Note": {
-        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_dn"
+        "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_dn",
     },
-       "Work Order": {
-        "before_insert": "nmtg.override.api.copy_customer_requirements_to_wo"
-    },
-    "Quotation": {
-        "validate": "nmtg.override.quotation.set_customer_ref_codes",
+    "Work Order": {
+        "before_insert": "nmtg.override.api.copy_customer_requirements_to_wo",
     },
     "Purchase Receipt": {
-        # "validate": "nmtg.override.purchase_receipt.create_inward_qty_entries",
-        "on_submit": "nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
-        "on_cancel": ["nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
-              "nmtg.override.purchase_receipt.remove_inward_qty_entries"],
-        "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
-        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries",
         "validate": "nmtg.override.api.set_mr_creator",
+        # on_update also runs during submit, before on_submit,
+        # so Inward Qty records exist when the SLE sync runs
+        "on_update": "nmtg.override.purchase_receipt.create_inward_qty_entries",
+        "on_submit": "nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
         "on_update_after_submit": "nmtg.override.purchase_receipt.create_inward_qty_entries",
-
-
-
+        "on_cancel": [
+            "nmtg.override.purchase_receipt.sync_qty_in_numbers_to_sle",
+            "nmtg.override.purchase_receipt.remove_inward_qty_entries",
+        ],
+        "on_trash": "nmtg.override.purchase_receipt.remove_inward_qty_entries",
     },
-     "Material Request": {
+    "Material Request": {
         "validate": "nmtg.nmtg.doctype.projection_order.projection_order.set_projection_order",
         "after_insert": "nmtg.nmtg.doctype.projection_order.projection_order.set_projection_order_reference",
         "on_cancel": "nmtg.nmtg.doctype.projection_order.projection_order.clear_projection_order_reference",
         "on_trash": "nmtg.nmtg.doctype.projection_order.projection_order.clear_projection_order_reference",
     },
     "Sales Person": {
-        "validate": "nmtg.override.sales_person.validate_sales_person_weightage"
-   },
+        "validate": "nmtg.override.sales_person.validate_sales_person_weightage",
+    },
     "Leave Application": {
-        "before_validate": "nmtg.override.leave_application.validate_short_leave"
+        "before_validate": "nmtg.override.leave_application.validate_short_leave",
     },
     "Address": {
-        "before_naming": "nmtg.override.api.set_state_in_title"
+        "before_naming": "nmtg.override.api.set_state_in_title",
+    },
+    "Payment Request": {
+        "on_submit": "nmtg.override.payment_request.send_proforma_invoice_email",
+    },
+     "Stock Entry": {
+        "on_cancel": "nmtg.override.mfg_py.stock_entry.on_cancel_reset",
+        "on_trash": "nmtg.override.mfg_py.stock_entry.on_trash_reset",
     },
     "Employee Onboarding": {
         "on_submit": "nmtg.nmtg.doctype.new_employee_joinee.new_employee_joinee.create_new_employee_joinee",
@@ -379,7 +388,6 @@ doc_events = {
     "Employee": {
         "after_insert": "nmtg.nmtg.doctype.new_employee_joinee.new_employee_joinee.link_back_to_joinee",
     },
-     
 }
 
 
@@ -475,5 +483,11 @@ jinja = {
 # }
 override_whitelisted_methods = {
     "erpnext.accounts.doctype.payment_request.payment_request.make_payment_request":
-        "nmtg.override.payment_request.make_payment_request"
+        "nmtg.override.payment_request.make_payment_request",
+    "erpnext.crm.doctype.opportunity.opportunity.make_quotation":
+        "nmtg.override.opportunity.make_quotation",
+    "erpnext.crm.doctype.opportunity.opportunity.make_request_for_quotation":
+        "nmtg.override.opportunity.make_request_for_quotation",
+    "erpnext.crm.doctype.opportunity.opportunity.make_supplier_quotation":
+        "nmtg.override.opportunity.make_supplier_quotation",
 }

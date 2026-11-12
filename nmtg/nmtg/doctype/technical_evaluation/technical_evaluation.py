@@ -236,6 +236,7 @@ class TechnicalEvaluation(Document):
 
             opp_item.custom_drawing_approval_status = (te_item.drawing_approval_status)
             opp_item.custom_material_code_description =(te_item.material_code_description)
+            opp_item.custom_not_in_nmtg_scope =(te_item.not_in_nmtg_scope)
 
             updated = True
 

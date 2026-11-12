@@ -32,6 +32,7 @@ def get_columns(max_entries=0):
         {"label": _("Amount"), "fieldname": "amount", "fieldtype": "Currency", "width": 130},
         {"label": _("Taxes"), "fieldname": "taxes", "fieldtype": "Currency", "width": 120},
         {"label": _("Total Amount"), "fieldname": "total_amount", "fieldtype": "Currency", "width": 130},
+        {"label": _("Outstanding Amount"), "fieldname": "outstanding_amount", "fieldtype": "Currency", "width": 140},
         {"label": _("Advance %"), "fieldname": "advance_percent", "fieldtype": "Percent", "width": 100},
         {"label": _("Advance Amount"), "fieldname": "advance_amount", "fieldtype": "Currency", "width": 130},
         {"label": _("Advance Paid Value"), "fieldname": "advance_paid", "fieldtype": "Currency", "width": 140},
@@ -605,6 +606,7 @@ def get_data(filters):
             po.grand_total AS po_grand_total,
             po.rounded_total AS po_rounded_total,
             po.total_taxes_and_charges AS po_taxes,
+            poi.name AS row_name,
             poi.item_code AS item_code,
             poi.item_name AS item_name,
             poi.schedule_date AS item_schedule_date,
@@ -681,6 +683,15 @@ def get_data(filters):
         rounding_diff = po_total - grand_total
         po_taxes = flt(items[0].po_taxes)
 
+        # Outstanding amount (PO level) = total amount - paid across all terms
+        po_paid_total = (
+            flt(adv.get("paid"))
+            + flt(bd.get("paid"))
+            + flt(od.get("paid"))
+            + flt(ad.get("paid"))
+        )
+        po_outstanding = max(flt(po_total - po_paid_total, 2), 0)
+
         # If item wise tax rows are not available, spread the PO tax total over
         # the items by amount, so item totals always add up to the PO total.
         item_tax_found = sum(flt(item_taxes.get(i.row_name, 0)) for i in items)
@@ -698,6 +709,7 @@ def get_data(filters):
             "amount": po_amount,
             "taxes": po_taxes,
             "total_amount": po_total,
+            "outstanding_amount": po_outstanding,
             "advance_percent": adv.get("percent"),
             "advance_amount": adv.get("amount"),
             "advance_paid": adv.get("paid"),
@@ -792,6 +804,15 @@ def get_data(filters):
             item_ad = flt(item_total * ad_percent / 100, 2)
             item_od = flt(item_total * od_percent / 100, 2)
 
+            item_advance_paid = flt(item_advance * adv_paid_ratio, 2) if adv else 0
+            item_bd_paid = flt(item_bd * bd_paid_ratio, 2) if bd else 0
+            item_ad_paid = flt(item_ad * ad_paid_ratio, 2) if ad else 0
+            item_od_paid = flt(item_od * od_paid_ratio, 2) if od else 0
+
+            # Outstanding amount (item level) = item total - paid across all terms
+            item_paid_total = item_advance_paid + item_bd_paid + item_ad_paid + item_od_paid
+            item_outstanding = max(flt(item_total - item_paid_total, 2), 0)
+
             grn = grn_details.get(i.row_name, {})
             item_grn_date = grn.get("grn_date")
             item_pending = max(flt(i.qty) - flt(i.received_qty), 0)
@@ -800,7 +821,6 @@ def get_data(filters):
             item_ready_qty = sum(q for _pr, q in item_entries) if item_entries else None
 
             data.append({
-                "name": i.row_name,
                 "parent_po": po,
                 "indent": 1,
                 "item_code": i.item_code,
@@ -812,9 +832,10 @@ def get_data(filters):
                 "amount": i.amount,
                 "taxes": item_tax,
                 "total_amount": item_total,
+                "outstanding_amount": item_outstanding,
                 "advance_percent": adv.get("percent") if adv else None,
                 "advance_amount": item_advance if adv else None,
-                "advance_paid": flt(item_advance * adv_paid_ratio, 2) if adv else None,
+                "advance_paid": item_advance_paid if adv else None,
                 "payment_request_date": adv.get("request_date") if adv else None,
                 "advance_paid_date": adv.get("paid_date") if adv else None,
                 "bd_percent": bd.get("percent") if bd else None,
@@ -822,7 +843,7 @@ def get_data(filters):
                 "bd_ready_qty": item_ready_qty,
                 "pending_qty": item_pending,
                 "bd_amount": item_bd if bd else None,
-                "bd_paid": flt(item_bd * bd_paid_ratio, 2) if bd else None,
+                "bd_paid": item_bd_paid if bd else None,
                 "bd_request_generated": bd_request_generated,
                 "actual_dispatch_date": i.dispatch_date,
                 "ad_term": ad.get("payment_term") if ad else None,
@@ -835,14 +856,14 @@ def get_data(filters):
                 "actual_received_qty": flt(i.received_qty),
                 "ad_pending_qty": item_pending,
                 "ad_amount": item_ad if ad else None,
-                "ad_paid": flt(item_ad * ad_paid_ratio, 2) if ad else None,
+                "ad_paid": item_ad_paid if ad else None,
                 "ad_request_date": ad.get("request_date") if ad else None,
                 "ad_paid_date": ad.get("paid_date") if ad else None,
                 "od_term": od.get("payment_term") if od else None,
                 # On Delivery payment due date = Actual GRN Date
                 "od_due_date": item_grn_date,
                 "od_amount": item_od if od else None,
-                "od_paid": flt(item_od * od_paid_ratio, 2) if od else None,
+                "od_paid": item_od_paid if od else None,
                 "od_request_date": od.get("request_date") if od else None,
                 "od_paid_date": od.get("paid_date") if od else None,
             })
