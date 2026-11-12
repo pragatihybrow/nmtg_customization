@@ -1,0 +1,57 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-11-05 12:29:33.465504",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "compliance_form",
+  "submit_form",
+  "submitted_form_date",
+  "next_submission_due_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "compliance_form",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Compliance Form",
+   "options": "Compliance Form"
+  },
+  {
+   "fieldname": "submit_form",
+   "fieldtype": "Attach",
+   "in_list_view": 1,
+   "label": "Submit Form"
+  },
+  {
+   "fieldname": "submitted_form_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Submitted Form Date"
+  },
+  {
+   "fieldname": "next_submission_due_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Next Submission Due Date"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-05 12:32:00.886211",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Compliance Form Management Item",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

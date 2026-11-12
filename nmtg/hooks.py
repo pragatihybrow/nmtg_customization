@@ -265,13 +265,15 @@ doctype_js = {
     "Sales Order": "public/js/sales_order.js",
     "Sales Invoice": "public/js/sales_invoice.js",
     "Delivery Note": "public/js/delivery_note.js",
-     "Work Order": "public/js/work_order.js",
-     "Payment Request":"public/js/payment_request.js",
-     "Payment Entry":"public/js/payment_entry.js",
-     "Purchase Invoice": "public/js/purchase_invoice.js",
-     "Leave Application": "public/js/leave_application.js",
-     "Address": "public/js/address.js",
-     "Job Card":"public/mfg_js/job_card.js",
+    "Work Order": "public/js/work_order.js",
+    "Payment Request": "public/js/payment_request.js",
+    "Payment Entry": "public/js/payment_entry.js",
+    "Purchase Invoice": "public/js/purchase_invoice.js",
+    "Leave Application": "public/js/leave_application.js",
+    "Address": "public/js/address.js",
+    "Interview Feedback": "public/js/interview_feedback.js",
+    "Employee Onboarding": "public/js/employee_onboarding.js",
+    "Job Card": "public/mfg_js/job_card.js",
 }
 
 override_doctype_class = {
@@ -380,6 +382,12 @@ doc_events = {
         "on_cancel": "nmtg.override.mfg_py.stock_entry.on_cancel_reset",
         "on_trash": "nmtg.override.mfg_py.stock_entry.on_trash_reset",
     },
+    "Employee Onboarding": {
+        "on_submit": "nmtg.nmtg.doctype.new_employee_joinee.new_employee_joinee.create_new_employee_joinee",
+    },
+    "Employee": {
+        "after_insert": "nmtg.nmtg.doctype.new_employee_joinee.new_employee_joinee.link_back_to_joinee",
+    },
 }
 
 
@@ -390,6 +398,7 @@ scheduler_events = {
     "daily": [
         "nmtg.override.supplier.send_due_supplier_audit_reminders",
         "nmtg.nmtg.doctype.supplier_registration_form.supplier_registration_form.send_certificate_expiry_reminders",
+        "nmtg.nmtg.doctype.compliance_form_management.compliance_form_management.send_compliance_notifications"
     ],
     "cron": {
         "0 1 1 * *": ["nmtg.override.leave_application.allocate_short_leave"],
