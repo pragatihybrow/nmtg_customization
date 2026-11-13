@@ -4,6 +4,40 @@ from erpnext.setup.utils import get_exchange_rate
 from frappe.model.mapper import get_mapped_doc
 
 
+def _get_customer_ref_code_map(customer, item_codes):
+    """Return {item_code: "code1,code2,..."} for one customer.
+
+    Keeps every customer ref code of an item, in the order they are listed
+    on the Item, instead of only one.
+    """
+    item_codes = [c for c in set(item_codes) if c]
+    if not customer or not item_codes:
+        return {}
+
+    rows = frappe.db.get_all(
+        "Item Customer Detail",
+        filters={
+            "parenttype": "Item",
+            "parentfield": "customer_items",
+            "parent": ["in", item_codes],
+            "customer_name": customer,
+        },
+        fields=["parent as item_code", "ref_code"],
+        order_by="parent asc, idx asc",
+    )
+
+    codes_by_item = {}
+    for r in rows:
+        code = (r.ref_code or "").strip()
+        if not code:
+            continue
+        codes = codes_by_item.setdefault(r.item_code, [])
+        if code not in codes:
+            codes.append(code)
+
+    return {item: ",".join(codes) for item, codes in codes_by_item.items()}
+
+
 class CustomOpportunity(Opportunity):
     def validate(self):
         super().validate()
@@ -13,24 +47,13 @@ class CustomOpportunity(Opportunity):
         if self.opportunity_from != "Customer" or not self.party_name:
             return
 
-        item_codes = list({row.item_code for row in self.items if row.item_code})
-        if not item_codes:
-            return
-
-        rows = frappe.db.get_all(
-            "Item Customer Detail",
-            filters={
-                "parenttype": "Item",
-                "parentfield": "customer_items",
-                "parent": ["in", item_codes],
-                "customer_name": self.party_name,
-            },
-            fields=["parent as item_code", "ref_code"],
+        ref_code_map = _get_customer_ref_code_map(
+            self.party_name, [row.item_code for row in self.items]
         )
-        ref_code_map = {r.item_code: r.ref_code for r in rows}
 
         for row in self.items:
-            row.custom_customer_code = ref_code_map.get(row.item_code, "")
+            if row.item_code:
+                row.custom_customer_code = ref_code_map.get(row.item_code, "")
 
     def before_insert(self):
         self.sync_contact_from_lead()

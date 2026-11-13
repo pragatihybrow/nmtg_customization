@@ -5,6 +5,11 @@ from frappe.model.naming import getseries
 from erpnext.stock.doctype.item.item import Item
 
 
+def strip_fg_abbr(text):
+    text = re.sub(r"\s*\bS?FG\b", "", text or "")
+    return re.sub(r"\s{2,}", " ", text).strip()
+
+
 class CustomItem(Item):
     def autoname(self):
         self.apply_item_settings()
@@ -99,7 +104,27 @@ class CustomItem(Item):
 
         ctx["sequence"] = next_seq
 
-        self.item_name = apply_pattern(matched_row.name_pattern, ctx)
+       
+        name_ctx = dict(ctx)
+        name_ctx["custom_product_group"] = strip_fg_abbr(ctx.get("custom_product_group", ""))
+
+      
+        if self.custom_special_item:
+            name_pattern = matched_row.name_pattern or ""
+
+            if ctx.get("custom_models") and "{custom_models}" in name_pattern:
+                target = "custom_models"
+            elif "{custom_sub_product_group}" in name_pattern:
+                target = "custom_sub_product_group"
+            elif "{custom_product_group}" in name_pattern:
+                target = "custom_product_group"
+            else:
+                target = None
+
+            if target:
+                name_ctx[target] = f'{name_ctx.get(target, "")} Sp'.strip()
+
+        self.item_name = apply_pattern(matched_row.name_pattern, name_ctx)
         self.item_code = code_prefix + next_seq
         self.name = self.item_code
 
@@ -109,7 +134,6 @@ class CustomItem(Item):
                 return row.material_type == self.custom_material_type
             return True
 
-        # Tier 1: exact match on item_group + product_group + sub_product_group
         for row in settings.item_settings:
             if (row.item_group == self.item_group and
                 row.product_group == self.custom_product_group and
@@ -117,8 +141,7 @@ class CustomItem(Item):
                 material_type_ok(row)):
                 return row
 
-        # Tier 2: fallback — item_group + product_group only,
-        # matched against a catch-all row with no sub_product_group set
+       
         for row in settings.item_settings:
             if (row.item_group == self.item_group and
                 row.product_group == self.custom_product_group and

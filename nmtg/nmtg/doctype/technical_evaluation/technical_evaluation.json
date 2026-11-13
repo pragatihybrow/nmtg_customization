@@ -34,7 +34,14 @@
   "section_break_fios",
   "customer_requirement",
   "table_fbef",
-  "assign_to_responsible_users"
+  "assign_to_responsible_users",
+  "notes_tab",
+  "notes_html",
+  "notes",
+  "activities_tab",
+  "open_activities_html",
+  "all_activities_section",
+  "all_activities"
  ],
  "fields": [
   {
@@ -196,13 +203,50 @@
    "fieldname": "assign_to_responsible_users",
    "fieldtype": "Button",
    "label": "Assign To Responsible Users"
+  },
+  {
+   "fieldname": "notes_tab",
+   "fieldtype": "Tab Break",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "notes_html",
+   "fieldtype": "HTML",
+   "label": "Notes HTML"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Notes",
+   "options": "CRM Note"
+  },
+  {
+   "fieldname": "activities_tab",
+   "fieldtype": "Tab Break",
+   "label": "Activities"
+  },
+  {
+   "fieldname": "open_activities_html",
+   "fieldtype": "HTML",
+   "label": "Open Activities HTML"
+  },
+  {
+   "fieldname": "all_activities_section",
+   "fieldtype": "Section Break",
+   "label": "All Activities"
+  },
+  {
+   "fieldname": "all_activities",
+   "fieldtype": "HTML",
+   "label": "All Activities"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-06 12:50:19.752499",
+ "modified": "2026-11-12 15:54:38.792435",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Technical Evaluation",

@@ -1,13 +1,12 @@
 // Copyright (c) 2026, Hybrowlabs and contributors
 // For license information, please see license.txt
-
 frappe.ui.form.on("Technical Evaluation Item", {
-    // Fires when a grid row is expanded/opened
     form_render(frm, cdt, cdn) {
         set_competitor_name_options(frm, cdt, cdn);
         set_competitor_model_options(frm, cdt, cdn);
         render_attachment_slots(frm, cdt, cdn);
         render_dynamic_required_fields(frm, cdt, cdn);
+        apply_row_lock(frm, cdt, cdn);
     },
 
     attachment_qty(frm, cdt, cdn) {
@@ -44,6 +43,11 @@ frappe.ui.form.on("Technical Evaluation Item", {
 
     nmtg_model(frm, cdt, cdn) {
         render_dynamic_required_fields(frm, cdt, cdn);
+    },
+
+    // NEW: fetch comma separated customer codes from Item
+    item_code(frm, cdt, cdn) {
+        set_customer_codes_from_item(frm, cdt, cdn);
     },
 
     clarification_required: function(frm, cdt, cdn) {
@@ -93,7 +97,7 @@ frappe.ui.form.on("Technical Evaluation Item", {
                             prepared_by: frappe.session.user,
                             date: frappe.datetime.get_today(),
                             feasibility_checkpoints: categories.map(cat => ({ category: cat })),
-                            customer_part_name:row.item_name
+                            customer_part_name: row.item_name
                         }
                     },
                     freeze: true,
@@ -129,19 +133,77 @@ frappe.ui.form.on("Technical Evaluation Item", {
             }
         });
     },
-    
+    not_in_nmtg_scope(frm, cdt, cdn) {
+        const row = locals[cdt][cdn];
+
+        if (cint(row.not_in_nmtg_scope)) {
+            frappe.model
+                .set_value(cdt, cdn, "nmtg_model", NOT_IN_SCOPE_MODEL)
+                .then(() =>
+                    frappe.model.set_value(cdt, cdn, "item_code", NOT_IN_SCOPE_ITEM)
+                )
+                .then(() => apply_row_lock(frm, cdt, cdn));
+        } else {
+            const updates = [];
+            if (row.nmtg_model === NOT_IN_SCOPE_MODEL) {
+                updates.push(frappe.model.set_value(cdt, cdn, "nmtg_model", ""));
+            }
+            if (row.item_code === NOT_IN_SCOPE_ITEM) {
+                updates.push(frappe.model.set_value(cdt, cdn, "item_code", ""));
+                updates.push(frappe.model.set_value(cdt, cdn, "item_name", ""));
+                updates.push(frappe.model.set_value(cdt, cdn, "custom_customer_code", ""));
+            }
+            Promise.all(updates).then(() => apply_row_lock(frm, cdt, cdn));
+        }
+    },
+
 });
 
+function set_customer_codes_from_item(frm, cdt, cdn) {
+    const row = locals[cdt][cdn];
+
+    if (!row.item_code || row.item_code === NOT_IN_SCOPE_ITEM) {
+        frappe.model.set_value(cdt, cdn, "custom_customer_code", "");
+        return;
+    }
+
+    frappe.call({
+        method: "frappe.client.get",
+        args: { doctype: "Item", name: row.item_code },
+        callback(r) {
+            const item = r.message || {};
+            const codes = (item.customer_items || [])
+                .filter(d => !frm.doc.customer || d.customer_name === frm.doc.customer)
+                .map(d => (d.ref_code || "").trim())
+                .filter(Boolean);
+
+            const value = [...new Set(codes)].join(",");
+            frappe.model.set_value(cdt, cdn, "custom_customer_code", value);
+        }
+    });
+}
 frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
+    setup(frm) {
+        // Email composer in the Activities tab pre-fills from this field
+        frm.email_field = "email";
+        set_item_code_query(frm);
+    },
+
     refresh(frm) {
+
+        setTimeout(() => apply_all_row_locks(frm), 300);
+
         (frm.doc.items || []).forEach(row => {
             set_competitor_name_options(frm, row.doctype, row.name);
             set_competitor_model_options(frm, row.doctype, row.name);
         });
         toggle_questionary_visibility(frm);
         set_request_no_options(frm);
-        
+
         if (frm.is_new()) return;
+
+        render_crm_notes(frm);
+        render_crm_activities(frm);
 
         let has_pending = (frm.doc.items || []).some(
             it => it.drawing_approval_required === "Yes" && !it.drawing_email_sent
@@ -181,16 +243,16 @@ frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
                 );
             }).addClass("btn-primary");
         }
-      set_item_filter(frm);
+        set_item_filter(frm);
     },
 
     table_fbef_add(frm) {
-    set_item_filter(frm);
+        set_item_filter(frm);
     },
 
     items_add: function(frm) {
         set_request_no_options(frm);
-          set_item_filter(frm);
+        set_item_filter(frm);
     },
     items_remove: function(frm) {
         set_request_no_options(frm);
@@ -243,7 +305,7 @@ frappe.ui.form.on(cur_frm ? cur_frm.doctype : "Technical Evaluation", {
             }
         );
     },
-   assign_to_responsible_users: function (frm) {
+    assign_to_responsible_users: function (frm) {
         if (frm.is_new()) {
             frappe.msgprint(__("Please save the document first."));
             return;
@@ -266,6 +328,38 @@ frappe.ui.form.on('Questionary For Technical Evaluation', {
         set_request_no_options(frm);
     }
 });
+
+// ---------------------------------------------------------------------------
+// Notes / Activities tabs (same widgets Lead uses)
+// ---------------------------------------------------------------------------
+
+function render_crm_notes(frm) {
+    if (frm.is_new() || frm.doc.docstatus == 1) return;
+    if (!frm.fields_dict.notes_html) return;
+
+    const crm_notes = new erpnext.utils.CRMNotes({
+        frm: frm,
+        notes_wrapper: $(frm.fields_dict.notes_html.wrapper),
+    });
+    crm_notes.refresh();
+}
+
+function render_crm_activities(frm) {
+    if (frm.is_new() || frm.doc.docstatus == 1) return;
+    if (!frm.fields_dict.open_activities_html || !frm.fields_dict.all_activities) return;
+
+    const crm_activities = new erpnext.utils.CRMActivities({
+        frm: frm,
+        open_activities_wrapper: $(frm.fields_dict.open_activities_html.wrapper),
+        all_activities_wrapper: $(frm.fields_dict.all_activities.wrapper),
+        form_wrapper: $(frm.wrapper),
+    });
+    crm_activities.refresh();
+}
+
+// ---------------------------------------------------------------------------
+// Request No options
+// ---------------------------------------------------------------------------
 
 function set_request_no_options(frm) {
     let request_nos = [...new Set(
@@ -538,7 +632,7 @@ function try_autofetch_item_code(frm, cdt, cdn, fieldnames, values) {
             } else if (matches.length > 1) {
                 if ($status) {
                     $status.html(
-                        `<div style="font-size:12px;color:var(--text-warning,#b8860b);">Multiple items match — Item Code is required, select one manually below.</div>`
+                        `<div style="font-size:12px;color:var(--text-warning,#b8860b);">Multiple items match — Item Code list below is filtered by the required fields entered. Please select one.</div>`
                     );
                 }
             } else {
@@ -605,7 +699,7 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
                 $wrapper.append($grid);
 
                 let controls = {};
-               
+
                 let restore_promises = [];
 
                 function save_values() {
@@ -642,7 +736,6 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
                     control.refresh();
 
                     if (saved_values[fn] !== undefined) {
-                        
                         restore_promises.push(
                             Promise.resolve(control.set_value(saved_values[fn]))
                         );
@@ -652,7 +745,6 @@ function render_dynamic_required_fields(frm, cdt, cdn) {
                     controls[fn] = control;
                 });
 
-            
                 Promise.all(restore_promises).then(save_values);
             });
         }
@@ -670,5 +762,93 @@ function set_item_filter(frm) {
                 name: ["in", item_codes]
             }
         };
+    });
+}
+
+// Filter the Item Code dropdown on an items row by the saved required-field
+// values + NMTG model (so "Multiple items match" shows only the matches).
+function set_item_code_query(frm) {
+    frm.set_query("item_code", "items", function (doc, cdt, cdn) {
+        const row = locals[cdt][cdn];
+
+        // "Not In Scope" rows keep the default behaviour
+        if (!row || cint(row.not_in_nmtg_scope)) {
+            return {};
+        }
+
+        let values = {};
+        try {
+            values = JSON.parse(row.required_feilds || "{}") || {};
+        } catch (e) {
+            values = {};
+        }
+
+        let filters = {};
+        Object.keys(values).forEach(fn => {
+            let v = values[fn];
+            if (v !== undefined && v !== null && v !== "") {
+                filters[fn] = v;
+            }
+        });
+
+        // Nothing entered yet -> don't restrict the list
+        if (!Object.keys(filters).length) {
+            return {};
+        }
+
+        if (row.nmtg_model) {
+            filters[ITEM_MODEL_FIELDNAME] = row.nmtg_model;
+        }
+
+        return { filters: filters };
+    });
+}
+
+
+const NOT_IN_SCOPE_MODEL = "Not In Scope";
+const NOT_IN_SCOPE_ITEM = "Not In NMTG's Scope";
+const CHILD_DOCTYPE = "Technical Evaluation Item";
+
+const LAYOUT_TYPES = [
+    "Section Break",
+    "Column Break",
+    "Tab Break",
+    "HTML",
+    "Heading",
+    "Image",
+];
+
+function get_lockable_fields() {
+    return frappe
+        .get_meta(CHILD_DOCTYPE)
+        .fields.filter(
+            (df) =>
+                !LAYOUT_TYPES.includes(df.fieldtype) &&
+                df.fieldname !== "not_in_nmtg_scope" &&
+                !df.read_only &&
+                !df.hidden
+        )
+        .map((df) => df.fieldname);
+}
+
+function apply_row_lock(frm, cdt, cdn) {
+    const row = locals[cdt] && locals[cdt][cdn];
+    if (!row) return;
+
+    const grid = frm.fields_dict.items && frm.fields_dict.items.grid;
+    if (!grid || !grid.grid_rows_by_docname) return;
+
+    const grid_row = grid.grid_rows_by_docname[cdn];
+    if (!grid_row) return;
+
+    const editable = !cint(row.not_in_nmtg_scope);
+    get_lockable_fields().forEach((fieldname) => {
+        grid_row.toggle_editable(fieldname, editable);
+    });
+}
+
+function apply_all_row_locks(frm) {
+    (frm.doc.items || []).forEach((row) => {
+        apply_row_lock(frm, row.doctype, row.name);
     });
 }

@@ -1,9 +1,18 @@
 frappe.ui.form.on("Quotation", {
+    onload: function(frm) {
+        if (frm.is_new()) {
+            set_valid_till(frm);
+        }
+    },
+
+    transaction_date: function(frm) {
+        set_valid_till(frm);
+    },
 	setup: function (frm) {
 		frm.set_query("quotation_to", function () {
 			return {
 				filters: {
-					name: ["in", ["Customer", "Lead", "Prospect", "Enquiry"]],
+					name: ["in", ["Customer", "Lead","Enquiry"]],
 				},
 			};
 		});
@@ -23,9 +32,24 @@ frappe.ui.form.on("Quotation", {
             frm.set_value("custom_dealer_name", null);
         }
     },
+    onload_post_render: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+    after_save: function (frm) {
+        setup_dealer_liason_type(frm);
+        
+    },
+    custom_dealer__liason_add: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+    custom_dealer__liason_on_form_rendered: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
     refresh: function (frm) {
+		setup_dealer_liason_type(frm);
 		recalculate_all_commissions(frm);
 		setup_dealer_liason_query(frm);
+        set_valid_till(frm);
 
         if (frm.doc.quotation_to === "Customer" && frm.doc.party_name && !frm.doc.custom_dealer_name) {
             set_dealer_from_customer(frm);
@@ -149,8 +173,80 @@ function set_dealer_from_customer(frm) {
         });
 }
 
+const DEALER_LIASON_OPTIONS = [
+    { label: "Dealer", value: "Customer" },
+    { label: "Liason", value: "Liason" },
+];
+
+function dealer_liason_formatter(value) {
+    const opt = DEALER_LIASON_OPTIONS.find((o) => o.value === value);
+    return opt ? __(opt.label) : (value || "");
+}
+
+function apply_dealer_liason_df(d) {
+    if (!d || d.fieldname !== "dealer__liason") return;
+    d.fieldtype = "Select";
+    d.options = DEALER_LIASON_OPTIONS;
+    d.formatter = dealer_liason_formatter;
+}
+
+function patch_dealer_liason_docfields(grid) {
+    (grid.docfields || []).forEach(apply_dealer_liason_df);
+    (grid.visible_columns || []).forEach(function (c) {
+        apply_dealer_liason_df(c && c[0]);
+    });
+    apply_dealer_liason_df(grid.get_docfield("dealer__liason"));
+    (grid.grid_rows || []).forEach(function (gr) {
+        (gr.docfields || []).forEach(apply_dealer_liason_df);
+        (gr.columns_list || []).forEach(function (c) {
+            apply_dealer_liason_df(c && c.df);
+        });
+    });
+}
+
+function relabel_dealer_liason_cells(grid) {
+    const $w = $(grid.wrapper);
+
+    $w.find('.grid-static-col[data-fieldname="dealer__liason"] .static-area').each(function () {
+        const $el = $(this);
+        if ($el.text().trim() === "Customer") {
+            $el.text(__("Dealer"));
+        }
+    });
+
+    $w.find('select[data-fieldname="dealer__liason"] option[value="Customer"]').text(__("Dealer"));
+}
+
+function setup_dealer_liason_type(frm) {
+    const field = frm.fields_dict.custom_dealer__liason;
+    const grid = field && field.grid;
+    if (!grid) return;
+
+    patch_dealer_liason_docfields(grid);
+
+    if (!grid.__dl_refresh_patched) {
+        const orig_refresh = grid.refresh;
+        grid.refresh = function () {
+            patch_dealer_liason_docfields(grid);
+            const result = orig_refresh.apply(this, arguments);
+            patch_dealer_liason_docfields(grid);
+            relabel_dealer_liason_cells(grid);
+            return result;
+        };
+        grid.__dl_refresh_patched = true;
+        grid.refresh();
+    }
+
+    relabel_dealer_liason_cells(grid);
+    setTimeout(function () {
+        relabel_dealer_liason_cells(grid);
+    }, 300);
+}
 
 frappe.ui.form.on('Dealer Liason CT', {
+    form_render: function(frm, cdt, cdn) {
+        setup_dealer_liason_type(frm);
+    },
     commission_: function(frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
     },
@@ -159,7 +255,6 @@ frappe.ui.form.on('Dealer Liason CT', {
     },
     dealer__liason: function(frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
-		let row = locals[cdt][cdn];
         frappe.model.set_value(cdt, cdn, "dealer__liason_name", "");
         setup_dealer_liason_query(frm);
     },
@@ -265,4 +360,15 @@ function recalculate_all_commissions(frm) {
     if (changed) {
         frm.refresh_field('custom_dealer__liason');
     }
+}
+
+function set_valid_till(frm) {
+    if (!frm.doc.transaction_date) {
+        return;
+    }
+
+    frm.set_value(
+        "valid_till",
+        frappe.datetime.add_days(frm.doc.transaction_date, 120)
+    );
 }

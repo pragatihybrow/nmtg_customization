@@ -40,6 +40,25 @@ frappe.ui.form.on("Opportunity", {
         }, 300);
          set_contact_email_from_primary(frm);
          set_dealer(frm);
+
+         opp_setup_dealer_liason_type(frm);
+         opp_setup_dealer_liason_query(frm);
+         opp_recalculate_all_commissions(frm);
+    },
+    onload_post_render: function (frm) {
+        opp_setup_dealer_liason_type(frm);
+    },
+    after_save: function (frm) {
+        opp_setup_dealer_liason_type(frm);
+    },
+    custom_dealer__liason_add: function (frm) {
+        opp_setup_dealer_liason_type(frm);
+    },
+    custom_dealer__liason_on_form_rendered: function (frm) {
+        opp_setup_dealer_liason_type(frm);
+    },
+    total: function (frm) {
+        opp_recalculate_all_commissions(frm);
     },
     status: function(frm) {
         update_technical_status(frm);
@@ -267,4 +286,202 @@ function set_dealer(frm) {
 			frm.set_value("custom_dealer", r.message || "");
 		},
 	});
+}
+
+
+/* ---------- Enquiry (Opportunity): Dealer / Liason table ----------
+   Stored value stays "Customer" / "Liason"; only the label shows "Dealer".
+   Names are prefixed opp_ so they do not clash with the Quotation script. */
+
+const OPP_DEALER_LIASON_OPTIONS = [
+    { label: "Dealer", value: "Customer" },
+    { label: "Liason", value: "Liason" },
+];
+
+function opp_dealer_liason_formatter(value) {
+    const opt = OPP_DEALER_LIASON_OPTIONS.find((o) => o.value === value);
+    return opt ? __(opt.label) : (value || "");
+}
+
+function opp_apply_dealer_liason_df(d) {
+    if (!d || d.fieldname !== "dealer__liason") return;
+    d.fieldtype = "Select";
+    d.options = OPP_DEALER_LIASON_OPTIONS;
+    d.formatter = opp_dealer_liason_formatter;
+}
+
+function opp_patch_dealer_liason_docfields(grid) {
+    (grid.docfields || []).forEach(opp_apply_dealer_liason_df);
+    (grid.visible_columns || []).forEach(function (c) {
+        opp_apply_dealer_liason_df(c && c[0]);
+    });
+    opp_apply_dealer_liason_df(grid.get_docfield("dealer__liason"));
+    (grid.grid_rows || []).forEach(function (gr) {
+        (gr.docfields || []).forEach(opp_apply_dealer_liason_df);
+        (gr.columns_list || []).forEach(function (c) {
+            opp_apply_dealer_liason_df(c && c.df);
+        });
+    });
+}
+
+function opp_relabel_dealer_liason_cells(grid) {
+    const $w = $(grid.wrapper);
+
+    $w.find('.grid-static-col[data-fieldname="dealer__liason"] .static-area').each(function () {
+        const $el = $(this);
+        if ($el.text().trim() === "Customer") {
+            $el.text(__("Dealer"));
+        }
+    });
+
+    $w.find('select[data-fieldname="dealer__liason"] option[value="Customer"]').text(__("Dealer"));
+}
+
+function opp_setup_dealer_liason_type(frm) {
+    const field = frm.fields_dict.custom_dealer__liason;
+    const grid = field && field.grid;
+    if (!grid) return;
+
+    opp_patch_dealer_liason_docfields(grid);
+
+    if (!grid.__opp_dl_refresh_patched) {
+        const orig_refresh = grid.refresh;
+        grid.refresh = function () {
+            opp_patch_dealer_liason_docfields(grid);
+            const result = orig_refresh.apply(this, arguments);
+            opp_patch_dealer_liason_docfields(grid);
+            opp_relabel_dealer_liason_cells(grid);
+            return result;
+        };
+        grid.__opp_dl_refresh_patched = true;
+        grid.refresh();
+    }
+
+    opp_relabel_dealer_liason_cells(grid);
+    setTimeout(function () {
+        opp_relabel_dealer_liason_cells(grid);
+    }, 300);
+}
+
+function opp_setup_dealer_liason_query(frm) {
+    frm.set_query("dealer__liason_name", "custom_dealer__liason", function (doc, cdt, cdn) {
+        let row = locals[cdt][cdn];
+
+        if (row.dealer__liason === "Customer") {
+            return {
+                query: "nmtg.override.api.get_dealer_customers"
+            };
+        }
+        return {};
+    });
+}
+
+frappe.ui.form.on("Dealer Liason CT", {
+    form_render: function (frm, cdt, cdn) {
+        if (frm.doctype !== "Opportunity") return;
+        opp_setup_dealer_liason_type(frm);
+    },
+    commission_: function (frm, cdt, cdn) {
+        if (frm.doctype !== "Opportunity") return;
+        opp_calculate_commission_amount(frm, cdt, cdn);
+    },
+    commission_amount: function (frm, cdt, cdn) {
+        if (frm.doctype !== "Opportunity") return;
+        opp_calculate_commission_percent(frm, cdt, cdn);
+    },
+    dealer__liason: function (frm, cdt, cdn) {
+        if (frm.doctype !== "Opportunity") return;
+        opp_calculate_commission_amount(frm, cdt, cdn);
+        frappe.model.set_value(cdt, cdn, "dealer__liason_name", "");
+        opp_setup_dealer_liason_query(frm);
+    },
+    third_party_commission_: function (frm, cdt, cdn) {
+        if (frm.doctype !== "Opportunity") return;
+        opp_calculate_third_party_commission_amount(frm, cdt, cdn);
+    },
+    third_party_commission_amount: function (frm, cdt, cdn) {
+        if (frm.doctype !== "Opportunity") return;
+        opp_calculate_third_party_commission_percent(frm, cdt, cdn);
+    },
+});
+
+function opp_calculate_commission_amount(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    let total = flt(frm.doc.total);
+
+    row.commission_amount = flt(
+        total * flt(row.commission_) / 100,
+        precision("commission_amount", row)
+    );
+
+    opp_calculate_third_party_commission_amount(frm, cdt, cdn);
+
+    frm.refresh_field("custom_dealer__liason");
+}
+
+function opp_calculate_commission_percent(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    let total = flt(frm.doc.total);
+
+    row.commission_ = total ? flt(
+        flt(row.commission_amount) * 100 / total,
+        precision("commission_", row)
+    ) : 0;
+
+    opp_calculate_third_party_commission_amount(frm, cdt, cdn);
+
+    frm.refresh_field("custom_dealer__liason");
+}
+
+function opp_calculate_third_party_commission_amount(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+
+    row.third_party_commission_amount = flt(
+        flt(row.commission_amount) * flt(row.third_party_commission_) / 100,
+        precision("third_party_commission_amount", row)
+    );
+
+    frm.refresh_field("custom_dealer__liason");
+}
+
+function opp_calculate_third_party_commission_percent(frm, cdt, cdn) {
+    let row = locals[cdt][cdn];
+    let commission_amount = flt(row.commission_amount);
+
+    row.third_party_commission_ = commission_amount ? flt(
+        flt(row.third_party_commission_amount) * 100 / commission_amount,
+        precision("third_party_commission_", row)
+    ) : 0;
+
+    frm.refresh_field("custom_dealer__liason");
+}
+
+function opp_recalculate_all_commissions(frm) {
+    let changed = false;
+
+    (frm.doc.custom_dealer__liason || []).forEach(function (row) {
+        let total = flt(frm.doc.total);
+
+        let new_commission_amount = flt(
+            total * flt(row.commission_) / 100,
+            precision("commission_amount", row)
+        );
+        let new_third_party_commission_amount = flt(
+            flt(new_commission_amount) * flt(row.third_party_commission_) / 100,
+            precision("third_party_commission_amount", row)
+        );
+
+        if (row.commission_amount !== new_commission_amount) {
+            row.commission_amount = new_commission_amount;
+            changed = true;
+        }
+        if (row.third_party_commission_amount !== new_third_party_commission_amount) {
+            row.third_party_commission_amount = new_third_party_commission_amount;
+            changed = true;
+        }
+    });
+
+    if (changed) {
+        frm.refresh_field("custom_dealer__liason");
+    }
 }

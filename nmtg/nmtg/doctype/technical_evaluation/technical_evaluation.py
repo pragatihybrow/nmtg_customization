@@ -5,9 +5,11 @@ import frappe
 import json
 from frappe.utils.file_manager import get_file
 from frappe.model.document import Document
+from erpnext.crm.utils import CRMNote
 
 
-class TechnicalEvaluation(Document):
+
+class TechnicalEvaluation(CRMNote):
 
     def before_insert(self):
         self.set_version()
@@ -42,12 +44,11 @@ class TechnicalEvaluation(Document):
 
         self.version = f"V{existing_count + 1}"
 
-        
-    def set_customer_ref_codes_so(doc, method=None):
-        if not doc.customer:
+    def set_customer_ref_codes_so(self, method=None):
+        if not self.customer:
             return
 
-        item_codes = list({row.item_code for row in doc.items if row.item_code})
+        item_codes = list({row.item_code for row in self.items if row.item_code})
         if not item_codes:
             return
 
@@ -57,14 +58,26 @@ class TechnicalEvaluation(Document):
                 "parenttype": "Item",
                 "parentfield": "customer_items",
                 "parent": ["in", item_codes],
-                "customer_name": doc.customer,
+                "customer_name": self.customer,
             },
-            fields=["parent as item_code", "ref_code"],
+            fields=["parent as item_code", "ref_code", "idx"],
+            order_by="parent asc, idx asc",
         )
-        ref_code_map = {r.item_code: r.ref_code for r in rows}
 
-        for row in doc.items:
-            row.custom_customer_code = ref_code_map.get(row.item_code, "")
+        # item_code -> ordered, de-duplicated list of all customer ref codes
+        ref_code_map = {}
+        for r in rows:
+            code = (r.ref_code or "").strip()
+            if not code:
+                continue
+            codes = ref_code_map.setdefault(r.item_code, [])
+            if code not in codes:
+                codes.append(code)
+
+        for row in self.items:
+            if not row.item_code:
+                continue
+            row.custom_customer_code = ",".join(ref_code_map.get(row.item_code, []))
 
     def generate_request_numbers(self):
         for idx, row in enumerate(self.items, start=1):
