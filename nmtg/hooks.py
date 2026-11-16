@@ -405,6 +405,9 @@ scheduler_events = {
         "0 2 1 * *": ["nmtg.override.leave_credit.credit_monthly_leave"],
         "0 3 1 1 *": ["nmtg.override.leave_credit.encash_casual_leave"],
     },
+      "hourly": [
+        "nmtg.override.biometrics_integration_script.fetch_and_send_data"
+    ]
 }
 
 fixtures = [
