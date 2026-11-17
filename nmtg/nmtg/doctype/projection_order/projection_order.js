@@ -104,14 +104,26 @@ function po_recalculate_row(cdt, cdn) {
 	frappe.model.set_value(cdt, cdn, "amount", flt(qty * flt(row.rate)));
 }
 
-// True if a Material Request is already linked to any item row
+// True if at least one item row is already linked to a Material Request
 function po_has_material_request(frm) {
 	return (frm.doc.items || []).some((row) => row.custom_material_request);
+}
+
+// Rows that still need a Material Request
+function po_pending_items(frm) {
+	return (frm.doc.items || []).filter((row) => !row.custom_material_request);
 }
 
 // ---------- create Material Request from Projection Order ----------
 
 function po_make_material_request(frm) {
+	const pending_items = po_pending_items(frm);
+
+	if (!pending_items.length) {
+		frappe.msgprint(__("All items are already linked to a Material Request"));
+		return;
+	}
+
 	frappe.model.with_doctype("Material Request", () => {
 		const mr = frappe.model.get_new_doc("Material Request");
 
@@ -126,8 +138,8 @@ function po_make_material_request(frm) {
 			mr.set_warehouse = frm.doc.warehouse;
 		}
 
-		// items: add the child row first, then set each field on it
-		(frm.doc.items || []).forEach((src) => {
+		// items: only rows that are not yet linked to a Material Request
+		pending_items.forEach((src) => {
 			const row = frappe.model.add_child(mr, "Material Request Item", "items");
 			PO_MR_ITEM_FIELDS.forEach((field) => {
 				if (
@@ -153,6 +165,144 @@ function po_make_material_request(frm) {
 
 		frappe.set_route("Form", "Material Request", mr.name);
 	});
+}
+
+// ---------- Update Items (after submit) ----------
+
+function po_update_items(frm) {
+	// rows already linked to a Material Request are locked
+	const locked = "eval:doc.custom_material_request";
+
+	const dialog = new frappe.ui.Dialog({
+		title: __("Update Items"),
+		size: "extra-large",
+		fields: [
+			{
+				fieldname: "items",
+				fieldtype: "Table",
+				label: __("Items"),
+				cannot_add_rows: false,
+				cannot_delete_rows: false,
+				in_place_edit: false,
+				reqd: 1,
+				data: (frm.doc.items || []).map((d) => ({
+					docname: d.name,
+					custom_material_request: d.custom_material_request,
+					item_code: d.item_code,
+					item_name: d.item_name,
+					qty: d.qty,
+					uom: d.uom,
+					warehouse: d.warehouse,
+					schedule_date: d.schedule_date,
+				})),
+				get_data: () => dialog.fields_dict.items.df.data,
+				fields: [
+					{
+						fieldname: "docname",
+						fieldtype: "Data",
+						hidden: 1,
+						read_only: 1,
+					},
+					{
+						fieldname: "custom_material_request",
+						fieldtype: "Data",
+						hidden: 1,
+						read_only: 1,
+					},
+					{
+						fieldname: "item_code",
+						fieldtype: "Link",
+						options: "Item",
+						label: __("Item Code"),
+						in_list_view: 1,
+						reqd: 1,
+						columns: 3,
+						read_only_depends_on: "eval:doc.docname",
+						get_query: () => ({
+							query: "erpnext.controllers.queries.item_query",
+							filters: { is_stock_item: 1 },
+						}),
+					},
+					{
+						fieldname: "item_name",
+						fieldtype: "Data",
+						label: __("Item Name"),
+						in_list_view: 1,
+						read_only: 1,
+						columns: 2,
+					},
+					{
+						fieldname: "qty",
+						fieldtype: "Float",
+						label: __("Qty"),
+						in_list_view: 1,
+						reqd: 1,
+						columns: 1,
+						read_only_depends_on: locked,
+					},
+					{
+						fieldname: "uom",
+						fieldtype: "Link",
+						options: "UOM",
+						label: __("UOM"),
+						in_list_view: 1,
+						columns: 1,
+						read_only_depends_on: locked,
+					},
+					{
+						fieldname: "warehouse",
+						fieldtype: "Link",
+						options: "Warehouse",
+						label: __("Warehouse"),
+						in_list_view: 1,
+						columns: 2,
+						read_only_depends_on: locked,
+						get_query: () => {
+							const filters = { is_group: 0 };
+							const company = po_get_company(frm);
+							if (company) filters.company = company;
+							return { filters: filters };
+						},
+					},
+					{
+						fieldname: "schedule_date",
+						fieldtype: "Date",
+						label: __("Required By"),
+						in_list_view: 1,
+						columns: 1,
+						read_only_depends_on: locked,
+					},
+				],
+			},
+		],
+		primary_action_label: __("Update Items"),
+		primary_action(values) {
+			const rows = (values.items || []).filter((r) => r.item_code);
+			if (!rows.length) {
+				frappe.msgprint(__("Please add at least one item"));
+				return;
+			}
+
+			frappe.call({
+				method: "nmtg.nmtg.doctype.projection_order.projection_order.update_projection_order_items",
+				args: {
+					projection_order: frm.doc.name,
+					items: rows,
+				},
+				freeze: true,
+				freeze_message: __("Updating Items..."),
+				callback(r) {
+					if (!r.exc) {
+						dialog.hide();
+						frm.reload_doc();
+						frappe.show_alert({ message: __("Items updated"), indicator: "green" });
+					}
+				},
+			});
+		},
+	});
+
+	dialog.show();
 }
 
 // ---------- address / contact helpers ----------
@@ -313,17 +463,20 @@ frappe.ui.form.on("Projection Order", {
 			po_set_company_defaults(frm);
 		}
 
-		// Create > Material Request (only after submit, and only if no MR is linked yet)
-		if (
-			frm.doc.docstatus === 1 &&
-			!po_has_material_request(frm) &&
-			frappe.model.can_create("Material Request")
-		) {
-			frm.add_custom_button(
-				__("Material Request"),
-				() => po_make_material_request(frm),
-				__("Create")
-			);
+		if (frm.doc.docstatus === 1) {
+			// Update Items (qty / uom / warehouse / required by, add or remove rows)
+			if (frappe.model.can_write("Projection Order")) {
+				frm.add_custom_button(__("Update Items"), () => po_update_items(frm));
+			}
+
+			// Create > Material Request (only while some rows have no MR yet)
+			if (po_pending_items(frm).length && frappe.model.can_create("Material Request")) {
+				frm.add_custom_button(
+					__("Material Request"),
+					() => po_make_material_request(frm),
+					__("Create")
+				);
+			}
 		}
 	},
 
