@@ -1,0 +1,126 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "autoname": "format:{item_name}:{select_wooden_box}:{select_corrugated_box}",
+ "creation": "2026-11-17 17:22:51.147781",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "section_break_nt3r",
+  "amended_from",
+  "item_code",
+  "item_name",
+  "select_wooden_box",
+  "wooden_box_name",
+  "wooden_box_size",
+  "select_corrugated_box",
+  "corrugated_box_name",
+  "corrugated_box_size"
+ ],
+ "fields": [
+  {
+   "fieldname": "section_break_nt3r",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Logistic",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "item_code",
+   "fieldtype": "Link",
+   "label": "Item Code",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "item_code.item_name",
+   "fieldname": "item_name",
+   "fieldtype": "Data",
+   "label": "Item Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "select_wooden_box",
+   "fieldtype": "Link",
+   "label": "Select Wooden Box",
+   "link_filters": "[[\"Item\",\"custom_sub_product_group\",\"=\",\"Wooden box\"]]",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "select_wooden_box.item_name",
+   "fieldname": "wooden_box_name",
+   "fieldtype": "Data",
+   "label": "Wooden Box Name",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fieldname": "select_corrugated_box",
+   "fieldtype": "Link",
+   "label": "Select Corrugated Box",
+   "link_filters": "[[\"Item\",\"custom_sub_product_group\",\"=\",\"Corrugated box\"]]",
+   "options": "Item"
+  },
+  {
+   "fetch_from": "select_corrugated_box.item_name",
+   "fieldname": "corrugated_box_name",
+   "fieldtype": "Data",
+   "label": "Corrugated Box Name",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "description": "Width * Length * Height",
+   "fieldname": "wooden_box_size",
+   "fieldtype": "Data",
+   "label": "Wooden Box Size",
+   "options": "Item",
+   "read_only": 1
+  },
+  {
+   "description": "Width * Length * Height",
+   "fieldname": "corrugated_box_size",
+   "fieldtype": "Data",
+   "label": "Corrugated Box Size",
+   "options": "Item",
+   "read_only": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-11-17 17:38:09.697991",
+ "modified_by": "Administrator",
+ "module": "NMTG",
+ "name": "Logistic",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}

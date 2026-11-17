@@ -16,6 +16,23 @@ frappe.ui.form.on("Item", {
         set_models_filter(frm);
         apply_item_settings_fields(frm);
        // generate_item_name(frm)
+        if (frm.is_new()) return;
+
+        frappe.db
+            .get_value("Logistic", { item_code: frm.doc.name }, "name")
+            .then(r => {
+                let existing = r.message && r.message.name;
+
+                if (existing) {
+                    frm.add_custom_button(__("View Logistic"), () => {
+                        frappe.set_route("Form", "Logistic", existing);
+                    }, __("Logistic"));
+                } else {
+                    frm.add_custom_button(__("Create Logistic"), () => {
+                        create_logistic(frm);
+                    }, __("Logistic"));
+                }
+            });
     },
 
        before_save: function(frm) {
@@ -482,4 +499,33 @@ function set_quality_category_required(frm) {
     }).then(r => {
         frm.set_value('custom_quality_category_required', r && r.length ? 1 : 0);
     });
+}
+
+
+
+
+function create_logistic(frm) {
+    // Re-check just before creating, in case one was made after the form loaded
+    frappe.db
+        .get_value("Logistic", { item_code: frm.doc.name }, "name")
+        .then(r => {
+            let existing = r.message && r.message.name;
+
+            if (existing) {
+                frappe.msgprint({
+                    title: __("Logistic Already Exists"),
+                    message: __("A Logistic already exists for this item: {0}", [
+                        `<a href="/app/logistic/${encodeURIComponent(existing)}">${existing}</a>`
+                    ]),
+                    indicator: "orange"
+                });
+                frm.reload_doc();
+                return;
+            }
+
+            frappe.new_doc("Logistic", {
+                item_code: frm.doc.name,
+                item_name: frm.doc.item_name
+            });
+        });
 }
