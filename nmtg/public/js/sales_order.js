@@ -26,6 +26,30 @@ frappe.ui.form.on("Sales Order", {
         recalculate_all_commissions(frm);
         setup_dealer_liason_query(frm);
 
+
+        if (frm.doc.docstatus !== 1) return;
+        if (["Closed", "Cancelled", "Completed"].includes(frm.doc.status)) return;
+
+        // Only items that are not fully delivered can be held / unheld
+        const items = (frm.doc.items || []).filter(is_pending_delivery);
+        const held = items.filter((r) => r.custom_status === "On Hold");
+        const active = items.filter((r) => r.custom_status !== "On Hold");
+
+        if (active.length) {
+            frm.add_custom_button(
+                __("Hold Items"),
+                () => show_item_hold_dialog(frm, "hold"),
+                __("Item Hold")
+            );
+        }
+        if (held.length) {
+            frm.add_custom_button(
+                __("Unhold Items"),
+                () => show_item_hold_dialog(frm, "unhold"),
+                __("Item Hold")
+            );
+        }
+
         if (frm.doc.quotation_to === "Customer" && frm.doc.customer) {
             set_dealer_from_customer(frm);
         }
@@ -901,4 +925,116 @@ function show_so_payment_term_dialog(frm) {
     });
 
     dialog.show();
+}
+
+
+function show_item_hold_dialog(frm, action) {
+    const is_hold = action === "hold";
+
+    // Only undelivered / partially delivered items
+    const rows = (frm.doc.items || []).filter((r) => {
+        if (!is_pending_delivery(r)) return false;
+        return is_hold ? r.custom_status !== "On Hold" : r.custom_status === "On Hold";
+    });
+
+    if (!rows.length) {
+        frappe.msgprint(__("No items available. Fully delivered items cannot be put on hold or released."));
+        return;
+    }
+
+    const d = new frappe.ui.Dialog({
+        title: is_hold ? __("Hold Items") : __("Unhold Items"),
+        size: "extra-large",
+        fields: [
+            {
+                fieldname: "items",
+                fieldtype: "Table",
+                label: __("Items"),
+                cannot_add_rows: true,
+                cannot_delete_rows: true,
+                in_place_edit: true,
+                data: rows.map((r) => ({
+                    row_name: r.name,
+                    idx_no: r.idx,
+                    item_code: r.item_code,
+                    item_name: r.item_name,
+                    qty: r.qty,
+                    delivered_qty: flt(r.delivered_qty),
+                    current_hold_remark: r.custom_hold_remark || "",
+                    remark: "",
+                })),
+                fields: [
+                    { fieldname: "row_name", fieldtype: "Data", hidden: 1 },
+                    { fieldname: "idx_no", fieldtype: "Int", label: __("#"), in_list_view: 1, read_only: 1, columns: 1 },
+                    { fieldname: "item_code", fieldtype: "Data", label: __("Item Code"), in_list_view: 1, read_only: 1, columns: 2 },
+                    { fieldname: "item_name", fieldtype: "Data", label: __("Item Name"), in_list_view: 1, read_only: 1, columns: 2 },
+                    { fieldname: "qty", fieldtype: "Float", label: __("Qty"), in_list_view: 1, read_only: 1, columns: 1 },
+                    { fieldname: "delivered_qty", fieldtype: "Float", label: __("Delivered"), in_list_view: 1, read_only: 1, columns: 1 },
+                    ...(is_hold
+                        ? []
+                        : [{ fieldname: "current_hold_remark", fieldtype: "Data", label: __("Current Hold Remark"), in_list_view: 1, read_only: 1, columns: 2 }]),
+                    {
+                        fieldname: "remark",
+                        fieldtype: "Data",
+                        label: is_hold ? __("Hold Remark") : __("Unhold Remark"),
+                        in_list_view: 1,
+                        columns: 3,
+                    },
+                ],
+            },
+        ],
+        primary_action_label: is_hold ? __("Hold") : __("Unhold"),
+        primary_action() {
+            // Use the grid's built-in row checkboxes
+            const selected = d.fields_dict.items.grid.get_selected_children() || [];
+
+            if (!selected.length) {
+                frappe.msgprint(__("Please select at least one item."));
+                return;
+            }
+
+            const missing = selected.filter((r) => !(r.remark || "").trim());
+            if (missing.length) {
+                frappe.msgprint({
+                    title: __("Remark Required"),
+                    message: __("Please enter a remark for item row(s): {0}", [
+                        missing.map((r) => r.idx_no).join(", "),
+                    ]),
+                    indicator: "orange",
+                });
+                return;
+            }
+
+            frappe.call({
+                method: "nmtg.override.sales_order.update_item_hold_status",
+                args: {
+                    sales_order: frm.doc.name,
+                    items: selected.map((r) => ({
+                        row_name: r.row_name,
+                        remark: r.remark.trim(),
+                    })),
+                    action: action,
+                },
+                freeze: true,
+                callback(r) {
+                    if (!r.exc) {
+                        d.hide();
+                        frappe.show_alert({
+                            message: is_hold
+                                ? __("{0} item(s) put on hold", [r.message.updated])
+                                : __("{0} item(s) released from hold", [r.message.updated]),
+                            indicator: "green",
+                        });
+                        frm.reload_doc();
+                    }
+                },
+            });
+        },
+    });
+
+    d.show();
+}
+
+function is_pending_delivery(row) {
+    return flt(row.delivered_qty) < flt(row.qty);
 }

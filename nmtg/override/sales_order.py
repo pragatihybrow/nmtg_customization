@@ -1,7 +1,9 @@
 
 import frappe
 from frappe import _
+import json
 from frappe.utils import flt, nowdate
+from frappe.utils import flt, get_url_to_form
 
 
 @frappe.whitelist()
@@ -187,3 +189,183 @@ def update_terms_and_conditions(tc_name, terms):
         doc.save()
 
     return doc.name
+
+
+@frappe.whitelist()
+def update_item_hold_status(sales_order, items, action, remark=None):
+    """items: list of {"row_name": ..., "remark": ...}"""
+    items = frappe.parse_json(items) if isinstance(items, str) else items
+    items = items or []
+
+    if action not in ("hold", "unhold"):
+        frappe.throw(_("Invalid action."))
+
+    so = frappe.get_doc("Sales Order", sales_order)
+    so.check_permission("write")
+
+    if so.docstatus != 1:
+        frappe.throw(_("Sales Order must be submitted."))
+
+    rows_by_name = {r.name: r for r in so.items}
+    has_unhold_remark = frappe.get_meta("Sales Order Item").has_field("custom_unhold_remark")
+    updated = 0
+    changed_rows = []
+
+    for entry in items:
+        row = rows_by_name.get(entry.get("row_name"))
+        if not row:
+            continue
+
+        item_remark = (entry.get("remark") or remark or "").strip()
+        if not item_remark:
+            frappe.throw(_("Row {0}: remark is required.").format(row.idx))
+
+        if flt(row.delivered_qty) >= flt(row.qty):
+            frappe.throw(
+                _("Row {0}: item {1} is already delivered and cannot be put on hold or released.").format(
+                    row.idx, row.item_code
+                )
+            )
+
+        if action == "hold":
+            values = {"custom_status": "On Hold", "custom_hold_remark": item_remark}
+        else:
+            values = {"custom_status": "", "custom_hold_remark": ""}
+            if has_unhold_remark:
+                values["custom_unhold_remark"] = item_remark
+
+        frappe.db.set_value("Sales Order Item", row.name, values, update_modified=True)
+
+        changed_rows.append(
+            {
+                "row_name": row.name,
+                "idx": row.idx,
+                "item_code": row.item_code,
+                "item_name": row.item_name,
+                "qty": row.qty,
+                "remark": item_remark,
+            }
+        )
+        updated += 1
+
+    if changed_rows:
+        notify_production_plan_creators(sales_order, changed_rows, action)
+
+    return {"updated": updated}
+
+
+def notify_production_plan_creators(sales_order, changed_rows, action):
+    try:
+        is_hold = action == "hold"
+        status_text = _("put on hold") if is_hold else _("released from hold")
+        status_label = _("On Hold") if is_hold else _("Released from Hold")
+        remark_label = _("Hold Remark") if is_hold else _("Unhold Remark")
+
+        rows_by_name = {r["row_name"]: r for r in changed_rows}
+
+        plan_items = frappe.get_all(
+            "Production Plan Item",
+            filters={
+                "sales_order": sales_order,
+                "sales_order_item": ["in", list(rows_by_name.keys())],
+            },
+            fields=["parent", "sales_order_item", "planned_qty"],
+            parent_doctype="Production Plan",
+        )
+        if not plan_items:
+            return
+
+        # Group the affected rows by Production Plan
+        plans = {}
+        for pi in plan_items:
+            changed = rows_by_name.get(pi.sales_order_item)
+            if not changed:
+                continue
+            plans.setdefault(pi.parent, []).append({**changed, "planned_qty": pi.planned_qty})
+
+        acted_by = frappe.utils.get_fullname(frappe.session.user)
+        esc = frappe.utils.escape_html
+
+        for plan_name, rows in plans.items():
+            plan = frappe.db.get_value(
+                "Production Plan",
+                plan_name,
+                ["owner", "docstatus", "status"],
+                as_dict=True,
+            )
+            # Skip cancelled / closed / completed plans
+            if not plan or plan.docstatus == 2 or plan.status in ("Closed", "Completed", "Cancelled"):
+                continue
+
+            creator = plan.owner
+            creator_name = frappe.utils.get_fullname(creator)
+            plan_url = get_url_to_form("Production Plan", plan_name)
+            so_url = get_url_to_form("Sales Order", sales_order)
+
+            # ---- Comment with @mention ----
+            mention = (
+                f'<span class="mention" data-id="{esc(creator)}" '
+                f'data-value="{esc(creator_name)}" data-denotation-char="@">'
+                f'<span><span class="ql-mention-denotation-char">@</span>'
+                f"{esc(creator_name)}</span></span>"
+            )
+            lines = "".join(
+                f"<li>Row {r['idx']}: <b>{esc(r['item_code'])}</b> - {esc(r['remark'])}</li>"
+                for r in rows
+            )
+            comment_html = (
+                f"<p>{mention} Sales Order <b>{sales_order}</b> item(s) were {status_text} "
+                f"by {esc(acted_by)}:</p><ul>{lines}</ul>"
+            )
+            frappe.get_doc("Production Plan", plan_name).add_comment("Comment", comment_html)
+
+            # ---- Email ----
+            recipient = frappe.db.get_value("User", creator, "email")
+            if not recipient:
+                continue
+
+            table_rows = "".join(
+                f"<tr>"
+                f"<td>{r['idx']}</td>"
+                f"<td>{esc(r['item_code'])}</td>"
+                f"<td>{esc(r['item_name'] or '')}</td>"
+                f"<td style='text-align:right'>{flt(r['planned_qty'])}</td>"
+                f"<td>{esc(r['remark'])}</td>"
+                f"</tr>"
+                for r in rows
+            )
+            closing = (
+                _("Please review the production plan accordingly.")
+                if is_hold
+                else _("These items can proceed again. Please review the production plan accordingly.")
+            )
+            message = f"""
+                <p>Hello {esc(creator_name)},</p>
+                <p>The following item(s) of Sales Order <a href="{so_url}">{sales_order}</a>
+                were <b>{status_label}</b> by {esc(acted_by)}.
+                You have created Production Plan <a href="{plan_url}">{plan_name}</a> against them.</p>
+                <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse">
+                    <thead>
+                        <tr>
+                            <th>Row</th><th>Item Code</th><th>Item Name</th>
+                            <th>Planned Qty</th><th>{remark_label}</th>
+                        </tr>
+                    </thead>
+                    <tbody>{table_rows}</tbody>
+                </table>
+                <p>{closing}</p>
+            """
+
+            frappe.sendmail(
+                recipients=[recipient],
+                subject=_("Sales Order {0} item(s) {1} - Production Plan {2}").format(
+                    sales_order, status_text, plan_name
+                ),
+                message=message,
+                reference_doctype="Production Plan",
+                reference_name=plan_name,
+            )
+    except Exception:
+        frappe.log_error(
+            frappe.get_traceback(), "Hold/Unhold Item - Production Plan Notification Failed"
+        )
