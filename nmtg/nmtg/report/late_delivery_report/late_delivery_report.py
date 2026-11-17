@@ -144,8 +144,14 @@ def get_data(filters):
         as_dict=1,
     )
 
+    selected_status = filters.get("status")
+
     grouped = OrderedDict()
     for row in item_rows:
+        # Status filter (computed field, so applied here instead of in SQL)
+        if not status_matches(get_status_category(row), selected_status):
+            continue
+
         row["due_in_weeks"] = get_due_in_weeks(row)
         row["periods_overdue"] = get_periods_overdue(row)
         row["ld_amount"] = get_ld_amount(row)
@@ -197,6 +203,33 @@ def get_conditions(filters):
         conditions.append("dn.posting_date <= %(to_date)s")
 
     return ("AND " + " AND ".join(conditions)) if conditions else ""
+
+
+def get_status_category(row):
+    """Bucket a row into a filterable status category (mirrors get_due_in_weeks logic)."""
+    promised_date = row.get("committed_delivery_date")
+    if not promised_date:
+        return "No Committed Date"
+
+    received_date = row.get("material_received_date")
+
+    if received_date:
+        if date_diff(received_date, promised_date) > 0:
+            return "Overdue (Delivered)"
+        return "On Time"
+
+    if date_diff(nowdate(), promised_date) > 0:
+        return "Overdue (Pending)"
+
+    return "Upcoming"
+
+
+def status_matches(category, selected):
+    if not selected:
+        return True
+    if selected == "All Overdue":
+        return category in ("Overdue (Delivered)", "Overdue (Pending)")
+    return category == selected
 
 
 def get_due_in_weeks(row):

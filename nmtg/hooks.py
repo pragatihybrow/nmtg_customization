@@ -274,6 +274,7 @@ doctype_js = {
     "Interview Feedback": "public/js/interview_feedback.js",
     "Employee Onboarding": "public/js/employee_onboarding.js",
     "Job Card": "public/mfg_js/job_card.js",
+    "Employee":"public/js/employee.js"
 }
 
 override_doctype_class = {
