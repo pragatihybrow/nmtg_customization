@@ -3,7 +3,26 @@ frappe.ui.form.on("Sales Order", {
         set_dealer_from_customer(frm);
     },
 
+    after_save: function (frm) {
+        setup_dealer_liason_type(frm);
+        sync_terms_to_master(frm);
+    },
+
+    onload_post_render: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+
+    custom_dealer__liason_add: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+
+    custom_dealer__liason_on_form_rendered: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+
     refresh: function (frm) {
+        setup_dealer_liason_type(frm);
+        show_pending_sales_order_message(frm);
         recalculate_all_commissions(frm);
         setup_dealer_liason_query(frm);
 
@@ -11,7 +30,6 @@ frappe.ui.form.on("Sales Order", {
             set_dealer_from_customer(frm);
         }
 
-       
         if (
             frm.is_new() &&
             frm.doc.docstatus === 0 &&
@@ -106,8 +124,65 @@ frappe.ui.form.on("Sales Order", {
         });
     },
 
+    // Merged: Reject + On Hold + Unhold SO remark dialogs
     before_workflow_action: function (frm) {
         const action = frm.selected_workflow_action;
+
+        if (action === "Reject") {
+            frappe.dom.unfreeze();
+
+            return new Promise((resolve, reject) => {
+                let submitted = false;
+
+                const d = new frappe.ui.Dialog({
+                    title: __("Reason for Rejection"),
+                    fields: [
+                        {
+                            fieldname: "custom_rejection_remark",
+                            fieldtype: "Small Text",
+                            label: __("Rejection Remark"),
+                            reqd: 1
+                        }
+                    ],
+                    primary_action_label: __("Submit Rejection"),
+                    primary_action: function (values) {
+                        submitted = true;
+                        d.disable_primary_action();
+
+                        frappe.call({
+                            method: "nmtg.override.api.custom_set_rejection_remark",
+                            args: {
+                                doctype: frm.doctype,
+                                name: frm.docname,
+                                remark: values.custom_rejection_remark
+                            },
+                            callback: function () {
+                                frm.doc.custom_rejection_remark = values.custom_rejection_remark;
+                                d.hide();
+                                resolve();
+                            },
+                            error: function () {
+                                // Saving the remark failed: keep the workflow action blocked
+                                d.hide();
+                                reject();
+                            }
+                        });
+                    }
+                });
+
+                d.$wrapper.on("hidden.bs.modal", () => {
+                    if (!submitted) {
+                        frappe.show_alert({
+                            message: __("Rejection cancelled — remark is required"),
+                            indicator: "orange"
+                        });
+                        reject();
+                    }
+                });
+
+                d.show();
+            });
+        }
 
         const action_field_map = {
             "On Hold": {
@@ -185,68 +260,141 @@ frappe.ui.form.on("Sales Order", {
 
             dialog.show();
         });
-    },
-
-         before_workflow_action: function (frm) {
-        if (frm.selected_workflow_action !== 'Reject') {
-            return;
-        }
-
-        frappe.dom.unfreeze();
-
-        return new Promise((resolve, reject) => {
-            let submitted = false;
-
-            const d = new frappe.ui.Dialog({
-                title: __('Reason for Rejection'),
-                fields: [
-                    {
-                        fieldname: 'custom_rejection_remark',
-                        fieldtype: 'Small Text',
-                        label: __('Rejection Remark'),
-                        reqd: 1
-                    }
-                ],
-                primary_action_label: __('Submit Rejection'),
-                primary_action: function (values) {
-                    submitted = true;
-                    d.disable_primary_action();
-
-                    frappe.call({
-                        method: 'nmtg.override.api.custom_set_rejection_remark',
-                        args: {
-                            doctype: frm.doctype,
-                            name: frm.docname,
-                            remark: values.custom_rejection_remark
-                        },
-                        callback: function () {
-                            frm.doc.custom_rejection_remark = values.custom_rejection_remark;
-                            d.hide();
-                            resolve();
-                        },
-                        error: function () {
-                            // Saving the remark failed: keep the workflow action blocked
-                            d.hide();
-                            reject();
-                        }
-                    });
-                }
-            });
-
-            d.$wrapper.on('hidden.bs.modal', () => {
-                if (!submitted) {
-                    frappe.show_alert({
-                        message: __('Rejection cancelled — remark is required'),
-                        indicator: 'orange'
-                    });
-                    reject();
-                }
-            });
-
-            d.show();
-        });
     }
 });
+
+
+function show_pending_sales_order_message(frm) {
+    const item_codes = [
+        ...new Set((frm.doc.items || []).map((r) => r.item_code).filter(Boolean)),
+    ];
+
+    if (!item_codes.length) return;
+
+    frappe.call({
+        method: "nmtg.override.sales_order.sales_order_stock_allocation",
+        args: {
+            item_codes: item_codes.join(","),
+            company: frm.doc.company,
+            sales_order: frm.doc.name,
+        },
+        callback(r) {
+            if (frm.dashboard.clear_comment) frm.dashboard.clear_comment();
+
+            const data = (r.message || []).filter((d) => d.orders && d.orders.length);
+            if (!data.length) return;
+
+            const esc = frappe.utils.escape_html;
+
+            // Qty of each item needed in this Sales Order
+            const this_qty = {};
+            (frm.doc.items || []).forEach((row) => {
+                this_qty[row.item_code] =
+                    (this_qty[row.item_code] || 0) + flt(row.stock_qty || row.qty);
+            });
+
+            const summary_style = "cursor:pointer;outline:none;padding:2px 0";
+
+            let html = `
+                <details>
+                    <summary style="${summary_style}">
+                        <b>${__("Other Sales Orders without Delivery Note")}</b>
+                        <span class="text-muted">(${data.length} ${__("items")})</span>
+                    </summary>
+                    <div style="margin-top:8px">`;
+
+            data.forEach((d) => {
+                const color = d.available < 0 ? "red" : "green";
+                const need = this_qty[d.item_code] || 0;
+
+                html += `
+                    <details style="margin-bottom:8px">
+                        <summary style="${summary_style}">
+                            <b>${esc(d.item_code)}</b> &nbsp;|&nbsp;
+                            ${__("Stock Available")}: <b>${d.in_stock}</b> |
+                            ${__("Pending in other Sales Orders")}: <b>${d.pending_total}</b> |
+                            ${__("This Sales Order")}: <b>${need}</b> |
+                            <span style="color:${color}"><b>${__("Balance")}: ${d.available}</b></span>
+                        </summary>
+                        <table class="table table-bordered" style="margin:6px 0 0 0;background:#fff">
+                            <thead>
+                                <tr>
+                                    <th>${__("Sales Order")}</th>
+                                    <th>${__("Customer")}</th>
+                                    <th>${__("Date")}</th>
+                                    <th>${__("Delivery Date")}</th>
+                                    <th>${__("Status")}</th>
+                                    <th style="text-align:right">${__("Qty")}</th>
+                                    <th style="text-align:right">${__("Pending Delivery")}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${d.orders
+                                    .map(
+                                        (o) => `
+                                    <tr>
+                                        <td><a href="/app/sales-order/${encodeURIComponent(o.sales_order)}">${esc(o.sales_order)}</a></td>
+                                        <td>${esc(o.customer || "")}</td>
+                                        <td>${frappe.datetime.str_to_user(o.date)}</td>
+                                        <td>${o.delivery_date ? frappe.datetime.str_to_user(o.delivery_date) : ""}</td>
+                                        <td>${esc(o.status || "")}${o.docstatus === 0 ? " (" + __("Draft") + ")" : ""}</td>
+                                        <td style="text-align:right">${o.qty}</td>
+                                        <td style="text-align:right">${o.pending_qty}</td>
+                                    </tr>`
+                                    )
+                                    .join("")}
+                            </tbody>
+                        </table>
+                    </details>`;
+            });
+
+            html += `
+                    </div>
+                </details>`;
+
+            frm.dashboard.add_comment(html, "orange", true);
+        },
+    });
+}
+
+function sync_terms_to_master(frm) {
+    if (!frm.doc.tc_name || !frm.doc.terms) return;
+
+    frappe.db
+        .get_value("Terms and Conditions", frm.doc.tc_name, "terms")
+        .then((r) => {
+            const master_terms = r && r.message ? r.message.terms : "";
+
+            if ((master_terms || "") === (frm.doc.terms || "")) return;
+
+            frappe.confirm(
+                __(
+                    "Terms were changed. Update the Terms and Conditions master <b>{0}</b> with these changes? This will apply to all new documents that use it.",
+                    [frm.doc.tc_name]
+                ),
+                () => {
+                    frappe.call({
+                        method: "nmtg.override.quotation.update_terms_and_conditions",
+                        args: {
+                            tc_name: frm.doc.tc_name,
+                            terms: frm.doc.terms,
+                        },
+                        freeze: true,
+                        freeze_message: __("Updating Terms and Conditions..."),
+                        callback: function (res) {
+                            if (!res.exc) {
+                                frappe.show_alert({
+                                    message: __("Terms and Conditions {0} updated", [frm.doc.tc_name]),
+                                    indicator: "green",
+                                });
+                            }
+                        },
+                    });
+                }
+            );
+        });
+}
+
 
 function set_dealer_from_customer(frm) {
     if (frm.doc.quotation_to !== "Customer" || !frm.doc.party_name) {
@@ -342,6 +490,9 @@ frappe.ui.form.on("Sales Order Item", {
 });
 
 frappe.ui.form.on("Dealer Liason CT", {
+    form_render: function (frm, cdt, cdn) {
+        setup_dealer_liason_type(frm);
+    },
     commission_: function (frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
     },
@@ -354,6 +505,81 @@ frappe.ui.form.on("Dealer Liason CT", {
         calculate_third_party_commission_amount(frm, cdt, cdn);
     }
 });
+
+
+// ---------------------------------------------------------------------------
+// Dealer / Liason type: show "Dealer" in place of "Customer" in the
+// custom_dealer__liason child table (stored value stays "Customer").
+// ---------------------------------------------------------------------------
+const DEALER_LIASON_OPTIONS = [
+    { label: "Dealer", value: "Customer" },
+    { label: "Liason", value: "Liason" },
+];
+
+function dealer_liason_formatter(value) {
+    const opt = DEALER_LIASON_OPTIONS.find((o) => o.value === value);
+    return opt ? __(opt.label) : (value || "");
+}
+
+function apply_dealer_liason_df(d) {
+    if (!d || d.fieldname !== "dealer__liason") return;
+    d.fieldtype = "Select";
+    d.options = DEALER_LIASON_OPTIONS;
+    d.formatter = dealer_liason_formatter;
+}
+
+function patch_dealer_liason_docfields(grid) {
+    (grid.docfields || []).forEach(apply_dealer_liason_df);
+    (grid.visible_columns || []).forEach(function (c) {
+        apply_dealer_liason_df(c && c[0]);
+    });
+    apply_dealer_liason_df(grid.get_docfield("dealer__liason"));
+    (grid.grid_rows || []).forEach(function (gr) {
+        (gr.docfields || []).forEach(apply_dealer_liason_df);
+        (gr.columns_list || []).forEach(function (c) {
+            apply_dealer_liason_df(c && c.df);
+        });
+    });
+}
+
+function relabel_dealer_liason_cells(grid) {
+    const $w = $(grid.wrapper);
+
+    $w.find('.grid-static-col[data-fieldname="dealer__liason"] .static-area').each(function () {
+        const $el = $(this);
+        if ($el.text().trim() === "Customer") {
+            $el.text(__("Dealer"));
+        }
+    });
+
+    $w.find('select[data-fieldname="dealer__liason"] option[value="Customer"]').text(__("Dealer"));
+}
+
+function setup_dealer_liason_type(frm) {
+    const field = frm.fields_dict.custom_dealer__liason;
+    const grid = field && field.grid;
+    if (!grid) return;
+
+    patch_dealer_liason_docfields(grid);
+
+    if (!grid.__dl_refresh_patched) {
+        const orig_refresh = grid.refresh;
+        grid.refresh = function () {
+            patch_dealer_liason_docfields(grid);
+            const result = orig_refresh.apply(this, arguments);
+            patch_dealer_liason_docfields(grid);
+            relabel_dealer_liason_cells(grid);
+            return result;
+        };
+        grid.__dl_refresh_patched = true;
+        grid.refresh();
+    }
+
+    relabel_dealer_liason_cells(grid);
+    setTimeout(function () {
+        relabel_dealer_liason_cells(grid);
+    }, 300);
+}
 
 
 function setup_dealer_liason_query(frm) {
@@ -550,7 +776,6 @@ function render_special_characteristics_html(frm, cdt, cdn, characteristics) {
 
 
 function nmtg_schedule_sales_team_sync(frm) {
-   
     clearTimeout(frm.__nmtg_sales_team_timer);
     frm.__nmtg_sales_team_timer = setTimeout(() => {
         frappe.after_ajax(() => {
@@ -647,7 +872,6 @@ function show_so_payment_term_dialog(frm) {
             dialog.hide();
 
             frappe.call({
-                // lives next to create_po_payment_request
                 method: "nmtg.override.payment_request.create_so_payment_request",
 
                 args: {

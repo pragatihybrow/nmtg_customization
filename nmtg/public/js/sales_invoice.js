@@ -1,36 +1,56 @@
 frappe.ui.form.on("Sales Invoice", {
     refresh: function (frm) {
-		recalculate_all_commissions(frm);
-		 setup_dealer_liason_query(frm);
+        setup_dealer_liason_type(frm);
+        recalculate_all_commissions(frm);
+        setup_dealer_liason_query(frm);
 
         if (frm.doc.quotation_to === "Customer" && frm.doc.party_name && !frm.doc.custom_dealer_name) {
             set_dealer_from_customer(frm);
         }
-		if (frm.doc.docstatus !== 0 || frm.is_new()) {
-			return;
-		}
+        if (frm.doc.docstatus !== 0 || frm.is_new()) {
+            return;
+        }
 
-		frm.add_custom_button(__("Quotation History"), () => {
-			if (!frm.doc.party_name && !frm.doc.customer_name) {
-				frappe.msgprint(__("Please select a customer first."));
-				return;
-			}
+        frm.add_custom_button(__("Quotation History"), () => {
+            if (!frm.doc.party_name && !frm.doc.customer_name) {
+                frappe.msgprint(__("Please select a customer first."));
+                return;
+            }
 
-			frappe.route_options = {
-				view_by: "Customer Wise",
-				company: frm.doc.company,
-				customer_name: frm.doc.customer_name || frm.doc.party_name
-			};
+            frappe.route_options = {
+                view_by: "Customer Wise",
+                company: frm.doc.company,
+                customer_name: frm.doc.customer_name || frm.doc.party_name
+            };
 
-			frappe.set_route(
-				"query-report",
-				"Quotation History Item wise & Customer wise"
-			);
-		}, __("View"));
+            frappe.set_route(
+                "query-report",
+                "Quotation History Item wise & Customer wise"
+            );
+        }, __("View"));
     },
-	 total: function(frm) {
+
+    onload_post_render: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+
+    after_save: function (frm) {
+        setup_dealer_liason_type(frm);
+        sync_terms_to_master(frm);
+    },
+
+    custom_dealer__liason_add: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+
+    custom_dealer__liason_on_form_rendered: function (frm) {
+        setup_dealer_liason_type(frm);
+    },
+
+    total: function (frm) {
         recalculate_all_commissions(frm);
     },
+
     custom_assign_to_responsible_users: function (frm) {
         if (frm.is_new()) {
             frappe.msgprint(__("Please save the document first."));
@@ -64,20 +84,96 @@ function set_dealer_from_customer(frm) {
 
 
 frappe.ui.form.on('Dealer Liason CT', {
-    commission_: function(frm, cdt, cdn) {
+    form_render: function (frm, cdt, cdn) {
+        setup_dealer_liason_type(frm);
+    },
+    commission_: function (frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
     },
-    dealer__liason: function(frm, cdt, cdn) {
+    dealer__liason: function (frm, cdt, cdn) {
         calculate_commission_amount(frm, cdt, cdn);
-		let row = locals[cdt][cdn];
         frappe.model.set_value(cdt, cdn, "dealer__liason_name", "");
         setup_dealer_liason_query(frm);
     },
-    third_party_commission_: function(frm, cdt, cdn) {
+    third_party_commission_: function (frm, cdt, cdn) {
         calculate_third_party_commission_amount(frm, cdt, cdn);
     }
-	
 });
+
+
+// ---------------------------------------------------------------------------
+// Dealer / Liason type: show "Dealer" in place of "Customer" in the
+// custom_dealer__liason child table (stored value stays "Customer").
+// ---------------------------------------------------------------------------
+const DEALER_LIASON_OPTIONS = [
+    { label: "Dealer", value: "Customer" },
+    { label: "Liason", value: "Liason" },
+];
+
+function dealer_liason_formatter(value) {
+    const opt = DEALER_LIASON_OPTIONS.find((o) => o.value === value);
+    return opt ? __(opt.label) : (value || "");
+}
+
+function apply_dealer_liason_df(d) {
+    if (!d || d.fieldname !== "dealer__liason") return;
+    d.fieldtype = "Select";
+    d.options = DEALER_LIASON_OPTIONS;
+    d.formatter = dealer_liason_formatter;
+}
+
+function patch_dealer_liason_docfields(grid) {
+    (grid.docfields || []).forEach(apply_dealer_liason_df);
+    (grid.visible_columns || []).forEach(function (c) {
+        apply_dealer_liason_df(c && c[0]);
+    });
+    apply_dealer_liason_df(grid.get_docfield("dealer__liason"));
+    (grid.grid_rows || []).forEach(function (gr) {
+        (gr.docfields || []).forEach(apply_dealer_liason_df);
+        (gr.columns_list || []).forEach(function (c) {
+            apply_dealer_liason_df(c && c.df);
+        });
+    });
+}
+
+function relabel_dealer_liason_cells(grid) {
+    const $w = $(grid.wrapper);
+
+    $w.find('.grid-static-col[data-fieldname="dealer__liason"] .static-area').each(function () {
+        const $el = $(this);
+        if ($el.text().trim() === "Customer") {
+            $el.text(__("Dealer"));
+        }
+    });
+
+    $w.find('select[data-fieldname="dealer__liason"] option[value="Customer"]').text(__("Dealer"));
+}
+
+function setup_dealer_liason_type(frm) {
+    const field = frm.fields_dict.custom_dealer__liason;
+    const grid = field && field.grid;
+    if (!grid) return;
+
+    patch_dealer_liason_docfields(grid);
+
+    if (!grid.__dl_refresh_patched) {
+        const orig_refresh = grid.refresh;
+        grid.refresh = function () {
+            patch_dealer_liason_docfields(grid);
+            const result = orig_refresh.apply(this, arguments);
+            patch_dealer_liason_docfields(grid);
+            relabel_dealer_liason_cells(grid);
+            return result;
+        };
+        grid.__dl_refresh_patched = true;
+        grid.refresh();
+    }
+
+    relabel_dealer_liason_cells(grid);
+    setTimeout(function () {
+        relabel_dealer_liason_cells(grid);
+    }, 300);
+}
 
 
 function setup_dealer_liason_query(frm) {
@@ -119,7 +215,7 @@ function calculate_third_party_commission_amount(frm, cdt, cdn) {
 }
 
 function recalculate_all_commissions(frm) {
-    (frm.doc.custom_dealer__liason || []).forEach(function(row) {
+    (frm.doc.custom_dealer__liason || []).forEach(function (row) {
         let total = flt(frm.doc.total);
 
         row.commission_amount = flt(
@@ -259,4 +355,42 @@ async function show_si_payment_term_dialog(frm) {
     });
 
     dialog.show();
+}
+
+function sync_terms_to_master(frm) {
+    if (!frm.doc.tc_name || !frm.doc.terms) return;
+
+    frappe.db
+        .get_value("Terms and Conditions", frm.doc.tc_name, "terms")
+        .then((r) => {
+            const master_terms = r && r.message ? r.message.terms : "";
+
+            if ((master_terms || "") === (frm.doc.terms || "")) return;
+
+            frappe.confirm(
+                __(
+                    "Terms were changed. Update the Terms and Conditions master <b>{0}</b> with these changes? This will apply to all new documents that use it.",
+                    [frm.doc.tc_name]
+                ),
+                () => {
+                    frappe.call({
+                        method: "nmtg.override.quotation.update_terms_and_conditions",
+                        args: {
+                            tc_name: frm.doc.tc_name,
+                            terms: frm.doc.terms,
+                        },
+                        freeze: true,
+                        freeze_message: __("Updating Terms and Conditions..."),
+                        callback: function (res) {
+                            if (!res.exc) {
+                                frappe.show_alert({
+                                    message: __("Terms and Conditions {0} updated", [frm.doc.tc_name]),
+                                    indicator: "green",
+                                });
+                            }
+                        },
+                    });
+                }
+            );
+        });
 }

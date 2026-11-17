@@ -85,3 +85,105 @@ def create_so_payment_request(so, payment_term):
             pr.db_set(fieldname, payment_term, update_modified=False)
 
     return pr.name
+
+@frappe.whitelist()
+def sales_order_stock_allocation(item_codes, company, sales_order=None):
+    frappe.has_permission("Sales Order", "read", throw=True)
+
+    if isinstance(item_codes, str):
+        item_codes = [i.strip() for i in item_codes.split(",") if i.strip()]
+
+    if not item_codes or not company:
+        return []
+
+    params = {
+        "items": tuple(item_codes),
+        "company": company,
+        "current": sales_order or "",
+    }
+
+    stock_rows = frappe.db.sql(
+        """
+        SELECT b.item_code, SUM(b.actual_qty) AS qty
+        FROM `tabBin` b
+        INNER JOIN `tabWarehouse` w ON w.name = b.warehouse
+        WHERE b.item_code IN %(items)s AND w.company = %(company)s
+        GROUP BY b.item_code
+        """,
+        params,
+        as_dict=1,
+    )
+
+    so_rows = frappe.db.sql(
+        """
+        SELECT soi.item_code,
+               so.name AS sales_order,
+               so.customer,
+               so.customer_name,
+               so.transaction_date,
+               so.delivery_date,
+               so.status,
+               so.docstatus,
+               SUM(soi.qty * soi.conversion_factor) AS qty,
+               SUM((soi.qty - IFNULL(soi.delivered_qty, 0)) * soi.conversion_factor) AS pending_qty
+        FROM `tabSales Order Item` soi
+        INNER JOIN `tabSales Order` so ON so.name = soi.parent
+        WHERE soi.item_code IN %(items)s
+          AND so.company = %(company)s
+          AND so.docstatus < 2
+          AND so.name != %(current)s
+          AND so.status NOT IN ('Closed', 'Completed', 'Cancelled', 'On Hold')
+          AND soi.qty > IFNULL(soi.delivered_qty, 0)
+        GROUP BY soi.item_code, so.name, so.customer, so.customer_name,
+                 so.transaction_date, so.delivery_date, so.status, so.docstatus
+        ORDER BY so.transaction_date
+        """,
+        params,
+        as_dict=1,
+    )
+
+    stock_map = {r.item_code: flt(r.qty) for r in stock_rows}
+
+    so_map = {}
+    for r in so_rows:
+        so_map.setdefault(r.item_code, []).append(
+            {
+                "sales_order": r.sales_order,
+                "customer": r.customer_name or r.customer,
+                "date": str(r.transaction_date),
+                "delivery_date": str(r.delivery_date) if r.delivery_date else "",
+                "status": r.status,
+                "docstatus": r.docstatus,
+                "qty": flt(r.qty),
+                "pending_qty": flt(r.pending_qty),
+            }
+        )
+
+    result = []
+    for code in item_codes:
+        orders = so_map.get(code, [])
+        total_pending = sum(o["pending_qty"] for o in orders)
+        in_stock = stock_map.get(code, 0)
+        result.append(
+            {
+                "item_code": code,
+                "in_stock": in_stock,
+                "pending_total": total_pending,
+                "available": in_stock - total_pending,
+                "orders": orders,
+            }
+        )
+
+    return result
+
+
+@frappe.whitelist()
+def update_terms_and_conditions(tc_name, terms):
+    frappe.has_permission("Terms and Conditions", "write", throw=True)
+
+    doc = frappe.get_doc("Terms and Conditions", tc_name)
+    if (doc.terms or "") != (terms or ""):
+        doc.terms = terms
+        doc.save()
+
+    return doc.name

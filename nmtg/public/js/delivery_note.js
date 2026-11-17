@@ -17,7 +17,10 @@ frappe.ui.form.on("Delivery Note", {
     custom_ld_percentage: function(frm) { calculate_ld_for_all_items(frm); },
     custom_ld_so: function(frm) { calculate_ld_for_all_items(frm); },
     custom_frequency: function(frm) { calculate_ld_for_all_items(frm); },
-    refresh: function(frm) { calculate_ld_for_all_items(frm); }
+    refresh: function(frm) { calculate_ld_for_all_items(frm); },
+    after_save: function (frm) {
+        sync_terms_to_master(frm);
+    },
 });
 
 frappe.ui.form.on("Delivery Note Item", {
@@ -78,4 +81,43 @@ function update_total_ld(frm) {
         total_ld += flt(row.custom_total_ld);
     });
     frm.set_value("custom_total_lw", total_ld);
+}
+
+
+function sync_terms_to_master(frm) {
+    if (!frm.doc.tc_name || !frm.doc.terms) return;
+
+    frappe.db
+        .get_value("Terms and Conditions", frm.doc.tc_name, "terms")
+        .then((r) => {
+            const master_terms = r && r.message ? r.message.terms : "";
+
+            if ((master_terms || "") === (frm.doc.terms || "")) return;
+
+            frappe.confirm(
+                __(
+                    "Terms were changed. Update the Terms and Conditions master <b>{0}</b> with these changes? This will apply to all new documents that use it.",
+                    [frm.doc.tc_name]
+                ),
+                () => {
+                    frappe.call({
+                        method: "nmtg.override.quotation.update_terms_and_conditions",
+                        args: {
+                            tc_name: frm.doc.tc_name,
+                            terms: frm.doc.terms,
+                        },
+                        freeze: true,
+                        freeze_message: __("Updating Terms and Conditions..."),
+                        callback: function (res) {
+                            if (!res.exc) {
+                                frappe.show_alert({
+                                    message: __("Terms and Conditions {0} updated", [frm.doc.tc_name]),
+                                    indicator: "green",
+                                });
+                            }
+                        },
+                    });
+                }
+            );
+        });
 }

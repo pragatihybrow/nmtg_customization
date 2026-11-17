@@ -285,6 +285,7 @@ override_doctype_class = {
     "Payment Request": "nmtg.override.payment_request.CustomPaymentRequest", 
     "Job Card": "nmtg.override.mfg_py.job_card.CustomJobCard",   
     "Stock Entry": "nmtg.override.mfg_py.stock_entry.CustomStockEntry",
+    "Quotation": "nmtg.override.quotation.NMTGQuotation",
 }
 
 doctype_list_js = {
@@ -330,7 +331,9 @@ doc_events = {
     # was defined twice before, so the first definition was lost
     "Quotation": {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_opportunity",
-        "validate": "nmtg.override.quotation.set_customer_ref_codes",
+        "validate": ["nmtg.override.quotation.set_customer_ref_codes",
+                "nmtg.override.quotation.validate_dealer_remark",]
+
     },
     "Sales Order": {
         "before_insert": "nmtg.override.api.reset_role_assigned_on_create_from_so",

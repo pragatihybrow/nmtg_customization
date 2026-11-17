@@ -2526,3 +2526,4 @@ def set_custom_dealer(doc, method=None):
             indicator="blue",
             alert=True,
         )
+

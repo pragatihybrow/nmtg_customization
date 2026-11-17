@@ -42,7 +42,111 @@
         custom_items_remove(frm) {
             render_item_payment(frm);
         },
+
+        // Inward requests: ask before submit whether the email should be sent
+        // (and ask for the email id when Email To is empty)
+        before_submit(frm) {
+            // second pass: the user already answered the dialog, let the submit go through
+            if (frm.__pr_email_answered && Date.now() - frm.__pr_email_answered < 15000) {
+                frm.__pr_email_answered = null;
+                return;
+            }
+            frm.__pr_email_answered = null;
+
+            if (frm.doc.payment_request_type !== "Inward" || cint(frm.doc.mute_email)) {
+                return;
+            }
+
+            // stop this submit, the dialog decides what happens next
+            frappe.validated = false;
+            frappe.dom.unfreeze();
+
+            pr_show_email_dialog(frm);
+        },
     });
+
+    function pr_valid_emails(value) {
+        const list = (value || "")
+            .replace(/;/g, ",")
+            .split(",")
+            .map((e) => e.trim())
+            .filter(Boolean);
+        if (!list.length) return null;
+        const ok = list.every((e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e));
+        return ok ? list.join(", ") : null;
+    }
+
+    function pr_show_email_dialog(frm) {
+        const current = (frm.doc.email_to || "").trim();
+
+        const mail_label =
+            frm.doc.reference_doctype === "Sales Order"
+                ? __("Proforma Invoice email")
+                : __("Payment Request email");
+
+        const fields = current
+            ? [
+                  {
+                      fieldtype: "HTML",
+                      fieldname: "info",
+                      options: `<p>${__("Do you want to send the {0} to", [mail_label])}
+                          <b>${frappe.utils.escape_html(current)}</b>?</p>`,
+                  },
+              ]
+            : [
+                  {
+                      fieldtype: "HTML",
+                      fieldname: "info",
+                      options: `<p>${__("Email To is empty. Enter the email id to send the {0}.", [mail_label])}</p>`,
+                  },
+                  {
+                      fieldtype: "Data",
+                      fieldname: "email_id",
+                      label: __("Email To"),
+                      description: __("Separate multiple email ids with a comma"),
+                  },
+              ];
+
+        const proceed = (mute) => {
+            d.hide();
+            if (mute) {
+                frm.doc.mute_email = 1; // server skips the mail when this is set
+            }
+            frm.__pr_email_answered = Date.now();
+            frm.save("Submit");
+        };
+
+        const d = new frappe.ui.Dialog({
+            title: current ? __("Send Email?") : __("Email Id Required"),
+            fields: fields,
+            primary_action_label: __("Submit & Send Email"),
+            primary_action: function (values) {
+                if (current) {
+                    proceed(false);
+                    return;
+                }
+
+                const email = pr_valid_emails(values.email_id);
+                if (!email) {
+                    frappe.msgprint({
+                        title: __("Invalid Email"),
+                        message: __("Please enter a valid email id."),
+                        indicator: "red",
+                    });
+                    return; // keep the dialog open
+                }
+
+                frm.doc.email_to = email;
+                frm.set_value("email_to", email).then(() => proceed(false));
+            },
+            secondary_action_label: __("Submit Without Email"),
+            secondary_action: function () {
+                proceed(true);
+            },
+        });
+
+        d.show();
+    }
 
     function pr_add_payment_entry_button(frm) {
         if (
@@ -542,7 +646,7 @@
                     }
                     <div class="text-muted small" style="margin-top:6px;">
                         ${esc(po.name)} &mdash; Items Total: ${fmt(net_total)} | Taxes: ${fmt(total_tax)} | Grand Total: ${fmt(grand_total)}
-                        <span style="float:right; opacity:.5;">v9</span>
+                        <span style="float:right; opacity:.5;">v11</span>
                     </div>
                 </div>`;
 
