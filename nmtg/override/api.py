@@ -20,8 +20,7 @@ from frappe.desk.form.assign_to import add as assign_to_add
 from functools import partial
 from frappe.utils import get_fullname
 from frappe.utils import escape_html, get_url
-
-
+from nmtg.override.email_utils import get_thread_mail_args, send_email
 
 
 REMARKS_KEY = "__remarks__"
@@ -1092,6 +1091,7 @@ def get_email_attachments():
 		return []
 
 
+
 # @frappe.whitelist()
 # def send_lead_stage_email(lead, stage_key, subject, message):
 # 	if stage_key not in STAGE_FIELD_MAP:
@@ -1106,6 +1106,9 @@ def get_email_attachments():
 # 	if not to:
 # 		frappe.throw(_("No contact email addresses found to send to."))
 
+# 	# Attach the company profile only with the Introduction Email (same as Prospect)
+# 	attachments = get_email_attachments() if stage_key == "intro" else []
+
 # 	frappe.sendmail(
 # 		recipients=[to],
 # 		cc=cc,
@@ -1113,7 +1116,7 @@ def get_email_attachments():
 # 		message=message,
 # 		reference_doctype="Lead",
 # 		reference_name=lead,
-# 		attachments=get_email_attachments(),
+# 		attachments=attachments,
 # 	)
 
 # 	field_key = STAGE_FIELD_MAP[stage_key]
@@ -1140,14 +1143,16 @@ def send_lead_stage_email(lead, stage_key, subject, message):
 	# Attach the company profile only with the Introduction Email (same as Prospect)
 	attachments = get_email_attachments() if stage_key == "intro" else []
 
-	frappe.sendmail(
+	send_email(
 		recipients=[to],
 		cc=cc,
 		subject=subject,
 		message=message,
+		attachments=attachments,
 		reference_doctype="Lead",
 		reference_name=lead,
-		attachments=attachments,
+		log_title="Lead Stage Email - Send Failed",
+		raise_on_error=True,
 	)
 
 	field_key = STAGE_FIELD_MAP[stage_key]
@@ -1191,6 +1196,297 @@ DETAIL_FIELDS = [
 	"version",
 	"general_technical_remarks",
 ]
+
+# @frappe.whitelist()
+# def send_technical_evaluation_questionary(technical_evaluation):
+#     """Send technical evaluation questionnaire email to the customer."""
+
+#     doc = frappe.get_doc("Technical Evaluation", technical_evaluation)
+
+#     if not doc.email:
+#         frappe.throw(_("Email is not set on {0}").format(doc.name))
+
+#     if not doc.questionary_for_technical_evaluation:
+#         frappe.throw(_("No questions found on {0} to send").format(doc.name))
+
+#     link = get_url(
+#         f"/questionary-for-technical-evaluation?technical_evaluation={doc.name}"
+#     )
+
+#     # Create mapping of Request No -> Item Name / Customer Requirement
+#     item_requirements = {
+#         item.request_no: item.item_name or ""
+#         for item in doc.items
+#         if item.request_no
+#     }
+
+#     rows_html = ""
+
+#     for row in doc.questionary_for_technical_evaluation:
+
+#         requirement = item_requirements.get(row.request_no, "")
+
+#         rows_html += f"""
+#             <tr>
+#                 <td style="
+#                     padding:8px 10px;
+#                     border:1px solid #ddd;
+#                     vertical-align:top;
+#                 ">
+#                     {escape_html(row.request_no or '')}
+#                 </td>
+
+#                 <td style="
+#                     padding:8px 10px;
+#                     border:1px solid #ddd;
+#                     vertical-align:top;
+#                 ">
+#                     {escape_html(requirement)}
+#                 </td>
+
+#                 <td style="
+#                     padding:8px 10px;
+#                     border:1px solid #ddd;
+#                     vertical-align:top;
+#                 ">
+#                     {escape_html(row.question or '')}
+#                 </td>
+#             </tr>
+#         """
+
+#     message = f"""
+#         <div style="
+#             padding:0 0 16px 0;
+#             border-bottom:2px solid #000000;
+#             margin-bottom:20px;
+#         ">
+#             <h2 style="
+#                 margin:0;
+#                 font-family:Arial, Helvetica, sans-serif;
+#                 color:#000000;
+#                 font-size:20px;
+#                 font-weight:700;
+#             ">
+#                 NMTG Mechtrans Techniques Pvt. Ltd.
+#             </h2>
+#         </div>
+
+#         <div style="
+#             padding:0 4px 24px;
+#             font-family:Arial, Helvetica, sans-serif;
+#             color:#1c2b3a;
+#             font-size:14px;
+#             line-height:1.6;
+#         ">
+
+#             <p>
+#                 Dear {escape_html(doc.customer or "Sir/Madam")},
+#             </p>
+
+#             <p>
+#                 Greetings from NMTG Mechtrans Techniques Pvt. Ltd.
+#             </p>
+
+#             <p>
+#                 With reference to Technical Evaluation
+#                 <b>{escape_html(doc.name)}</b>, we require certain
+#                 clarifications from your end to proceed further with our
+#                 technical assessment. Kindly find the list of queries below.
+#             </p>
+
+#             <p>
+#                 Kindly review the technical queries mentioned below and provide
+#                 the required information at your earliest convenience.
+#             </p>
+
+#             <table style="
+#                 border-collapse:collapse;
+#                 width:100%;
+#                 margin:16px 0;
+#                 font-family:Arial, Helvetica, sans-serif;
+#                 font-size:13px;
+#             ">
+
+#                 <thead>
+#                     <tr>
+
+#                         <th style="
+#                             padding:8px 10px;
+#                             border:1px solid #ddd;
+#                             background:#f2f2f2;
+#                             text-align:left;
+#                         ">
+#                             Request No
+#                         </th>
+
+#                         <th style="
+#                             padding:8px 10px;
+#                             border:1px solid #ddd;
+#                             background:#f2f2f2;
+#                             text-align:left;
+#                         ">
+#                             Customer Requirement/Brief
+#                         </th>
+
+#                         <th style="
+#                             padding:8px 10px;
+#                             border:1px solid #ddd;
+#                             background:#f2f2f2;
+#                             text-align:left;
+#                         ">
+#                             Questions
+#                         </th>
+
+#                     </tr>
+#                 </thead>
+
+#                 <tbody>
+#                     {rows_html}
+#                 </tbody>
+
+#             </table>
+
+#             <table
+#                 role="presentation"
+#                 cellpadding="0"
+#                 cellspacing="0"
+#                 border="0"
+#                 align="center"
+#                 style="margin:24px auto;"
+#             >
+#                 <tr>
+#                     <td
+#                         style="
+#                             background-color:#000000;
+#                             border-radius:4px;
+#                         "
+#                         align="center"
+#                     >
+#                         <a
+#                             href="{link}"
+#                             target="_blank"
+#                             style="
+#                                 display:inline-block;
+#                                 padding:12px 28px;
+#                                 font-family:Arial, Helvetica, sans-serif;
+#                                 font-size:14px;
+#                                 font-weight:600;
+#                                 letter-spacing:.2px;
+#                                 color:#ffffff !important;
+#                                 text-decoration:none !important;
+#                                 border:1px solid #000000;
+#                                 border-radius:4px;
+#                             "
+#                         >
+#                             Click here to answer the questionary
+#                         </a>
+#                     </td>
+#                 </tr>
+#             </table>
+
+#             <p style="
+#                 font-size:12.5px;
+#                 color:#5a6b78;
+#             ">
+#                 Should the button above not work, please copy and paste the
+#                 following link into your browser:<br>
+
+#                 <a
+#                     href="{link}"
+#                     style="color:#0c355a;"
+#                 >
+#                     {link}
+#                 </a>
+#             </p>
+
+#             <p>
+#                 Should you have any queries regarding the above, please feel
+#                 free to reach out to us.
+#             </p>
+
+#             <p>
+#                 Best regards,<br>
+#                 <b>NMTG Mechtrans Techniques Pvt. Ltd.</b>
+#             </p>
+
+#         </div>
+#     """
+
+#     # ---- Subject: must match the Opportunity / Quotation notification subjects exactly ----
+#     # Format: NMTG | Customer Name | Opportunity | Customer RFQ Number
+#     opportunity_no = (doc.get("opportunity_no") or "").strip()
+#     customer_name = ""
+#     customer_rfq_number = ""
+
+#     if opportunity_no:
+#         opp = frappe.db.get_value(
+#             "Opportunity",
+#             opportunity_no,
+#             ["customer_name", "custom_customer_rfq_number"],
+#             as_dict=True,
+#         )
+#         if opp:
+#             customer_name = (opp.customer_name or "").strip()
+#             customer_rfq_number = (opp.custom_customer_rfq_number or "").strip()
+
+#     if not customer_name:
+#         customer_name = (doc.customer or "").strip()
+#     if not customer_rfq_number:
+#         customer_rfq_number = (doc.get("custom_customer_rfq_number") or "").strip()
+
+#     subject = " | ".join(
+#         part
+#         for part in ["NMTG", customer_name, opportunity_no, customer_rfq_number]
+#         if part
+#     )
+
+#     # ---- Same sender as the notifications ----
+#     sender = frappe.db.get_value(
+#         "Email Account",
+#         {"enable_outgoing": 1, "email_id": "pragatiexam01@gmail.com"},
+#         "email_id",
+#     )
+
+#     # ---- Thread with the first email sent on the Opportunity ----
+#     in_reply_to = None
+#     if opportunity_no:
+#         message_id = frappe.db.get_value(
+#             "Communication",
+#             {
+#                 "reference_doctype": "Opportunity",
+#                 "reference_name": opportunity_no,
+#                 "communication_type": "Communication",
+#                 "sent_or_received": "Sent",
+#             },
+#             "message_id",
+#             order_by="creation asc",
+#         )
+#         if message_id:
+#             message_id = message_id.strip()
+#             if not message_id.startswith("<"):
+#                 message_id = f"<{message_id}>"
+#             in_reply_to = message_id
+
+#     mail_args = dict(
+#         recipients=[doc.email],
+#         subject=subject,
+#         message=message,
+#         reference_doctype=doc.doctype,
+#         reference_name=doc.name,
+#     )
+#     if sender:
+#         mail_args["sender"] = sender
+#     if in_reply_to:
+#         mail_args["in_reply_to"] = in_reply_to
+
+#     frappe.sendmail(**mail_args)
+
+#     doc.add_comment(
+#         "Info",
+#         _("Questionary email sent to {0}").format(doc.email)
+#     )
+
+#     return {"sent": True}
 
 @frappe.whitelist()
 def send_technical_evaluation_questionary(technical_evaluation):
@@ -1407,74 +1703,23 @@ def send_technical_evaluation_questionary(technical_evaluation):
         </div>
     """
 
-    # ---- Subject: must match the Opportunity / Quotation notification subjects exactly ----
-    # Format: NMTG | Customer Name | Opportunity | Customer RFQ Number
-    opportunity_no = (doc.get("opportunity_no") or "").strip()
-    customer_name = ""
-    customer_rfq_number = ""
-
-    if opportunity_no:
-        opp = frappe.db.get_value(
-            "Opportunity",
-            opportunity_no,
-            ["customer_name", "custom_customer_rfq_number"],
-            as_dict=True,
-        )
-        if opp:
-            customer_name = (opp.customer_name or "").strip()
-            customer_rfq_number = (opp.custom_customer_rfq_number or "").strip()
-
-    if not customer_name:
-        customer_name = (doc.customer or "").strip()
-    if not customer_rfq_number:
-        customer_rfq_number = (doc.get("custom_customer_rfq_number") or "").strip()
-
-    subject = " | ".join(
-        part
-        for part in ["NMTG", customer_name, opportunity_no, customer_rfq_number]
-        if part
+    # Subject: NMTG | Customer Name | Opportunity | Customer RFQ Number (threaded with Opportunity mail)
+    subject, in_reply_to = get_thread_mail_args(
+        doc.get("opportunity_no"),
+        fallback_customer=doc.customer,
+        fallback_rfq=doc.get("custom_customer_rfq_number"),
     )
 
-    # ---- Same sender as the notifications ----
-    sender = frappe.db.get_value(
-        "Email Account",
-        {"enable_outgoing": 1, "email_id": "pragatiexam01@gmail.com"},
-        "email_id",
-    )
-
-    # ---- Thread with the first email sent on the Opportunity ----
-    in_reply_to = None
-    if opportunity_no:
-        message_id = frappe.db.get_value(
-            "Communication",
-            {
-                "reference_doctype": "Opportunity",
-                "reference_name": opportunity_no,
-                "communication_type": "Communication",
-                "sent_or_received": "Sent",
-            },
-            "message_id",
-            order_by="creation asc",
-        )
-        if message_id:
-            message_id = message_id.strip()
-            if not message_id.startswith("<"):
-                message_id = f"<{message_id}>"
-            in_reply_to = message_id
-
-    mail_args = dict(
+    send_email(
         recipients=[doc.email],
         subject=subject,
         message=message,
         reference_doctype=doc.doctype,
         reference_name=doc.name,
+        in_reply_to=in_reply_to,
+        log_title="Technical Evaluation Questionary - Send Failed",
+        raise_on_error=True,
     )
-    if sender:
-        mail_args["sender"] = sender
-    if in_reply_to:
-        mail_args["in_reply_to"] = in_reply_to
-
-    frappe.sendmail(**mail_args)
 
     doc.add_comment(
         "Info",
@@ -1482,6 +1727,7 @@ def send_technical_evaluation_questionary(technical_evaluation):
     )
 
     return {"sent": True}
+
 
 
 @frappe.whitelist(allow_guest=True)
@@ -2156,7 +2402,100 @@ def sync_customer_requirements_to_work_order(doc, method):
     frappe.db.commit()
 
 
-import frappe
+# import frappe
+
+
+# @frappe.whitelist()
+# def send_drawing_verification_emails_for_doc(docname):
+#     doc = frappe.get_doc("Sales Order", docname)
+
+#     recipients = _get_recipients(doc)
+
+#     pending_items = [
+#         item for item in doc.items
+#         if item.drawing_approval_required == "Yes" and not item.get("drawing_email_sent")
+#     ]
+
+#     sent = []
+#     skipped = []
+
+#     if not pending_items:
+#         return {"sent": sent, "skipped": ["No pending items found"]}
+
+#     if not recipients:
+#         return {"sent": sent, "skipped": ["No recipient email configured on the document"]}
+
+#     available_attachments = {att.item_row for att in doc.get("attachment", []) if att.attachment}
+
+#     items_to_email = []
+#     for item in pending_items:
+#         if item.name in available_attachments:
+#             items_to_email.append(item)
+#         else:
+#             skipped.append(f"{item.item_code or item.name}: no attachment found")
+
+#     if not items_to_email:
+#         return {"sent": sent, "skipped": skipped}
+
+#     body = frappe.render_template(
+#         EMAIL_BODY_TEMPLATE,
+#         {
+#             "doc": doc,
+#             "items": items_to_email,
+#             "get_formatted_size": _get_formatted_size,
+#         },
+#     )
+
+#     subject = EMAIL_SUBJECT_TEMPLATE.format(reference=doc.name)
+
+#     attachments = _get_attachments_for_item_rows(
+#         doc, {item.name for item in items_to_email}
+#     )
+
+#     try:
+#         frappe.sendmail(
+#             recipients=recipients,
+#             subject=subject,
+#             message=body,
+#             attachments=attachments,
+#             reference_doctype=doc.doctype,
+#             reference_name=doc.name,
+#         )
+#     except Exception as e:
+#         frappe.log_error(
+#             title="Drawing Verification Email - Send Failed",
+#             message=frappe.get_traceback(),
+#         )
+#         skipped.extend(
+#             f"{item.item_code or item.name}: email send failed - {str(e)}"
+#             for item in items_to_email
+#         )
+#         return {"sent": sent, "skipped": skipped}
+
+#     for item in items_to_email:
+#         sent.append(item.item_code or item.name)
+#         try:
+#             item.db_set("drawing_email_sent", 1, update_modified=False)
+#         except Exception as e:
+#             frappe.log_error(
+#                 title="Drawing Verification Email - Tracking Update Failed",
+#                 message=frappe.get_traceback(),
+#             )
+#             skipped.append(
+#                 f"{item.item_code or item.name}: email sent, but failed to mark drawing_email_sent - {str(e)}"
+#             )
+
+#     # Parent flag is optional - only set it if the field exists on the doctype
+#     if frappe.get_meta(doc.doctype).has_field("attachment_email_sent"):
+#         try:
+#             doc.db_set("attachment_email_sent", 1, update_modified=False)
+#         except Exception:
+#             frappe.log_error(
+#                 title="Drawing Verification Email - Parent Flag Update Failed",
+#                 message=frappe.get_traceback(),
+#             )
+
+#     return {"sent": sent, "skipped": skipped}
 
 
 @frappe.whitelist()
@@ -2206,22 +2545,19 @@ def send_drawing_verification_emails_for_doc(docname):
         doc, {item.name for item in items_to_email}
     )
 
-    try:
-        frappe.sendmail(
-            recipients=recipients,
-            subject=subject,
-            message=body,
-            attachments=attachments,
-            reference_doctype=doc.doctype,
-            reference_name=doc.name,
-        )
-    except Exception as e:
-        frappe.log_error(
-            title="Drawing Verification Email - Send Failed",
-            message=frappe.get_traceback(),
-        )
+    ok, err = send_email(
+        recipients=recipients,
+        subject=subject,
+        message=body,
+        attachments=attachments,
+        reference_doctype=doc.doctype,
+        reference_name=doc.name,
+        log_title="Drawing Verification Email - Send Failed",
+    )
+
+    if not ok:
         skipped.extend(
-            f"{item.item_code or item.name}: email send failed - {str(e)}"
+            f"{item.item_code or item.name}: email send failed - {err}"
             for item in items_to_email
         )
         return {"sent": sent, "skipped": skipped}
@@ -2251,15 +2587,8 @@ def send_drawing_verification_emails_for_doc(docname):
 
     return {"sent": sent, "skipped": skipped}
 
-
 def _get_attachments_for_item_rows(doc, item_rows):
-    """
-    Build the email attachment list for the given item rows.
-
-    Each distinct file is attached once. If several attachment rows point to
-    the same file_url (e.g. the same file uploaded in two slots), Frappe
-    stores only one File record for it, so only one copy can be attached.
-    """
+   
     attachments = []
     seen_urls = set()
 

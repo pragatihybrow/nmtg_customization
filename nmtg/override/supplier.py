@@ -1,6 +1,7 @@
 import frappe
 from frappe.utils import get_url
 from frappe.utils import getdate, add_to_date, cint, today
+from nmtg.override.email_utils import send_email
 
 
 
@@ -49,6 +50,77 @@ def validate(doc, method):
 		doc.custom_supplier_status = new_status
 
 
+# @frappe.whitelist()
+# def send_supplier_forms(supplier):
+# 	doc = frappe.get_doc("Supplier", supplier)
+
+# 	if not doc.email_id:
+# 		frappe.throw("Supplier does not have an Email ID set (via Primary Contact).")
+
+# 	category = doc.custom_supplier_category
+# 	base_url = get_url()
+
+# 	# Sender details - pulled from the logged-in user, adjust as needed
+# 	user = frappe.get_doc("User", frappe.session.user)
+# 	sender_name = user.full_name or frappe.session.user
+# 	sender_designation = user.get("designation") or ""  # only exists if you have this field on User
+# 	sender_contact = user.get("mobile_no") or user.get("phone") or ""
+
+# 	# registration_link = f"{base_url}/supplier-registration-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+# 	registration_link = (
+#     f"{base_url}/supplier-registration-form"
+#     f"?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+#     f"&supplier_scope={frappe.utils.quote(doc.custom_supplier_scope or '')}"
+# )
+# 	audit_link = f"{base_url}/supplier-audit-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+
+# 	context = {
+# 		"supplier_name": doc.supplier_name,
+# 		"registration_link": registration_link,
+# 		"audit_link": audit_link,
+# 		"show_audit": category == "A",
+# 		"sender_name": sender_name,
+# 		"sender_designation": sender_designation,
+# 		"sender_contact": sender_contact,
+# 	}
+
+# 	message = frappe.render_template(
+# 		"""
+# Hello Sir/Madam,<br><br>
+
+# Greetings from NMTG!<br><br>
+
+# As part of our supplier registration process, kindly complete the following form(s) using the link(s) below:<br><br>
+
+# Supplier Registration Form:<br>
+# <a href="{{ registration_link }}">{{ registration_link }}</a><br><br>
+
+# {% if show_audit %}
+# Supplier Audit Form:<br>
+# <a href="{{ audit_link }}">{{ audit_link }}</a><br><br>
+# {% endif %}
+
+# Kindly complete the form(s) at your earliest convenience to help us complete the supplier onboarding process.<br><br>
+
+# Thank you for your cooperation.<br><br>
+
+# Best Regards,<br>
+# {{ sender_name }}<br>
+# {% if sender_designation %}{{ sender_designation }}<br>{% endif %}
+# {% if sender_contact %}{{ sender_contact }}<br>{% endif %}
+# <a href="https://www.nmtgindia.com">www.nmtgindia.com</a>
+# """,
+# 		context,
+# 	)
+
+# 	frappe.sendmail(
+# 		recipients=[doc.email_id],
+# 		subject=f"Action Required: Supplier Registration{' & Audit Forms' if category == 'A' else ' Form'} – NMTG",
+# 		message=message,
+# 	)
+
+# 	frappe.msgprint(f"Email sent to {doc.email_id}")
+
 @frappe.whitelist()
 def send_supplier_forms(supplier):
 	doc = frappe.get_doc("Supplier", supplier)
@@ -62,15 +134,14 @@ def send_supplier_forms(supplier):
 	# Sender details - pulled from the logged-in user, adjust as needed
 	user = frappe.get_doc("User", frappe.session.user)
 	sender_name = user.full_name or frappe.session.user
-	sender_designation = user.get("designation") or ""  # only exists if you have this field on User
+	sender_designation = user.get("designation") or ""
 	sender_contact = user.get("mobile_no") or user.get("phone") or ""
 
-	# registration_link = f"{base_url}/supplier-registration-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
 	registration_link = (
-    f"{base_url}/supplier-registration-form"
-    f"?supplier_name={frappe.utils.quote(doc.supplier_name)}"
-    f"&supplier_scope={frappe.utils.quote(doc.custom_supplier_scope or '')}"
-)
+		f"{base_url}/supplier-registration-form"
+		f"?supplier_name={frappe.utils.quote(doc.supplier_name)}"
+		f"&supplier_scope={frappe.utils.quote(doc.custom_supplier_scope or '')}"
+	)
 	audit_link = f"{base_url}/supplier-audit-form?supplier_name={frappe.utils.quote(doc.supplier_name)}"
 
 	context = {
@@ -112,10 +183,14 @@ Best Regards,<br>
 		context,
 	)
 
-	frappe.sendmail(
+	send_email(
 		recipients=[doc.email_id],
 		subject=f"Action Required: Supplier Registration{' & Audit Forms' if category == 'A' else ' Form'} – NMTG",
 		message=message,
+		reference_doctype="Supplier",
+		reference_name=doc.name,
+		log_title="Supplier Forms Email - Send Failed",
+		raise_on_error=True,
 	)
 
 	frappe.msgprint(f"Email sent to {doc.email_id}")
@@ -201,6 +276,61 @@ def send_due_supplier_audit_reminders():
 				message=f"Supplier: {row.name}\n\n{frappe.get_traceback()}",
 			)
 
+# def send_audit_due_reminder(supplier_row):
+# 	if not supplier_row.email_id:
+# 		frappe.log_error(
+# 			title="Supplier Audit Reminder Skipped",
+# 			message=f"Supplier {supplier_row.name} has no Email ID set; cannot send audit reminder.",
+# 		)
+# 		return
+
+# 	base_url = get_url()
+# 	audit_link = (
+# 		f"{base_url}/supplier-audit-form?supplier_name={frappe.utils.quote(supplier_row.supplier_name)}"
+# 	)
+
+# 	context = {
+# 		"supplier_name": supplier_row.supplier_name,
+# 		"audit_link": audit_link,
+# 		"due_date": frappe.utils.formatdate(supplier_row.custom_next_audit_date),
+# 	}
+
+# 	message = frappe.render_template(
+# 		"""
+# Hello Sir/Madam,<br><br>
+
+# Greetings from NMTG!<br><br>
+
+# As part of our periodic Supplier Quality Audit process, your supplier re-audit is
+# now due as per the scheduled audit cycle.<br><br>
+
+# We request you to kindly complete the Supplier Audit Form using the link below at
+# your earliest convenience.<br><br>
+
+# Supplier Audit Form:<br>
+# <a href="{{ audit_link }}">{{ audit_link }}</a><br><br>
+
+# Re-Audit Due Date: {{ due_date }}<br><br>
+
+# Your timely response will help us complete the supplier re-evaluation process and
+# maintain our approved supplier records.<br><br>
+
+# Thank you for your continued support and cooperation.<br><br>
+
+# Best Regards,<br>
+# NMTG Quality Team<br>
+# NMTG Mechtrans Techniques Pvt. Ltd.<br>
+# <a href="https://www.nmtgindia.com">www.nmtgindia.com</a>
+# """,
+# 		context,
+# 	)
+
+# 	frappe.sendmail(
+# 		recipients=[supplier_row.email_id],
+# 		subject="Supplier Re-Audit Due – Action Required",
+# 		message=message,
+# 	)
+
 def send_audit_due_reminder(supplier_row):
 	if not supplier_row.email_id:
 		frappe.log_error(
@@ -250,12 +380,15 @@ NMTG Mechtrans Techniques Pvt. Ltd.<br>
 		context,
 	)
 
-	frappe.sendmail(
+	send_email(
 		recipients=[supplier_row.email_id],
 		subject="Supplier Re-Audit Due – Action Required",
 		message=message,
+		reference_doctype="Supplier",
+		reference_name=supplier_row.name,
+		log_title="Supplier Re-Audit Email - Send Failed",
+		raise_on_error=True,
 	)
-
 
 def update_supplier_next_audit_date(doc, method=None):
 	if doc.workflow_state != "Approved By Quality":

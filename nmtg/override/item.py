@@ -110,6 +110,11 @@ class CustomItem(Item):
 
       
         if self.custom_special_item:
+            # Entered in the Special Item popup; not stored on the Item
+            special_suffix = (self.get("special_suffix_tmp") or "").strip()
+            if not special_suffix:
+                frappe.throw(_("Special Suffix is required for a Special Item"))
+
             name_pattern = matched_row.name_pattern or ""
 
             if ctx.get("custom_models") and "{custom_models}" in name_pattern:
@@ -122,7 +127,7 @@ class CustomItem(Item):
                 target = None
 
             if target:
-                name_ctx[target] = f'{name_ctx.get(target, "")} Sp'.strip()
+                name_ctx[target] = f'{name_ctx.get(target, "")} {special_suffix}'.strip()
 
         self.item_name = apply_pattern(matched_row.name_pattern, name_ctx)
         self.item_code = code_prefix + next_seq

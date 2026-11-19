@@ -10,7 +10,6 @@ frappe.ui.form.on("Quotation", {
     },
 
     setup: function (frm) {
-        // Email composer in the Activities tab pre-fills from this field
         frm.email_field = "contact_email";
 
         frm.set_query("quotation_to", function () {
@@ -42,6 +41,7 @@ frappe.ui.form.on("Quotation", {
 
     onload_post_render: function (frm) {
         setup_dealer_liason_type(frm);
+        lm_render(frm);
     },
 
     after_save: function (frm) {
@@ -56,18 +56,16 @@ frappe.ui.form.on("Quotation", {
     custom_dealer__liason_on_form_rendered: function (frm) {
         setup_dealer_liason_type(frm);
     },
-
     refresh: function (frm) {
         setup_dealer_liason_type(frm);
         recalculate_all_commissions(frm);
         setup_dealer_liason_query(frm);
         set_valid_till(frm);
+        lm_render(frm);
 
-        // Notes / Activities tabs (must run before the early returns below)
         render_crm_notes(frm);
         render_crm_activities(frm);
 
-        // Fill dealer name / dealer email if either is missing (draft only)
         if (
             frm.doc.docstatus === 0 &&
             frm.doc.quotation_to === "Customer" &&
@@ -77,13 +75,11 @@ frappe.ui.form.on("Quotation", {
             set_dealer_from_customer(frm);
         }
 
-        // New quotation with customer already filled (copy / mapping / default):
-        // party_name event never fires, so fetch the terms here.
+        
         if (frm.is_new() && frm.doc.quotation_to === "Customer" && frm.doc.party_name && !frm.doc.tc_name) {
             set_terms_from_customer(frm);
         }
 
-        // Email dealer button (shown whenever a dealer is set on a saved quotation)
         if (!frm.is_new() && frm.doc.custom_dealer_name) {
             frm.add_custom_button(__("Email Dealer"), () => email_dealer(frm));
         }
@@ -116,7 +112,6 @@ frappe.ui.form.on("Quotation", {
             __("View")
         );
 
-        // Automatic message: stock available + other quotations without Delivery Note
         show_pending_quotation_message(frm);
     },
 
@@ -140,8 +135,12 @@ frappe.ui.form.on("Quotation", {
         });
     },
 
+    custom_add_freight: function (frm) {
+        lm_add_freight(frm);
+    },
+
     before_workflow_action: function (frm) {
-        if (frm.selected_workflow_action !== 'Reject') {
+        if (frm.selected_workflow_action !== 'Update') {
             return;
         }
 
@@ -151,16 +150,16 @@ frappe.ui.form.on("Quotation", {
             let submitted = false;
 
             const d = new frappe.ui.Dialog({
-                title: __('Reason for Rejection'),
+                title: __('Reason for Update'),
                 fields: [
                     {
                         fieldname: 'custom_rejection_remark',
                         fieldtype: 'Small Text',
-                        label: __('Rejection Remark'),
+                        label: __('Updation Remark'),
                         reqd: 1
                     }
                 ],
-                primary_action_label: __('Submit Rejection'),
+                primary_action_label: __('Submit'),
                 primary_action: function (values) {
                     submitted = true;
                     d.disable_primary_action();
@@ -178,7 +177,6 @@ frappe.ui.form.on("Quotation", {
                             resolve();
                         },
                         error: function () {
-                            // Saving the remark failed: keep the workflow action blocked
                             d.hide();
                             reject();
                         }
@@ -201,12 +199,6 @@ frappe.ui.form.on("Quotation", {
     },
 });
 
-// ---------------------------------------------------------------------------
-// Notes / Activities tabs (same widgets Lead uses)
-// ---------------------------------------------------------------------------
-
-// The ERPNext widgets read frm.doc.notes; our child table is custom_note.
-// Non-enumerable getter so it is never serialized when the doc is saved.
 function alias_notes_field(frm) {
     if (Object.getOwnPropertyDescriptor(frm.doc, "notes")) return;
     Object.defineProperty(frm.doc, "notes", {
@@ -335,7 +327,6 @@ function show_pending_quotation_message(frm) {
 
             const esc = frappe.utils.escape_html;
 
-            // Qty of each item needed in this quotation
             const this_qty = {};
             (frm.doc.items || []).forEach((row) => {
                 this_qty[row.item_code] = (this_qty[row.item_code] || 0) + flt(row.stock_qty || row.qty);
@@ -422,7 +413,6 @@ function set_dealer_from_customer(frm) {
                 frm.set_value("custom_dealer_name", dealer || null);
             }
 
-            // No dealer on the customer: clear the email and stop
             if (!dealer) {
                 if (frm.doc.custom_dealer_email) {
                     frm.set_value("custom_dealer_email", null);
@@ -430,7 +420,6 @@ function set_dealer_from_customer(frm) {
                 return;
             }
 
-            // The dealer is itself a Customer, so read its email_id
             frappe.db.get_value("Customer", dealer, "email_id").then((res) => {
                 const email = res && res.message ? res.message.email_id : null;
 
@@ -702,4 +691,660 @@ function set_terms_from_customer(frm) {
                 load_terms();
             }
         });
+}
+
+
+
+const LM_CONFIG = {
+	logistic_doctype: "Logistic",
+	box_filters: {
+		item_group: "Consumables",
+		custom_product_group: "Packing Material",
+		custom_sub_product_group: "Wooden box",
+		disabled: 0,
+	},
+	boxes_per_piece: 1, // Logistic record is per piece
+	max_suggestions_per_item: 5,
+	allowance_mm: 0, // extra clearance a piece needs inside the box, per side
+	allow_two_boxes: true, // allow a set of 2 wooden boxes (same or different) when no single box holds the whole qty
+	enforce_weight_limit: true, // wooden box Item.weight_per_unit = max load it can carry (kg)
+	debounce_ms: 400,
+	freight_account_name: "Freight and Forwarding Charges", // Account.account_name used for the freight tax row
+};
+
+frappe.ui.form.on("Quotation Item", {
+	item_code(frm) {
+		lm_render_debounced(frm);
+	},
+	qty(frm) {
+		lm_render_debounced(frm);
+	},
+	uom(frm) {
+		lm_render_debounced(frm);
+	},
+	conversion_factor(frm) {
+		lm_render_debounced(frm);
+	},
+	items_remove(frm) {
+		lm_render_debounced(frm);
+	},
+});
+
+// ---------------------------------------------------------------- helpers
+
+function lm_render_debounced(frm) {
+	clearTimeout(frm.__lm_timer);
+	frm.__lm_timer = setTimeout(() => lm_render(frm), LM_CONFIG.debounce_ms);
+}
+
+function lm_esc(v) {
+	return frappe.utils.escape_html(v == null ? "" : String(v));
+}
+
+function lm_to_mm(value, uom) {
+	const v = flt(value);
+	switch ((uom || "MM").toLowerCase()) {
+		case "cm":
+		case "centimeter":
+			return v * 10;
+		case "m":
+		case "meter":
+		case "metre":
+			return v * 1000;
+		case "inch":
+		case "in":
+			return v * 25.4;
+		case "foot":
+		case "ft":
+			return v * 304.8;
+		default:
+			return v; // MM
+	}
+}
+
+function lm_to_kg(value, uom) {
+	const v = flt(value);
+	switch ((uom || "Kg").toLowerCase()) {
+		case "gram":
+		case "g":
+		case "gm":
+			return v / 1000;
+		case "mg":
+		case "milligram":
+			return v / 1000000;
+		case "tonne":
+		case "ton":
+		case "mt":
+			return v * 1000;
+		case "pound":
+		case "lb":
+			return v * 0.45359237;
+		default:
+			return v; // Kg
+	}
+}
+
+function lm_box_dims(b) {
+	const w = lm_to_mm(b.custom_width, b.custom_width_uom);
+	const l = lm_to_mm(b.custom_tl, b.custom_total_length_uom);
+	const h = lm_to_mm(b.custom_height, b.custom_height_uom);
+	return w > 0 && l > 0 && h > 0 ? [w, l, h] : null;
+}
+
+function lm_permutations(a) {
+	return [
+		[a[0], a[1], a[2]],
+		[a[0], a[2], a[1]],
+		[a[1], a[0], a[2]],
+		[a[1], a[2], a[0]],
+		[a[2], a[0], a[1]],
+		[a[2], a[1], a[0]],
+	];
+}
+
+function lm_parse_size(text) {
+	const out = [];
+	const re = /(\d+(?:\.\d+)?)\s*(mm|cm|m|inch|in|ft)?(?![a-z])/gi;
+	let m;
+	while ((m = re.exec(text || "")) !== null) {
+		out.push(lm_to_mm(parseFloat(m[1]), m[2] || "MM"));
+	}
+	return out.length === 3 && out.every((x) => x > 0) ? out : null;
+}
+
+function lm_fit_by_size(piece, box) {
+	const p = piece.map((x) => x + 2 * LM_CONFIG.allowance_mm);
+	let best = 0;
+	lm_permutations(p).forEach((q) => {
+		const n = Math.floor(box[0] / q[0]) * Math.floor(box[1] / q[1]) * Math.floor(box[2] / q[2]);
+		if (n > best) best = n;
+	});
+	return best;
+}
+
+// ---------------------------------------------------------------- packing
+//
+// All items of the quotation are packed TOGETHER: either in ONE wooden box, or in TWO wooden boxes
+// (same or different). Every piece type (item -> its corrugated box) must satisfy BOTH:
+//   size   : space used = sum(qty / how many of that corrugated box fit alone in the wooden box) <= 1
+//            (estimate - each item takes its share of the box, all 6 orientations tried per item)
+//   weight : sum(qty x corrugated box weight) <= wooden box max load (Item.weight_per_unit)
+
+// pieces = [{ item_code, item_name, dims:[w,l,h] mm, qty, unit_kg }]
+function lm_box_info(b, pieces) {
+	const dims = lm_box_dims(b);
+	if (!dims) return null;
+	return {
+		box: b,
+		box_dims: dims,
+		box_vol: dims[0] * dims[1] * dims[2],
+		max_kg: LM_CONFIG.enforce_weight_limit ? lm_to_kg(b.weight_per_unit, b.weight_uom) : 0,
+		fit: pieces.map((p) => lm_fit_by_size(p.dims, dims)), // how many of each piece fit alone
+	};
+}
+
+// load as much of `left` (qty still to pack, per piece) as one wooden box can take
+function lm_load_box(info, pieces, left) {
+	let used = 0;
+	let kg = 0;
+	const load = pieces.map(() => 0);
+	pieces.forEach((p, i) => {
+		if (left[i] <= 0 || info.fit[i] < 1) return;
+		let q = Math.min(left[i], Math.floor((1 - used) * info.fit[i] + 1e-9));
+		if (info.max_kg > 0 && p.unit_kg > 0) {
+			q = Math.min(q, Math.floor((info.max_kg - kg) / p.unit_kg + 1e-9));
+		}
+		if (q < 1) return;
+		load[i] = q;
+		used += q / info.fit[i];
+		kg += q * p.unit_kg;
+	});
+	return { info, load, used, kg, count: load.reduce((t, q) => t + q, 0) };
+}
+
+function lm_suggest(boxes, pieces) {
+	const infos = boxes.map((b) => lm_box_info(b, pieces)).filter(Boolean);
+	const qtys = pieces.map((p) => p.qty);
+	const piece_vol = pieces.reduce((t, p) => t + p.qty * p.dims[0] * p.dims[1] * p.dims[2], 0);
+	const minus = (left, part) => left.map((q, i) => q - part.load[i]);
+	const done = (left) => left.every((q) => q <= 0);
+	const make = (parts) => {
+		const total_vol = parts.reduce((t, x) => t + x.info.box_vol, 0);
+		return { count: parts.length, parts, total_vol, fill: Math.min(100, (piece_vol * 100) / total_vol) };
+	};
+
+	const options = [];
+	const not_single = [];
+
+	// 1. everything in ONE wooden box
+	infos.forEach((info) => {
+		const part = lm_load_box(info, pieces, qtys);
+		if (done(minus(qtys, part))) options.push(make([part]));
+		else not_single.push(info);
+	});
+
+	// 2. everything in TWO wooden boxes (only boxes that cannot take it all alone, so both are needed)
+	if (LM_CONFIG.allow_two_boxes) {
+		for (let i = 0; i < not_single.length; i++) {
+			for (let j = i; j < not_single.length; j++) {
+				const orders = [[not_single[i], not_single[j]], [not_single[j], not_single[i]]];
+				for (const [first, second] of orders) {
+					const p1 = lm_load_box(first, pieces, qtys);
+					const p2 = lm_load_box(second, pieces, minus(qtys, p1));
+					if (p1.count && p2.count && done(minus(minus(qtys, p1), p2))) {
+						options.push(make([p1, p2]));
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	options.sort((a, b) => a.count - b.count || a.total_vol - b.total_vol || b.fill - a.fill);
+	return {
+		options: options.slice(0, LM_CONFIG.max_suggestions_per_item),
+		max_load: infos.reduce((m, x) => Math.max(m, x.max_kg), 0),
+	};
+}
+
+// ---------------------------------------------------------------- data
+
+async function lm_get_list(doctype, filters, fields) {
+	const r = await frappe.call({
+		method: "frappe.client.get_list",
+		args: { doctype, filters, fields, limit_page_length: 0 },
+	});
+	return r.message || [];
+}
+
+const LM_BOX_FIELDS = [
+	"name", "item_name", "custom_width", "custom_tl", "custom_height",
+	"custom_width_uom", "custom_total_length_uom", "custom_height_uom",
+	"weight_per_unit", "weight_uom",
+];
+
+async function lm_fetch(frm) {
+	const all_rows = (frm.doc.items || []).filter((d) => d.item_code);
+	const all_codes = [...new Set(all_rows.map((d) => d.item_code))];
+	if (!all_codes.length) return { rows: [], boxes: [] };
+
+	// corrugated / wooden boxes added to the quotation by "Add Freight" are packing material - never pack them again
+	const packing = await lm_get_list(
+		"Item",
+		{ name: ["in", all_codes], custom_product_group: LM_CONFIG.box_filters.custom_product_group },
+		["name"]
+	);
+	const packing_codes = new Set(packing.map((p) => p.name));
+	const rows = all_rows.filter((d) => !packing_codes.has(d.item_code));
+	const codes = [...new Set(rows.map((d) => d.item_code))];
+	if (!codes.length) return { rows: [], boxes: [] };
+
+	const [items, logistics, boxes] = await Promise.all([
+		lm_get_list("Item", { name: ["in", codes] }, ["name", "item_name", "weight_per_unit", "weight_uom"]),
+		lm_get_list(LM_CONFIG.logistic_doctype, { item_code: ["in", codes], docstatus: ["<", 2] }, [
+			"name", "item_code", "select_corrugated_box", "corrugated_box_name",
+			"corrugated_box_size", "weight",
+		]),
+		lm_get_list("Item", LM_CONFIG.box_filters, LM_BOX_FIELDS),
+	]);
+
+	const corr_codes = [...new Set(logistics.map((l) => l.select_corrugated_box).filter(Boolean))];
+	const corr_items = corr_codes.length
+		? await lm_get_list("Item", { name: ["in", corr_codes] }, LM_BOX_FIELDS)
+		: [];
+	const corr_map = {};
+	corr_items.forEach((i) => (corr_map[i.name] = i));
+
+	const item_map = {};
+	items.forEach((i) => (item_map[i.name] = i));
+
+	// one line per item code, quantities summed (in stock UOM)
+	const agg = {};
+	rows.forEach((d) => {
+		const it = item_map[d.item_code] || {};
+		const qty = flt(d.stock_qty) || flt(d.qty) * (flt(d.conversion_factor) || 1);
+		const a = (agg[d.item_code] = agg[d.item_code] || {
+			item_code: d.item_code,
+			item_name: d.item_name || it.item_name,
+			qty: 0,
+			unit_kg: lm_to_kg(
+				flt(d.weight_per_unit) || it.weight_per_unit,
+				(flt(d.weight_per_unit) ? d.weight_uom : it.weight_uom) || it.weight_uom
+			),
+		});
+		a.qty += qty;
+	});
+
+	const by_item = {};
+	logistics.forEach((l) => {
+		const corr = corr_map[l.select_corrugated_box];
+		l.corr_dims = (corr && lm_box_dims(corr)) || lm_parse_size(l.corrugated_box_size);
+		(by_item[l.item_code] = by_item[l.item_code] || []).push(l);
+	});
+
+	const result = Object.values(agg).map((a) => {
+		a.total_kg = a.qty * a.unit_kg;
+		a.mappings = by_item[a.item_code] || [];
+		return a;
+	});
+
+	return { rows: result, boxes };
+}
+
+// ---------------------------------------------------------------- render
+
+function lm_fmt(n, d = 2) {
+	return format_number(n, null, d);
+}
+
+function lm_table(headers, body_rows) {
+	return `<table class="table table-bordered table-sm" style="margin-bottom:8px">
+		<thead><tr>${headers.map((h) => `<th>${h}</th>`).join("")}</tr></thead>
+		<tbody>${body_rows.join("")}</tbody></table>`;
+}
+
+// one piece type per item: the corrugated box of its (first) Logistic record
+function lm_build_pieces(rows) {
+	const pieces = [];
+	const skipped = [];
+	rows.forEach((r) => {
+		const m = r.mappings.find((x) => x.select_corrugated_box && x.corr_dims);
+		if (!m) {
+			skipped.push({
+				item_code: r.item_code,
+				reason: r.mappings.length ? "corrugated box not selected or has no size" : "no Logistic record",
+			});
+			return;
+		}
+		pieces.push({
+			item_code: r.item_code,
+			item_name: r.item_name,
+			dims: m.corr_dims,
+			corr_code: m.select_corrugated_box,
+			corr_name: m.corrugated_box_name,
+			qty: r.qty * LM_CONFIG.boxes_per_piece,
+			unit_kg: flt(m.weight) || r.unit_kg || 0,
+		});
+	});
+	// biggest corrugated boxes first - they are placed first
+	pieces.sort((x, y) => y.dims[0] * y.dims[1] * y.dims[2] - x.dims[0] * x.dims[1] * x.dims[2]);
+	return { pieces, skipped };
+}
+
+function lm_mapping_html(rows) {
+	const body = [];
+	rows.forEach((r) => {
+		const item = `<a href="/app/item/${encodeURIComponent(r.item_code)}">${lm_esc(r.item_code)}</a><br>
+			<span class="text-muted small">${lm_esc(r.item_name)}</span>`;
+		if (!r.mappings.length) {
+			body.push(`<tr><td>${item}</td><td colspan="8" class="text-muted">No Logistic record for this item.</td></tr>`);
+			return;
+		}
+		const corr_qty = r.qty * LM_CONFIG.boxes_per_piece;
+		r.mappings.forEach((m) => {
+			body.push(`<tr>
+				<td>${item}</td>
+				<td><a href="/app/${frappe.router.slug(LM_CONFIG.logistic_doctype)}/${encodeURIComponent(m.name)}">${lm_esc(m.name)}</a></td>
+				<td><a href="/app/item/${encodeURIComponent(m.select_corrugated_box || "")}">${lm_esc(m.select_corrugated_box)}</a></td>
+				<td>${lm_esc(m.corrugated_box_name)}</td>
+				<td>${lm_esc(m.corrugated_box_size)}</td>
+				<td class="text-right">${lm_fmt(m.weight)}</td>
+				<td class="text-right">${lm_fmt(r.qty, 0)}</td>
+				<td class="text-right"><b>${lm_fmt(corr_qty, 0)}</b></td>
+				<td class="text-right">${lm_fmt(flt(m.weight) * r.qty, 2)}</td></tr>`);
+		});
+	});
+	return `<div class="small" style="font-weight:600">Corrugated box (Logistic mapping)</div>` +
+		lm_table(
+			["Item", "Logistic", "Corrugated Box", "Box Name", "Box Size", "Weight / pc (kg)", "Item Qty", "Corrugated Box Qty", "Total Weight (kg)"],
+			body
+		);
+}
+
+function lm_packing_html(pieces, skipped, boxes) {
+	let html = "";
+
+	if (skipped.length) {
+		html += `<div class="text-warning small" style="margin-bottom:6px">Not included in the wooden box suggestion: ${skipped
+			.map((x) => `<b>${lm_esc(x.item_code)}</b> (${lm_esc(x.reason)})`)
+			.join(", ")}.</div>`;
+	}
+	if (!pieces.length) {
+		return html + `<div class="text-muted small" style="margin-bottom:6px">No item has a usable corrugated box mapping, so no wooden box can be suggested.</div>`;
+	}
+
+	const no_wt = pieces.filter((p) => !p.unit_kg);
+	if (no_wt.length) {
+		html += `<div class="text-warning small" style="margin-bottom:6px">Weight is not set for ${no_wt
+			.map((p) => "<b>" + lm_esc(p.item_code) + "</b>")
+			.join(", ")} - its weight is not counted in the weight check.</div>`;
+	}
+	if (!boxes.length) {
+		return html + `<div class="text-warning small" style="margin-bottom:6px">No Item found in Consumables &gt; Packing Material &gt; Wooden box.</div>`;
+	}
+
+	const total_qty = pieces.reduce((t, p) => t + p.qty, 0);
+	const total_kg = pieces.reduce((t, p) => t + p.qty * p.unit_kg, 0);
+	html += `<div class="small" style="font-weight:600">Suggested wooden box for all items together (${lm_fmt(total_qty, 0)} corrugated boxes, ${lm_fmt(total_kg, 2)} kg)</div>`;
+
+	const { options, max_load } = lm_suggest(boxes, pieces);
+	if (!options.length) {
+		const reach = LM_CONFIG.allow_two_boxes ? "one wooden box, or two wooden boxes together," : "one wooden box";
+		const largest = max_load ? ` The largest wooden box can carry ${lm_fmt(max_load, 2)} kg.` : "";
+		return html + `<div class="text-danger small" style="margin-bottom:6px">No valid wooden box: ${reach} must hold all items (${lm_fmt(total_kg, 2)} kg) by size and weight.${largest} Create a wooden box Item with enough size and weight capacity (Consumables &gt; Packing Material &gt; Wooden box).</div>`;
+	}
+
+	const rows = [];
+	options.forEach((o, i) => {
+		const tag = `<span class="indicator-pill ${i === 0 ? "green" : "blue"}">${i === 0 ? "Best" : "Option " + (i + 1)}</span>` +
+			`<br><span class="text-muted small">${o.count === 1 ? "1 box" : "2 boxes"}</span>`;
+		o.parts.forEach((x, k) => {
+			const contents = pieces
+				.map((p, n) => (x.load[n] ? `${lm_esc(p.item_code)} &times; <b>${x.load[n]}</b>` : ""))
+				.filter(Boolean)
+				.join("<br>");
+			rows.push(`<tr${i === 0 ? ' style="background:var(--green-50, #f0fff4)"' : ""}>
+				${k === 0 ? `<td rowspan="${o.parts.length}">${tag}</td>` : ""}
+				<td><a href="/app/item/${encodeURIComponent(x.info.box.name)}">${lm_esc(x.info.box.name)}</a><br>
+					<span class="text-muted small">${lm_esc(x.info.box.item_name)}</span></td>
+				<td>${x.info.box_dims.map((d) => lm_fmt(d, 1)).join(" x ")}</td>
+				<td class="text-right">${x.info.max_kg ? lm_fmt(x.info.max_kg, 2) : "-"}</td>
+				<td>${contents}</td>
+				<td class="text-right">${lm_fmt(x.used * 100, 0)} %</td>
+				<td class="text-right">${total_kg ? lm_fmt(x.kg, 2) : "-"}</td></tr>`);
+		});
+	});
+
+	return html + lm_table(
+		["", "Wooden Box", "Size W x L x H (mm)", "Max Load (kg)", "Corrugated boxes packed", "Space used", "Load (kg)"],
+		rows
+	);
+}
+
+async function lm_render(frm) {
+	const field = frm.fields_dict.custom_logistic_mapping;
+	if (!field) return;
+
+	const token = (frm.__lm_token = (frm.__lm_token || 0) + 1);
+	try {
+		const { rows, boxes } = await lm_fetch(frm);
+		if (token !== frm.__lm_token) return;
+
+		if (!rows.length) {
+			field.$wrapper.html(`<div class="text-muted small">Add items to see logistic mapping and wooden box suggestions.</div>`);
+			return;
+		}
+
+		const open_state = {};
+		field.$wrapper.find("details[data-lm-key]").each(function () {
+			open_state[this.getAttribute("data-lm-key")] = this.open;
+		});
+		const main_open = open_state.main === true;
+
+		const { pieces, skipped } = lm_build_pieces(rows);
+
+		field.$wrapper.html(
+			`<details class="lm-wrap" data-lm-key="main"${main_open ? " open" : ""}>
+				<summary style="cursor:pointer;outline:none;padding:4px 0">
+					<b>Logistic Mapping &amp; Packing Suggestion</b>
+					<span class="text-muted">(${rows.length} ${rows.length === 1 ? "item" : "items"})</span>
+				</summary>
+				<div style="margin-top:8px">
+					${lm_mapping_html(rows)}
+					${lm_packing_html(pieces, skipped, boxes)}
+				</div>
+			</details>`
+		);
+	} catch (e) {
+		console.error("custom_logistic_mapping", e);
+		field.$wrapper.html(`<div class="text-danger small">Could not load logistic mapping. Check the console for details.</div>`);
+	}
+}
+
+// ---------------------------------------------------------------- add freight
+//
+// Button custom_add_freight:
+//   1. user picks one of the packing options shown in custom_logistic_mapping (Best / Option 2 ...)
+//   2. user enters the freight amount
+//   3. the needed corrugated boxes + the wooden box(es) of that option are added to Items,
+//      and the amount is added to Taxes as "Freight and Forwarding Charges" (Actual)
+
+async function lm_get_plan(frm) {
+	const { rows, boxes } = await lm_fetch(frm);
+	if (!rows.length) return { pieces: [], options: [], reason: __("Add items first.") };
+
+	const { pieces, skipped } = lm_build_pieces(rows);
+	if (!pieces.length) {
+		return { pieces, options: [], reason: __("No item has a usable corrugated box mapping (Logistic record).") };
+	}
+	if (!boxes.length) {
+		return { pieces, options: [], reason: __("No wooden box Item found in Consumables > Packing Material > Wooden box.") };
+	}
+
+	const { options } = lm_suggest(boxes, pieces);
+	if (!options.length) {
+		return { pieces, options: [], reason: __("No valid wooden box option for these items. See the Logistic Mapping section.") };
+	}
+	return { pieces, options, skipped };
+}
+
+// what has to be added to Items for one option: corrugated boxes (summed per box code) + wooden boxes
+function lm_plan_items(pieces, option) {
+	const corr = {};
+	pieces.forEach((p) => {
+		const c = (corr[p.corr_code] = corr[p.corr_code] || { code: p.corr_code, name: p.corr_name, qty: 0 });
+		c.qty += p.qty;
+	});
+
+	const wood = {};
+	option.parts.forEach((x) => {
+		const w = (wood[x.info.box.name] = wood[x.info.box.name] || {
+			code: x.info.box.name,
+			name: x.info.box.item_name,
+			qty: 0,
+		});
+		w.qty += LM_CONFIG.boxes_per_piece;
+	});
+
+	return { corrugated: Object.values(corr), wooden: Object.values(wood) };
+}
+
+function lm_option_label(option, index) {
+	const names = option.parts.map((x) => x.info.box.name).join(" + ");
+	return `${index === 0 ? __("Best") : __("Option") + " " + (index + 1)} - ${names} (${option.count === 1 ? __("1 box") : __("2 boxes")})`;
+}
+
+function lm_option_summary_html(pieces, option) {
+	const plan = lm_plan_items(pieces, option);
+	const line = (l) => `<tr><td>${lm_esc(l.code)}<br><span class="text-muted small">${lm_esc(l.name)}</span></td><td class="text-right"><b>${lm_fmt(l.qty, 0)}</b></td></tr>`;
+	return `<table class="table table-bordered table-sm">
+		<thead><tr><th>${__("Item to add")}</th><th class="text-right">${__("Qty")}</th></tr></thead>
+		<tbody>
+			<tr><td colspan="2" class="text-muted small">${__("Corrugated Box")}</td></tr>
+			${plan.corrugated.map(line).join("")}
+			<tr><td colspan="2" class="text-muted small">${__("Wooden Box")}</td></tr>
+			${plan.wooden.map(line).join("")}
+		</tbody></table>`;
+}
+
+async function lm_add_freight(frm) {
+	if (frm.doc.docstatus !== 0) return;
+	if (!frm.doc.company) {
+		frappe.msgprint(__("Please select a Company first."));
+		return;
+	}
+
+	let plan;
+	try {
+		frappe.dom.freeze(__("Calculating packing options..."));
+		plan = await lm_get_plan(frm);
+	} catch (e) {
+		console.error("lm_add_freight", e);
+		frappe.msgprint(__("Could not calculate packing options. Check the console for details."));
+		return;
+	} finally {
+		frappe.dom.unfreeze();
+	}
+
+	if (!plan.options.length) {
+		frappe.msgprint(plan.reason);
+		return;
+	}
+
+	const { pieces, options } = plan;
+
+	const d = new frappe.ui.Dialog({
+		title: __("Add Freight"),
+		fields: [
+			{
+				fieldname: "option",
+				fieldtype: "Select",
+				label: __("Packing Option"),
+				options: options.map((o, i) => ({ label: lm_option_label(o, i), value: String(i) })),
+				default: "0",
+				reqd: 1,
+				change: function () {
+					const o = options[cint(d.get_value("option"))];
+					if (o) d.fields_dict.summary.$wrapper.html(lm_option_summary_html(pieces, o));
+				},
+			},
+			{ fieldname: "summary", fieldtype: "HTML" },
+			{
+				fieldname: "freight",
+				fieldtype: "Currency",
+				label: __(LM_CONFIG.freight_account_name),
+				options: frm.doc.currency,
+				reqd: 1,
+			},
+		],
+		primary_action_label: __("Add"),
+		primary_action: async function (values) {
+			const freight = flt(values.freight);
+			if (freight <= 0) {
+				frappe.msgprint(__("Freight amount must be greater than zero."));
+				return;
+			}
+			d.hide();
+			await lm_apply_freight(frm, pieces, options[cint(values.option)], freight);
+		},
+	});
+
+	d.show();
+	d.fields_dict.summary.$wrapper.html(lm_option_summary_html(pieces, options[0]));
+}
+
+async function lm_apply_freight(frm, pieces, option, freight) {
+	frappe.dom.freeze(__("Adding freight..."));
+	try {
+		// check the account first so nothing is added when it is missing
+		const acc = await frappe.db.get_value(
+			"Account",
+			{ company: frm.doc.company, account_name: LM_CONFIG.freight_account_name, is_group: 0 },
+			"name"
+		);
+		const account_head = acc && acc.message ? acc.message.name : null;
+		if (!account_head) {
+			frappe.msgprint(
+				__("Account <b>{0}</b> not found for company <b>{1}</b>.", [LM_CONFIG.freight_account_name, frm.doc.company])
+			);
+			return;
+		}
+
+		const wanted = lm_plan_items(pieces, option);
+		for (const l of [...wanted.corrugated, ...wanted.wooden]) {
+			await lm_set_item_row(frm, l.code, l.qty);
+		}
+
+		await lm_set_freight_tax(frm, account_head, freight);
+
+		frm.refresh_field("items");
+		frm.refresh_field("taxes");
+		frappe.show_alert({ message: __("Boxes and freight added"), indicator: "green" });
+	} catch (e) {
+		console.error("lm_apply_freight", e);
+		frappe.msgprint(__("Could not add freight completely. Please check Items and Taxes."));
+	} finally {
+		frappe.dom.unfreeze();
+	}
+}
+
+// update the qty when the item is already in the table, otherwise add a new row
+async function lm_set_item_row(frm, item_code, qty) {
+	let row = (frm.doc.items || []).find((d) => d.item_code === item_code);
+	if (!row) {
+		row = frm.add_child("items");
+		await frappe.model.set_value(row.doctype, row.name, "item_code", item_code);
+	}
+	await frappe.model.set_value(row.doctype, row.name, "qty", flt(qty));
+}
+
+async function lm_set_freight_tax(frm, account_head, amount) {
+	let row = (frm.doc.taxes || []).find((t) => t.account_head === account_head);
+	if (!row) {
+		row = frm.add_child("taxes");
+		await frappe.model.set_value(row.doctype, row.name, "charge_type", "Actual");
+		await frappe.model.set_value(row.doctype, row.name, "account_head", account_head);
+	}
+	await frappe.model.set_value(row.doctype, row.name, "description", LM_CONFIG.freight_account_name);
+	await frappe.model.set_value(row.doctype, row.name, "tax_amount", flt(amount));
 }

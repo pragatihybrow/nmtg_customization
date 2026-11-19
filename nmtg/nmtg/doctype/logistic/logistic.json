@@ -2,7 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
- "autoname": "format:{item_name}:{select_wooden_box}:{select_corrugated_box}",
+ "autoname": "format:{item_name}:{select_corrugated_box}",
  "creation": "2026-11-17 17:22:51.147781",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -11,12 +11,10 @@
   "amended_from",
   "item_code",
   "item_name",
-  "select_wooden_box",
-  "wooden_box_name",
-  "wooden_box_size",
   "select_corrugated_box",
   "corrugated_box_name",
-  "corrugated_box_size"
+  "corrugated_box_size",
+  "weight"
  ],
  "fields": [
   {
@@ -47,21 +45,6 @@
    "read_only": 1
   },
   {
-   "fieldname": "select_wooden_box",
-   "fieldtype": "Link",
-   "label": "Select Wooden Box",
-   "link_filters": "[[\"Item\",\"custom_sub_product_group\",\"=\",\"Wooden box\"]]",
-   "options": "Item"
-  },
-  {
-   "fetch_from": "select_wooden_box.item_name",
-   "fieldname": "wooden_box_name",
-   "fieldtype": "Data",
-   "label": "Wooden Box Name",
-   "options": "Item",
-   "read_only": 1
-  },
-  {
    "fieldname": "select_corrugated_box",
    "fieldtype": "Link",
    "label": "Select Corrugated Box",
@@ -78,18 +61,17 @@
   },
   {
    "description": "Width * Length * Height",
-   "fieldname": "wooden_box_size",
-   "fieldtype": "Data",
-   "label": "Wooden Box Size",
-   "options": "Item",
-   "read_only": 1
-  },
-  {
-   "description": "Width * Length * Height",
    "fieldname": "corrugated_box_size",
    "fieldtype": "Data",
    "label": "Corrugated Box Size",
    "options": "Item",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "select_corrugated_box.weight_per_unit",
+   "fieldname": "weight",
+   "fieldtype": "Float",
+   "label": "Weight",
    "read_only": 1
   }
  ],
@@ -97,7 +79,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-17 17:38:09.697991",
+ "modified": "2026-11-18 14:54:03.022769",
  "modified_by": "Administrator",
  "module": "NMTG",
  "name": "Logistic",

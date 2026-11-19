@@ -3,6 +3,14 @@ let item_settings_cache = null;
 frappe.ui.form.on("Item", {
     onload: function(frm) { 
         item_settings_cache = null; // fresh fetch on load
+
+        // ERPNext's item.js limits Item Group to is_group = 0. Our Level 1 groups are
+        // parent groups (is_group = 1), so override that and use only the Level filter.
+        frm.set_query("item_group", function() {
+            return {
+                filters: { custom_level: "Level 1" }
+            };
+        });
         toggle_models_field(frm);
         apply_item_settings_fields(frm);
         set_models_filter(frm);
@@ -52,12 +60,25 @@ frappe.ui.form.on("Item", {
                         fieldtype: "Check",
                         label: __("Is this a Special Item?"),
                         default: frm.doc.custom_special_item ? 1 : 0
+                    },
+                    {
+                        fieldname: "special_suffix",
+                        fieldtype: "Data",
+                        label: __("Special Suffix"),
+                        description: __("Added after the model / sub product group in the item name"),
+                        depends_on: "eval:doc.is_special",
+                        mandatory_depends_on: "eval:doc.is_special"
                     }
                 ],
                 primary_action_label: __("Continue"),
                 primary_action: function(values) {
                     answered = true;
-                    // The server adds "Sp" to the item name when this is checked
+                    // Not stored in any field: sent with the doc and used only
+                    // by the server while building the item name
+                    frm.doc.special_suffix_tmp = values.is_special
+                        ? (values.special_suffix || "").trim()
+                        : "";
+
                     frm.set_value("custom_special_item", values.is_special ? 1 : 0)
                         .then(() => {
                             dialog.hide();

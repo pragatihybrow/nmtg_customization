@@ -3,7 +3,6 @@ from frappe.utils import nowdate, flt
 from erpnext.accounts.doctype.payment_request import payment_request as std_payment_request
 from erpnext.accounts.doctype.payment_request.payment_request import PaymentRequest
 
-
 PRINT_FORMAT = "Proforma Invoice With Payment Term"
 
 
