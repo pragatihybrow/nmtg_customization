@@ -19,6 +19,33 @@ frappe.ui.form.on("Quotation", {
                 },
             };
         });
+        frm.set_query("custom_select_freight_and_forwarder", function () {
+            const transporters = frm.transporter_suppliers || [];
+            return {
+                filters: {
+                    name: ["in", transporters.length ? transporters : ["__none__"]],
+                    disabled: 0
+                }
+            };
+        });
+
+        frm.set_query("custom_freight_and_forwarder", function () {
+            const selected = get_selected_forwarders(frm);
+            return {
+                filters: {
+                    name: ["in", selected.length ? selected : ["__none__"]]
+                }
+            };
+        });
+    },
+        custom_select_freight_and_forwarder(frm) {
+        clear_forwarder_if_not_selected(frm);
+        set_forwarder_emails(frm);
+    },
+
+    custom_select_freight_and_forwarder_remove(frm) {
+        clear_forwarder_if_not_selected(frm);
+        set_forwarder_emails(frm);
     },
 
     set_contact_link: function (frm) {
@@ -56,8 +83,12 @@ frappe.ui.form.on("Quotation", {
     custom_dealer__liason_on_form_rendered: function (frm) {
         setup_dealer_liason_type(frm);
     },
+   
+
     refresh: function (frm) {
+        set_forwarder_emails(frm);
         setup_dealer_liason_type(frm);
+        load_transporter_suppliers(frm);
         recalculate_all_commissions(frm);
         setup_dealer_liason_query(frm);
         set_valid_till(frm);
@@ -75,7 +106,6 @@ frappe.ui.form.on("Quotation", {
             set_dealer_from_customer(frm);
         }
 
-        
         if (frm.is_new() && frm.doc.quotation_to === "Customer" && frm.doc.party_name && !frm.doc.tc_name) {
             set_terms_from_customer(frm);
         }
@@ -105,6 +135,20 @@ frappe.ui.form.on("Quotation", {
                 "Quotation History Item wise & Customer wise"
             );
         }, __("View"));
+
+        frm.add_custom_button(
+            __("Item-wise Sales History"),
+            () => open_item_wise_sales_history(frm),
+            __("View")
+        );
+
+        if (frm.doc.quotation_to === "Customer" && frm.doc.party_name) {
+            frm.add_custom_button(
+                __("Customer-wise Sales History"),
+                () => open_customer_wise_sales_history(frm),
+                __("View")
+            );
+        }
 
         frm.add_custom_button(
             __("Stock Balance"),
@@ -917,6 +961,28 @@ async function lm_get_list(doctype, filters, fields) {
 	return r.message || [];
 }
 
+// stock on hand (Bin.actual_qty, summed over the company's warehouses) per item code
+async function lm_get_stock(company, codes) {
+	const stock = {};
+	codes = [...new Set((codes || []).filter(Boolean))];
+	if (!codes.length) return stock;
+	try {
+		const filters = { item_code: ["in", codes] };
+		if (company) {
+			const whs = await lm_get_list("Warehouse", { company: company, is_group: 0 }, ["name"]);
+			if (!whs.length) return stock;
+			filters.warehouse = ["in", whs.map((w) => w.name)];
+		}
+		const bins = await lm_get_list("Bin", filters, ["item_code", "actual_qty"]);
+		bins.forEach((b) => {
+			stock[b.item_code] = (stock[b.item_code] || 0) + flt(b.actual_qty);
+		});
+	} catch (e) {
+		console.error("lm_get_stock", e);
+	}
+	return stock;
+}
+
 const LM_BOX_FIELDS = [
 	"name", "item_name", "custom_width", "custom_tl", "custom_height",
 	"custom_width_uom", "custom_total_length_uom", "custom_height_uom",
@@ -926,7 +992,7 @@ const LM_BOX_FIELDS = [
 async function lm_fetch(frm) {
 	const all_rows = (frm.doc.items || []).filter((d) => d.item_code);
 	const all_codes = [...new Set(all_rows.map((d) => d.item_code))];
-	if (!all_codes.length) return { rows: [], boxes: [] };
+	if (!all_codes.length) return { rows: [], boxes: [], stock: {} };
 
 	// corrugated / wooden boxes added to the quotation by "Add Freight" are packing material - never pack them again
 	const packing = await lm_get_list(
@@ -937,7 +1003,7 @@ async function lm_fetch(frm) {
 	const packing_codes = new Set(packing.map((p) => p.name));
 	const rows = all_rows.filter((d) => !packing_codes.has(d.item_code));
 	const codes = [...new Set(rows.map((d) => d.item_code))];
-	if (!codes.length) return { rows: [], boxes: [] };
+	if (!codes.length) return { rows: [], boxes: [], stock: {} };
 
 	const [items, logistics, boxes] = await Promise.all([
 		lm_get_list("Item", { name: ["in", codes] }, ["name", "item_name", "weight_per_unit", "weight_uom"]),
@@ -988,13 +1054,22 @@ async function lm_fetch(frm) {
 		return a;
 	});
 
-	return { rows: result, boxes };
+	const stock = await lm_get_stock(frm.doc.company, [...corr_codes, ...boxes.map((b) => b.name)]);
+
+	return { rows: result, boxes, stock };
 }
 
 // ---------------------------------------------------------------- render
 
 function lm_fmt(n, d = 2) {
 	return format_number(n, null, d);
+}
+
+// stock qty cell: green when stock covers the required qty, red otherwise
+function lm_stock_html(stock, code, need) {
+	const qty = flt((stock || {})[code]);
+	const cls = qty >= flt(need) ? "text-success" : "text-danger";
+	return `<b class="${cls}">${lm_fmt(qty, qty % 1 ? 2 : 0)}</b>`;
 }
 
 function lm_table(headers, body_rows) {
@@ -1031,13 +1106,13 @@ function lm_build_pieces(rows) {
 	return { pieces, skipped };
 }
 
-function lm_mapping_html(rows) {
+function lm_mapping_html(rows, stock) {
 	const body = [];
 	rows.forEach((r) => {
 		const item = `<a href="/app/item/${encodeURIComponent(r.item_code)}">${lm_esc(r.item_code)}</a><br>
 			<span class="text-muted small">${lm_esc(r.item_name)}</span>`;
 		if (!r.mappings.length) {
-			body.push(`<tr><td>${item}</td><td colspan="8" class="text-muted">No Logistic record for this item.</td></tr>`);
+			body.push(`<tr><td>${item}</td><td colspan="9" class="text-muted">No Logistic record for this item.</td></tr>`);
 			return;
 		}
 		const corr_qty = r.qty * LM_CONFIG.boxes_per_piece;
@@ -1051,17 +1126,18 @@ function lm_mapping_html(rows) {
 				<td class="text-right">${lm_fmt(m.weight)}</td>
 				<td class="text-right">${lm_fmt(r.qty, 0)}</td>
 				<td class="text-right"><b>${lm_fmt(corr_qty, 0)}</b></td>
+					<td class="text-right">${m.select_corrugated_box ? lm_stock_html(stock, m.select_corrugated_box, corr_qty) : "-"}</td>
 				<td class="text-right">${lm_fmt(flt(m.weight) * r.qty, 2)}</td></tr>`);
 		});
 	});
 	return `<div class="small" style="font-weight:600">Corrugated box (Logistic mapping)</div>` +
 		lm_table(
-			["Item", "Logistic", "Corrugated Box", "Box Name", "Box Size", "Weight / pc (kg)", "Item Qty", "Corrugated Box Qty", "Total Weight (kg)"],
+			["Item", "Logistic", "Corrugated Box", "Box Name", "Box Size", "Weight / pc (kg)", "Item Qty", "Corrugated Box Qty", "Corrugated Box Stock", "Total Weight (kg)"],
 			body
 		);
 }
 
-function lm_packing_html(pieces, skipped, boxes) {
+function lm_packing_html(pieces, skipped, boxes, stock) {
 	let html = "";
 
 	if (skipped.length) {
@@ -1099,6 +1175,7 @@ function lm_packing_html(pieces, skipped, boxes) {
 		const tag = `<span class="indicator-pill ${i === 0 ? "green" : "blue"}">${i === 0 ? "Best" : "Option " + (i + 1)}</span>` +
 			`<br><span class="text-muted small">${o.count === 1 ? "1 box" : "2 boxes"}</span>`;
 		o.parts.forEach((x, k) => {
+			const need = o.parts.filter((y) => y.info.box.name === x.info.box.name).length * LM_CONFIG.boxes_per_piece;
 			const contents = pieces
 				.map((p, n) => (x.load[n] ? `${lm_esc(p.item_code)} &times; <b>${x.load[n]}</b>` : ""))
 				.filter(Boolean)
@@ -1109,6 +1186,7 @@ function lm_packing_html(pieces, skipped, boxes) {
 					<span class="text-muted small">${lm_esc(x.info.box.item_name)}</span></td>
 				<td>${x.info.box_dims.map((d) => lm_fmt(d, 1)).join(" x ")}</td>
 				<td class="text-right">${x.info.max_kg ? lm_fmt(x.info.max_kg, 2) : "-"}</td>
+					<td class="text-right">${lm_stock_html(stock, x.info.box.name, need)}</td>
 				<td>${contents}</td>
 				<td class="text-right">${lm_fmt(x.used * 100, 0)} %</td>
 				<td class="text-right">${total_kg ? lm_fmt(x.kg, 2) : "-"}</td></tr>`);
@@ -1116,7 +1194,7 @@ function lm_packing_html(pieces, skipped, boxes) {
 	});
 
 	return html + lm_table(
-		["", "Wooden Box", "Size W x L x H (mm)", "Max Load (kg)", "Corrugated boxes packed", "Space used", "Load (kg)"],
+		["", "Wooden Box", "Size W x L x H (mm)", "Max Load (kg)", "Wooden Box Stock", "Corrugated boxes packed", "Space used", "Load (kg)"],
 		rows
 	);
 }
@@ -1127,7 +1205,7 @@ async function lm_render(frm) {
 
 	const token = (frm.__lm_token = (frm.__lm_token || 0) + 1);
 	try {
-		const { rows, boxes } = await lm_fetch(frm);
+		const { rows, boxes, stock } = await lm_fetch(frm);
 		if (token !== frm.__lm_token) return;
 
 		if (!rows.length) {
@@ -1150,8 +1228,8 @@ async function lm_render(frm) {
 					<span class="text-muted">(${rows.length} ${rows.length === 1 ? "item" : "items"})</span>
 				</summary>
 				<div style="margin-top:8px">
-					${lm_mapping_html(rows)}
-					${lm_packing_html(pieces, skipped, boxes)}
+					${lm_mapping_html(rows, stock)}
+					${lm_packing_html(pieces, skipped, boxes, stock)}
 				</div>
 			</details>`
 		);
@@ -1170,7 +1248,7 @@ async function lm_render(frm) {
 //      and the amount is added to Taxes as "Freight and Forwarding Charges" (Actual)
 
 async function lm_get_plan(frm) {
-	const { rows, boxes } = await lm_fetch(frm);
+	const { rows, boxes, stock } = await lm_fetch(frm);
 	if (!rows.length) return { pieces: [], options: [], reason: __("Add items first.") };
 
 	const { pieces, skipped } = lm_build_pieces(rows);
@@ -1185,7 +1263,7 @@ async function lm_get_plan(frm) {
 	if (!options.length) {
 		return { pieces, options: [], reason: __("No valid wooden box option for these items. See the Logistic Mapping section.") };
 	}
-	return { pieces, options, skipped };
+	return { pieces, options, skipped, stock };
 }
 
 // what has to be added to Items for one option: corrugated boxes (summed per box code) + wooden boxes
@@ -1214,15 +1292,15 @@ function lm_option_label(option, index) {
 	return `${index === 0 ? __("Best") : __("Option") + " " + (index + 1)} - ${names} (${option.count === 1 ? __("1 box") : __("2 boxes")})`;
 }
 
-function lm_option_summary_html(pieces, option) {
+function lm_option_summary_html(pieces, option, stock) {
 	const plan = lm_plan_items(pieces, option);
-	const line = (l) => `<tr><td>${lm_esc(l.code)}<br><span class="text-muted small">${lm_esc(l.name)}</span></td><td class="text-right"><b>${lm_fmt(l.qty, 0)}</b></td></tr>`;
+	const line = (l) => `<tr><td>${lm_esc(l.code)}<br><span class="text-muted small">${lm_esc(l.name)}</span></td><td class="text-right"><b>${lm_fmt(l.qty, 0)}</b></td><td class="text-right">${lm_stock_html(stock, l.code, l.qty)}</td></tr>`;
 	return `<table class="table table-bordered table-sm">
-		<thead><tr><th>${__("Item to add")}</th><th class="text-right">${__("Qty")}</th></tr></thead>
+		<thead><tr><th>${__("Item to add")}</th><th class="text-right">${__("Qty")}</th><th class="text-right">${__("Stock")}</th></tr></thead>
 		<tbody>
-			<tr><td colspan="2" class="text-muted small">${__("Corrugated Box")}</td></tr>
+			<tr><td colspan="3" class="text-muted small">${__("Corrugated Box")}</td></tr>
 			${plan.corrugated.map(line).join("")}
-			<tr><td colspan="2" class="text-muted small">${__("Wooden Box")}</td></tr>
+			<tr><td colspan="3" class="text-muted small">${__("Wooden Box")}</td></tr>
 			${plan.wooden.map(line).join("")}
 		</tbody></table>`;
 }
@@ -1251,7 +1329,7 @@ async function lm_add_freight(frm) {
 		return;
 	}
 
-	const { pieces, options } = plan;
+	const { pieces, options, stock } = plan;
 
 	const d = new frappe.ui.Dialog({
 		title: __("Add Freight"),
@@ -1265,7 +1343,7 @@ async function lm_add_freight(frm) {
 				reqd: 1,
 				change: function () {
 					const o = options[cint(d.get_value("option"))];
-					if (o) d.fields_dict.summary.$wrapper.html(lm_option_summary_html(pieces, o));
+					if (o) d.fields_dict.summary.$wrapper.html(lm_option_summary_html(pieces, o, stock));
 				},
 			},
 			{ fieldname: "summary", fieldtype: "HTML" },
@@ -1290,7 +1368,7 @@ async function lm_add_freight(frm) {
 	});
 
 	d.show();
-	d.fields_dict.summary.$wrapper.html(lm_option_summary_html(pieces, options[0]));
+	d.fields_dict.summary.$wrapper.html(lm_option_summary_html(pieces, options[0], stock));
 }
 
 async function lm_apply_freight(frm, pieces, option, freight) {
@@ -1347,4 +1425,181 @@ async function lm_set_freight_tax(frm, account_head, amount) {
 	}
 	await frappe.model.set_value(row.doctype, row.name, "description", LM_CONFIG.freight_account_name);
 	await frappe.model.set_value(row.doctype, row.name, "tax_amount", flt(amount));
+}
+
+
+function open_item_wise_sales_history(frm) {
+    const item_codes = [
+        ...new Set((frm.doc.items || []).map((r) => r.item_code).filter(Boolean)),
+    ];
+
+    if (!item_codes.length) {
+        frappe.msgprint(__("No items found in this Quotation."));
+        return;
+    }
+
+    const d = new frappe.ui.Dialog({
+        title: __("Item-wise Sales History"),
+        fields: [
+            {
+                fieldname: "item_code",
+                fieldtype: "Link",
+                options: "Item",
+                label: __("Item"),
+                default: item_codes[0],
+                reqd: 1,
+                get_query: function () {
+                    return {
+                        filters: { name: ["in", item_codes] },
+                    };
+                },
+            },
+        ],
+        primary_action_label: __("View History"),
+        primary_action: function (values) {
+            d.hide();
+
+            const today = frappe.datetime.get_today();
+
+            frappe.route_options = {
+                company: frm.doc.company,
+                item_code: values.item_code,
+                from_date: frappe.datetime.add_months(today, -12),
+                to_date: today,
+            };
+
+            frappe.set_route("query-report", "Item-wise Sales History");
+        },
+    });
+
+    d.show();
+}
+
+function open_customer_wise_sales_history(frm) {
+    if (frm.doc.quotation_to !== "Customer" || !frm.doc.party_name) {
+        frappe.msgprint(__("This quotation is not against a Customer."));
+        return;
+    }
+
+    const today = frappe.datetime.get_today();
+
+    frappe.route_options = {
+        company: frm.doc.company,
+        customer: frm.doc.party_name,
+        from_date: frappe.datetime.add_months(today, -12),
+        to_date: today,
+    };
+
+    frappe.set_route("query-report", "Item-wise Sales History");
+}
+
+
+
+frappe.ui.form.on("Supplier CT", {
+    
+    custom_select_freight_and_forwarder_remove(frm) {
+        clear_forwarder_if_not_selected(frm);
+    },
+     freight_and_forwarder(frm) {
+        clear_forwarder_if_not_selected(frm);
+        set_forwarder_emails(frm);
+    }
+});
+
+const TRANSPORTER_GROUP = "Transporter";
+
+function load_transporter_suppliers(frm) {
+    if (frm.transporter_suppliers_loaded) return;
+    frm.transporter_suppliers_loaded = true;
+
+    const main_group = frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Supplier",
+            filters: { supplier_group: TRANSPORTER_GROUP, disabled: 0 },
+            fields: ["name"],
+            limit_page_length: 0
+        }
+    });
+
+    const other_groups = frappe.call({
+        method: "frappe.client.get_list",
+        args: {
+            doctype: "Supplier Group CT",
+            parent: "Supplier",
+            filters: {
+                supplier_group: TRANSPORTER_GROUP,
+                parenttype: "Supplier",
+                parentfield: "custom_other_supplier_group_included"
+            },
+            fields: ["parent"],
+            limit_page_length: 0
+        }
+    });
+
+    Promise.all([main_group, other_groups])
+        .then(([r1, r2]) => {
+            const names = new Set();
+            (r1.message || []).forEach((d) => names.add(d.name));
+            (r2.message || []).forEach((d) => names.add(d.parent));
+            frm.transporter_suppliers = Array.from(names);
+        })
+        .catch(() => {
+            // Allow a retry on the next refresh if loading failed
+            frm.transporter_suppliers_loaded = false;
+        });
+}
+
+function get_selected_forwarders(frm) {
+    return (frm.doc.custom_select_freight_and_forwarder || [])
+        .map((row) => row.freight_and_forwarder)
+        .filter(Boolean);
+}
+
+function clear_forwarder_if_not_selected(frm) {
+    const current = frm.doc.custom_freight_and_forwarder;
+    if (current && !get_selected_forwarders(frm).includes(current)) {
+        frm.set_value("custom_freight_and_forwarder", "");
+    }
+}
+
+async function set_forwarder_emails(frm) {
+    if (frm.doc.docstatus !== 0) return;
+
+    // token so a slow earlier call can't overwrite a newer result
+    const token = (frm.__ff_email_token = (frm.__ff_email_token || 0) + 1);
+    const suppliers = [...new Set(get_selected_forwarders(frm))];
+    let emails = "";
+
+    if (suppliers.length) {
+        const r = await frappe.call({
+            method: "frappe.client.get_list",
+            args: {
+                doctype: "Supplier",
+                filters: { name: ["in", suppliers] },
+                fields: ["name", "email_id"],
+                limit_page_length: 0
+            }
+        });
+        if (token !== frm.__ff_email_token) return;
+
+        const email_by_supplier = {};
+        (r.message || []).forEach((d) => {
+            email_by_supplier[d.name] = d.email_id;
+        });
+
+        // keep the selection order, drop blanks, split any multi-email values, remove duplicates
+        const list = suppliers
+            .map((s) => email_by_supplier[s])
+            .filter(Boolean)
+            .flatMap((e) => e.split(","))
+            .map((e) => e.trim())
+            .filter(Boolean);
+
+        emails = [...new Set(list)].join(", ");
+    }
+
+    if ((frm.doc.custom_freight_and_forwarder_email || "") !== emails) {
+        frm.set_value("custom_freight_and_forwarder_email", emails);
+    }
 }
