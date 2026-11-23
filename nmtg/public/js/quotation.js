@@ -1389,6 +1389,10 @@ async function lm_apply_freight(frm, pieces, option, freight) {
 		}
 
 		const wanted = lm_plan_items(pieces, option);
+
+		// a previous "Add Freight" may have added wooden boxes of another option - remove those first
+		await lm_remove_stale_wooden_boxes(frm, new Set(wanted.wooden.map((w) => w.code)));
+
 		for (const l of [...wanted.corrugated, ...wanted.wooden]) {
 			await lm_set_item_row(frm, l.code, l.qty);
 		}
@@ -1397,6 +1401,9 @@ async function lm_apply_freight(frm, pieces, option, freight) {
 
 		frm.refresh_field("items");
 		frm.refresh_field("taxes");
+		if (frm.cscript && frm.cscript.calculate_taxes_and_totals) {
+			frm.cscript.calculate_taxes_and_totals();
+		}
 		frappe.show_alert({ message: __("Boxes and freight added"), indicator: "green" });
 	} catch (e) {
 		console.error("lm_apply_freight", e);
@@ -1404,6 +1411,20 @@ async function lm_apply_freight(frm, pieces, option, freight) {
 	} finally {
 		frappe.dom.unfreeze();
 	}
+}
+
+// remove wooden box rows (Consumables > Packing Material > Wooden box) that are not part of the chosen option
+async function lm_remove_stale_wooden_boxes(frm, keep_codes) {
+	const codes = [...new Set((frm.doc.items || []).map((d) => d.item_code).filter(Boolean))];
+	if (!codes.length) return;
+
+	const filters = Object.assign({}, LM_CONFIG.box_filters, { name: ["in", codes] });
+	delete filters.disabled; // a box that was added earlier may have been disabled since
+	const wooden = new Set((await lm_get_list("Item", filters, ["name"])).map((i) => i.name));
+
+	const stale = (frm.doc.items || []).filter((d) => wooden.has(d.item_code) && !keep_codes.has(d.item_code));
+	// clear_doc takes the row out of frm.doc.items and re-numbers idx
+	stale.forEach((d) => frappe.model.clear_doc(d.doctype, d.name));
 }
 
 // update the qty when the item is already in the table, otherwise add a new row
