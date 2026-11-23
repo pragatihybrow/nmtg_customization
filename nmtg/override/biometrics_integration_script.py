@@ -10,15 +10,13 @@ requests.packages.urllib3.disable_warnings(
 	requests.packages.urllib3.exceptions.InsecureRequestWarning
 )
 
-LOCK_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "biometric_sync.lock")
-LOCK_STALE_SECONDS = 30 * 60  
 
 SERVER_NAME = os.getenv("BIO_DB_SERVER", "27.56.152.136,1433") 
 DATABASE_NAME = os.getenv("BIO_DB_NAME", "Attendance")
 DB_USER = os.getenv("BIO_DB_USER", "sa")
 DB_PASSWORD = os.getenv("BIO_DB_PASSWORD", "admin@12345")
 
-FRAPPE_URL = os.getenv("FRAPPE_URL", "https://nmtg-uat.frappe.cloud/")
+FRAPPE_URL = os.getenv("FRAPPE_URL", "https://nmtg-uat.frappe.cloud")
 API_KEY = os.getenv("FRAPPE_API_KEY", "b92c32306009aae")
 API_SECRET = os.getenv("FRAPPE_API_SECRET", "ee559ea866e75c6")
 
@@ -37,28 +35,37 @@ def frappe_headers():
 	}
 
 
-# def connect():
-# 	connection_string = (
-# 		f"DRIVER={{SQL Server}};SERVER={SERVER_NAME};DATABASE={DATABASE_NAME};"
-# 		f"UID={DB_USER};PWD={DB_PASSWORD};Encrypt=no"
-# 	)
-# 	return pyodbc.connect(connection_string, timeout=30)
+def get_driver():
+	"""Pick whichever SQL Server ODBC driver is installed on this PC."""
+	preferred = [
+		"ODBC Driver 18 for SQL Server",
+		"ODBC Driver 17 for SQL Server",
+		"ODBC Driver 13 for SQL Server",
+		"SQL Server Native Client 11.0",
+		"SQL Server",  # built into every Windows PC
+	]
+	installed = pyodbc.drivers()
+	for d in preferred:
+		if d in installed:
+			return d
+	raise RuntimeError(f"No SQL Server ODBC driver found. Installed drivers: {installed}")
 
 
 def connect():
-    connection_string = (
-        "DRIVER={ODBC Driver 18 for SQL Server};"
-        f"SERVER={SERVER_NAME};"
-        f"DATABASE={DATABASE_NAME};"
-        f"UID={DB_USER};"
-        f"PWD={DB_PASSWORD};"
-        "Encrypt=no;"
-        "TrustServerCertificate=yes;"
-        "Connection Timeout=30;"
-    )
-
-    return pyodbc.connect(connection_string, timeout=30)
-
+	driver = get_driver()
+	print(f"Using ODBC driver: {driver}")
+	connection_string = (
+		f"DRIVER={{{driver}}};"
+		f"SERVER={SERVER_NAME};"
+		f"DATABASE={DATABASE_NAME};"
+		f"UID={DB_USER};"
+		f"PWD={DB_PASSWORD};"
+		"Encrypt=no;"
+	)
+	# This option only exists on the newer "ODBC Driver xx" versions
+	if driver.startswith("ODBC Driver"):
+		connection_string += "TrustServerCertificate=yes;"
+	return pyodbc.connect(connection_string, timeout=30)
 
 
 def list_devices():
@@ -73,35 +80,12 @@ def list_devices():
 
 
 def fetch_and_send_data():
-	if os.path.exists(LOCK_FILE):
-		age = time.time() - os.path.getmtime(LOCK_FILE)
-		if age < LOCK_STALE_SECONDS:
-			print("Another instance appears to be running (lock file exists). Skipping this run.")
-			return
-		print("Stale lock file found. Ignoring it.")
-	try:
-		with open(LOCK_FILE, "w") as f:
-			f.write(str(datetime.now()))
-	except Exception as e:
-		print(f"Could not create lock file, continuing anyway: {e}")
-
-	try:
-		_fetch_and_send_data_inner()
-	finally:
-		if os.path.exists(LOCK_FILE):
-			try:
-				os.remove(LOCK_FILE)
-			except Exception as e:
-				print(f"Could not remove lock file: {e}")
-
-
-def _fetch_and_send_data_inner():
 	print("Trigger --> Fetching and sending data...")
 
 	try:
 		conn = connect()
 		cursor = conn.cursor()
-	except pyodbc.Error as e:
+	except (pyodbc.Error, RuntimeError) as e:
 		print(f"Database connection failed: {e}")
 		return
 
@@ -215,4 +199,3 @@ if __name__ == "__main__":
 		list_devices()
 	else:
 		fetch_and_send_data()
-
