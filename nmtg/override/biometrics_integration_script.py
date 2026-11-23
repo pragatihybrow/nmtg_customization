@@ -16,7 +16,7 @@ LOCK_STALE_SECONDS = 30 * 60
 SERVER_NAME = os.getenv("BIO_DB_SERVER", "27.56.152.136,1433") 
 DATABASE_NAME = os.getenv("BIO_DB_NAME", "Attendance")
 DB_USER = os.getenv("BIO_DB_USER", "sa")
-DB_PASSWORD = os.getenv("BIO_DB_PASSWORD", "Biomax@123")
+DB_PASSWORD = os.getenv("BIO_DB_PASSWORD", "admin@12345")
 
 FRAPPE_URL = os.getenv("FRAPPE_URL", "https://nmtg-uat.frappe.cloud/")
 API_KEY = os.getenv("FRAPPE_API_KEY", "b92c32306009aae")
