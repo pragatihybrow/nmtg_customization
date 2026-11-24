@@ -1,3 +1,6 @@
+const MODE_OF_TRANSPORT_OPTIONS = ["Air", "Road", "Ship"];
+const MODE_OF_TRANSPORT_FIELD = "custom_mode_of_transportation";
+
 frappe.ui.form.on("Quotation", {
     onload: function(frm) {
         if (frm.is_new()) {
@@ -83,6 +86,10 @@ frappe.ui.form.on("Quotation", {
     custom_dealer__liason_on_form_rendered: function (frm) {
         setup_dealer_liason_type(frm);
     },
+  
+    [MODE_OF_TRANSPORT_FIELD](frm) {
+        render_mode_of_transport_checkboxes(frm);
+    },
    
 
     refresh: function (frm) {
@@ -93,6 +100,7 @@ frappe.ui.form.on("Quotation", {
         setup_dealer_liason_query(frm);
         set_valid_till(frm);
         lm_render(frm);
+        render_mode_of_transport_checkboxes(frm);
 
         render_crm_notes(frm);
         render_crm_activities(frm);
@@ -866,15 +874,6 @@ function lm_fit_by_size(piece, box) {
 	return best;
 }
 
-// ---------------------------------------------------------------- packing
-//
-// All items of the quotation are packed TOGETHER: either in ONE wooden box, or in TWO wooden boxes
-// (same or different). Every piece type (item -> its corrugated box) must satisfy BOTH:
-//   size   : space used = sum(qty / how many of that corrugated box fit alone in the wooden box) <= 1
-//            (estimate - each item takes its share of the box, all 6 orientations tried per item)
-//   weight : sum(qty x corrugated box weight) <= wooden box max load (Item.weight_per_unit)
-
-// pieces = [{ item_code, item_name, dims:[w,l,h] mm, qty, unit_kg }]
 function lm_box_info(b, pieces) {
 	const dims = lm_box_dims(b);
 	if (!dims) return null;
@@ -1238,14 +1237,6 @@ async function lm_render(frm) {
 		field.$wrapper.html(`<div class="text-danger small">Could not load logistic mapping. Check the console for details.</div>`);
 	}
 }
-
-// ---------------------------------------------------------------- add freight
-//
-// Button custom_add_freight:
-//   1. user picks one of the packing options shown in custom_logistic_mapping (Best / Option 2 ...)
-//   2. user enters the freight amount
-//   3. the needed corrugated boxes + the wooden box(es) of that option are added to Items,
-//      and the amount is added to Taxes as "Freight and Forwarding Charges" (Actual)
 
 async function lm_get_plan(frm) {
 	const { rows, boxes, stock } = await lm_fetch(frm);
@@ -1623,4 +1614,53 @@ async function set_forwarder_emails(frm) {
     if ((frm.doc.custom_freight_and_forwarder_email || "") !== emails) {
         frm.set_value("custom_freight_and_forwarder_email", emails);
     }
+}
+
+
+
+
+function render_mode_of_transport_checkboxes(frm) {
+    const field = frm.fields_dict[MODE_OF_TRANSPORT_FIELD];
+    if (!field) return;
+
+    field.$wrapper.find(".control-input").hide();
+    field.$wrapper.find(".mode-multiselect").remove();
+
+    const selected = (frm.doc[MODE_OF_TRANSPORT_FIELD] || "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+    const read_only = frm.doc.docstatus === 2 || field.df.read_only;
+
+    const $container = $('<div class="mode-multiselect" style="display:flex; gap:16px; flex-wrap:wrap; padding:4px 0;"></div>');
+
+    MODE_OF_TRANSPORT_OPTIONS.forEach((option) => {
+        const checked = selected.includes(option) ? "checked" : "";
+        const disabled = read_only ? "disabled" : "";
+        const $item = $(`
+            <label style="display:flex; align-items:center; gap:6px; margin:0; font-weight:normal; cursor:pointer;">
+                <input type="checkbox" class="mode-opt" value="${option}" ${checked} ${disabled}>
+                <span>${option}</span>
+            </label>
+        `);
+        $container.append($item);
+    });
+
+    $container.on("change", ".mode-opt", function () {
+        const values = [];
+        $container.find(".mode-opt:checked").each(function () {
+            values.push($(this).val());
+        });
+        const new_value = values.join(", ");
+        if ((frm.doc[MODE_OF_TRANSPORT_FIELD] || "") !== new_value) {
+            // set silently to avoid re-render loop, then mark dirty
+            frm.doc[MODE_OF_TRANSPORT_FIELD] = new_value;
+            frm.dirty();
+            frm.refresh_field(MODE_OF_TRANSPORT_FIELD);
+            field.$wrapper.find(".control-input").hide();
+        }
+    });
+
+    field.$wrapper.append($container);
 }

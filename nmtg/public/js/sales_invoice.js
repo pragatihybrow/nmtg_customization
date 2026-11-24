@@ -1,3 +1,6 @@
+const MODE_OF_TRANSPORT_OPTIONS = ["Air", "Road", "Ship"];
+const MODE_OF_TRANSPORT_FIELD = "custom_mode_of_transportation";
+
 frappe.ui.form.on("Sales Invoice", {
     setup: function (frm) {
         frm.set_query("custom_select_freight_and_forwarder", function () {
@@ -41,6 +44,7 @@ frappe.ui.form.on("Sales Invoice", {
         setup_dealer_liason_type(frm);
         recalculate_all_commissions(frm);
         setup_dealer_liason_query(frm);
+        render_mode_of_transport_checkboxes(frm);
 
         if (frm.doc.quotation_to === "Customer" && frm.doc.party_name && !frm.doc.custom_dealer_name) {
             set_dealer_from_customer(frm);
@@ -84,6 +88,10 @@ frappe.ui.form.on("Sales Invoice", {
 
     custom_dealer__liason_on_form_rendered: function (frm) {
         setup_dealer_liason_type(frm);
+    },
+
+    [MODE_OF_TRANSPORT_FIELD](frm) {
+        render_mode_of_transport_checkboxes(frm);
     },
 
     total: function (frm) {
@@ -1257,4 +1265,62 @@ async function set_forwarder_emails(frm) {
     if ((frm.doc.custom_freight_and_forwarder_email || "") !== emails) {
         frm.set_value("custom_freight_and_forwarder_email", emails);
     }
+}
+
+
+// =============================================================================
+// Mode of Transportation: multi-select checkboxes (stored as "Air, Ship")
+// =============================================================================
+
+function render_mode_of_transport_checkboxes(frm) {
+    const field = frm.fields_dict[MODE_OF_TRANSPORT_FIELD];
+    if (!field) return;
+
+    field.$wrapper.find(".mode-multiselect").remove();
+
+    // Editable only while the form itself allows editing this field
+    const df = field.df;
+    const writable =
+        !df.read_only &&
+        (frm.doc.docstatus === 0 || (frm.doc.docstatus === 1 && df.allow_on_submit));
+
+    // Read-only: leave Frappe's normal read-only display ("Air, Ship") alone
+    if (!writable) return;
+
+    field.$wrapper.find(".control-input").hide();
+
+    const selected = (frm.doc[MODE_OF_TRANSPORT_FIELD] || "")
+        .split(",")
+        .map((v) => v.trim())
+        .filter(Boolean);
+
+    const $container = $('<div class="mode-multiselect" style="display:flex; gap:16px; flex-wrap:wrap; padding:4px 0;"></div>');
+
+    MODE_OF_TRANSPORT_OPTIONS.forEach((option) => {
+        const checked = selected.includes(option) ? "checked" : "";
+        const $item = $(`
+            <label style="display:flex; align-items:center; gap:6px; margin:0; font-weight:normal; cursor:pointer;">
+                <input type="checkbox" class="mode-opt" value="${option}" ${checked}>
+                <span>${option}</span>
+            </label>
+        `);
+        $container.append($item);
+    });
+
+    $container.on("change", ".mode-opt", function () {
+        const values = [];
+        $container.find(".mode-opt:checked").each(function () {
+            values.push($(this).val());
+        });
+        const new_value = values.join(", ");
+        if ((frm.doc[MODE_OF_TRANSPORT_FIELD] || "") !== new_value) {
+            // set directly to avoid a re-render loop, then mark the form dirty
+            frm.doc[MODE_OF_TRANSPORT_FIELD] = new_value;
+            frm.dirty();
+            frm.refresh_field(MODE_OF_TRANSPORT_FIELD);
+            field.$wrapper.find(".control-input").hide();
+        }
+    });
+
+    field.$wrapper.append($container);
 }
