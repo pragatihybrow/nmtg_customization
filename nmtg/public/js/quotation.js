@@ -126,23 +126,23 @@ frappe.ui.form.on("Quotation", {
             return;
         }
 
-        frm.add_custom_button(__("Quotation History"), () => {
-            if (!frm.doc.party_name && !frm.doc.customer_name) {
-                frappe.msgprint(__("Please select a customer first."));
-                return;
-            }
+        // frm.add_custom_button(__("Quotation History"), () => {
+        //     if (!frm.doc.party_name && !frm.doc.customer_name) {
+        //         frappe.msgprint(__("Please select a customer first."));
+        //         return;
+        //     }
 
-            frappe.route_options = {
-                view_by: "Customer Wise",
-                company: frm.doc.company,
-                customer_name: frm.doc.customer_name || frm.doc.party_name
-            };
+        //     frappe.route_options = {
+        //         view_by: "Customer Wise",
+        //         company: frm.doc.company,
+        //         customer_name: frm.doc.customer_name || frm.doc.party_name
+        //     };
 
-            frappe.set_route(
-                "query-report",
-                "Quotation History Item wise & Customer wise"
-            );
-        }, __("View"));
+        //     frappe.set_route(
+        //         "query-report",
+        //         "Quotation History Item wise & Customer wise"
+        //     );
+        // }, __("View"));
 
         frm.add_custom_button(
             __("Item-wise Sales History"),
@@ -163,6 +163,8 @@ frappe.ui.form.on("Quotation", {
             () => open_stock_balance_for_items(frm),
             __("View")
         );
+
+        add_item_wise_quotation_buttons(frm);
 
         show_pending_quotation_message(frm);
     },
@@ -1663,4 +1665,49 @@ function render_mode_of_transport_checkboxes(frm) {
     });
 
     field.$wrapper.append($container);
+}
+
+function add_item_wise_quotation_buttons(frm) {
+    const REPORT_NAME = "Item Wise Quotation Report";
+
+    // Unique, non-empty item codes from the quotation's items table
+    function get_item_codes() {
+        const codes = (frm.doc.items || [])
+            .map((row) => row.item_code)
+            .filter((code) => !!code);
+        return Array.from(new Set(codes));
+    }
+
+    function open_report(with_customer) {
+        const item_codes = get_item_codes();
+        if (!item_codes.length) {
+            frappe.msgprint(__("Please add at least one item first."));
+            return;
+        }
+
+        const route_options = { item_code: item_codes };
+
+        if (with_customer) {
+            if (frm.doc.quotation_to !== "Customer" || !frm.doc.party_name) {
+                frappe.msgprint(__("Please select a customer first."));
+                return;
+            }
+            route_options.customer = frm.doc.party_name;
+        }
+
+        frappe.route_options = route_options;
+        frappe.set_route("query-report", REPORT_NAME);
+    }
+
+    frm.add_custom_button(
+        __("Item Wise - All Customers"),
+        () => open_report(false),
+        __("View")
+    );
+
+    frm.add_custom_button(
+        __("Item Wise - This Customer"),
+        () => open_report(true),
+        __("View")
+    );
 }
