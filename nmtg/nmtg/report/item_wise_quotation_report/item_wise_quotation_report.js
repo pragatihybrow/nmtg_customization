@@ -38,14 +38,29 @@ frappe.query_reports["Item Wise Quotation Report"] = {
         },
     ],
 
+    // Rows are fixed height in the grid; make them tall enough for the multi-line Item Details
+    get_datatable_options: function (options) {
+        return Object.assign(options, { cellHeight: 130 });
+    },
+
     formatter: function (value, row, column, data, default_formatter) {
         value = default_formatter(value, row, column, data);
 
-        // Keep the multi-line item details readable in the grid
         if (column.fieldname === "item_details" && data && data.item_details) {
-            var lines = frappe.utils.escape_html(data.item_details).split("\n");
-            lines[0] = "<b>" + lines[0] + "</b>";
-            return "<div style='white-space: normal; line-height: 1.3;'>" + lines.join("<br>") + "</div>";
+            var label_re = /^(SIZE|Description|Customer Item Code|Drg No\.?)\s*:/i;
+            var lines = data.item_details.split("\n").map(function (line, idx) {
+                var text = frappe.utils.escape_html(line);
+                if (idx === 0) return "<b>" + text + "</b>";
+                var m = line.match(label_re);
+                if (m) {
+                    var label = frappe.utils.escape_html(line.slice(0, m[0].length));
+                    var rest = frappe.utils.escape_html(line.slice(m[0].length));
+                    return "<span style='color:red'>" + label + "</span>" + rest;
+                }
+                return text;
+            });
+            return "<div style='white-space: normal; line-height: 1.3; overflow: visible;'>" +
+                lines.join("<br>") + "</div>";
         }
         return value;
     },

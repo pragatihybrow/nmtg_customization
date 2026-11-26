@@ -1,3 +1,6 @@
+import html
+import re
+
 import frappe
 from frappe import _
 from frappe.utils import flt, strip_html
@@ -6,6 +9,17 @@ from frappe.utils import flt, strip_html
 def execute(filters=None):
     filters = frappe._dict(filters or {})
     return get_columns(), get_data(filters)
+
+
+def html_to_lines(value):
+    """Convert an HTML description to plain text, keeping each line break."""
+    value = value or ""
+    value = re.sub(r"(?i)<br\s*/?>", "\n", value)
+    value = re.sub(r"(?i)</(p|div|tr|li|h[1-6])>", "\n", value)
+    value = re.sub(r"(?i)</t[dh]>", " ", value)
+    value = html.unescape(strip_html(value)).replace("\xa0", " ")
+    lines = [re.sub(r"[ \t]+", " ", line).strip() for line in value.splitlines()]
+    return "\n".join(line for line in lines if line)
 
 
 def get_columns():
@@ -69,6 +83,17 @@ def get_data(filters):
             qi.item_code,
             qi.item_name,
             qi.description,
+            qi.custom_customer_code,
+            i.custom_size,
+            i.custom_drg_no,
+            i.description AS item_description,
+            (
+                SELECT GROUP_CONCAT(DISTINCT icd.ref_code SEPARATOR ', ')
+                FROM `tabItem Customer Detail` icd
+                WHERE icd.parent = qi.item_code
+                    AND icd.parenttype = 'Item'
+                    AND icd.customer_name = q.party_name
+            ) AS customer_item_code,
             qi.qty,
             qi.price_list_rate,
             qi.discount_percentage,
@@ -80,6 +105,7 @@ def get_data(filters):
             qi.amount
         FROM `tabQuotation` q
         INNER JOIN `tabQuotation Item` qi ON qi.parent = q.name
+        LEFT JOIN `tabItem` i ON i.name = qi.item_code
         WHERE {conditions}
         ORDER BY qi.item_code, q.transaction_date DESC, q.name DESC
         """.format(conditions=" AND ".join(conditions)),
@@ -107,11 +133,35 @@ def get_data(filters):
         elif discount_amount and not discount_percentage and rate_with_margin:
             discount_percentage = discount_amount / rate_with_margin * 100
 
-        # Item Details: "CODE - NAME" followed by the description lines
-        description = strip_html(r.description or "").strip()
-        item_details = "{0} - {1}".format(r.item_code, r.item_name or "")
-        if description:
-            item_details += "\n" + description
+        # Item Details:
+        #   CODE - NAME
+        #   SIZE: ...
+        #   Description: ... (quotation line description, else the Item master description)
+        #   Customer Item Code: ...
+        #   Drg No.: ...
+        item_name = (r.item_name or "").strip()
+        lines = ["{0} - {1}".format(r.item_code, item_name)]
+
+        size = (r.custom_size or "").strip()
+        if size:
+            lines.append("SIZE: " + size)
+
+        description = html_to_lines(r.description) or html_to_lines(r.item_description)
+        # Item description defaults to the item name - don't repeat it
+        if description and description.strip().lower() not in (item_name.lower(), (r.item_code or "").lower()):
+            desc_lines = description.split("\n")
+            lines.append("Description: " + desc_lines[0])
+            lines.extend(desc_lines[1:])
+
+        customer_item_code = (r.custom_customer_code or "").strip() or (r.customer_item_code or "").strip()
+        if customer_item_code:
+            lines.append("Customer Item Code: " + customer_item_code)
+
+        drg_no = (r.custom_drg_no or "").strip()
+        if drg_no:
+            lines.append("Drg No.: " + drg_no)
+
+        item_details = "\n".join(lines)
 
         data.append({
             "item_details": item_details,

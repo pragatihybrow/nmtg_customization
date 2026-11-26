@@ -1666,7 +1666,6 @@ function render_mode_of_transport_checkboxes(frm) {
 
     field.$wrapper.append($container);
 }
-
 function add_item_wise_quotation_buttons(frm) {
     const REPORT_NAME = "Item Wise Quotation Report";
 
@@ -1676,6 +1675,41 @@ function add_item_wise_quotation_buttons(frm) {
             .map((row) => row.item_code)
             .filter((code) => !!code);
         return Array.from(new Set(codes));
+    }
+
+    function set_filters_read_only(report, read_only) {
+        (report.filters || []).forEach((f) => {
+            f.df.read_only = read_only ? 1 : 0;
+            f.refresh();
+        });
+    }
+
+    // Wait for the report to finish loading its filters, lock them,
+    // and unlock them again when the user leaves this report.
+    function lock_report_filters() {
+        let tries = 0;
+
+        const timer = setInterval(() => {
+            tries++;
+            const report = frappe.query_report;
+
+            if (report && report.report_name === REPORT_NAME && (report.filters || []).length) {
+                clearInterval(timer);
+                set_filters_read_only(report, true);
+
+                const on_route_change = () => {
+                    const route = frappe.get_route();
+                    if (route[0] === "query-report" && route[1] === REPORT_NAME) return;
+
+                    set_filters_read_only(report, false);
+                    frappe.router.off("change", on_route_change);
+                };
+                frappe.router.on("change", on_route_change);
+                return;
+            }
+
+            if (tries > 50) clearInterval(timer); // give up after ~10 seconds
+        }, 200);
     }
 
     function open_report(with_customer) {
@@ -1697,6 +1731,7 @@ function add_item_wise_quotation_buttons(frm) {
 
         frappe.route_options = route_options;
         frappe.set_route("query-report", REPORT_NAME);
+        lock_report_filters();
     }
 
     frm.add_custom_button(
